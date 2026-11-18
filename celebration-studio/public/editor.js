@@ -5,6 +5,8 @@ import {
   state,
   api,
   options,
+  minuteTime,
+  choose,
   eventOf,
   designOf,
   designsFor,
@@ -15,6 +17,8 @@ import {
 } from './shared.js';
 import { chapter, wireChapter, personal } from './chapters.js';
 import { preview, printCard, keepsake } from './player.js';
+// Draft data is JSON. Original blobs live separately; older webviews need no structuredClone.
+const cloneCard = (d) => JSON.parse(JSON.stringify(d));
 const num = (n) => String(n).padStart(2, '0');
 const notePage = (e) => e.pages.findIndex((p) => p.blocks.includes('message'));
 const accept = { photo: 'image/jpeg,image/png,image/webp', video: 'video/mp4,video/webm' };
@@ -28,7 +32,7 @@ export class Editor {
     this.d.messageAlt ||= '';
     this.e = eventOf(this.d.occasion);
     this.account = account;
-    this.desk = state.pages?.workspace;
+    this.desk = state.pages?.workspace(record);
     this.savedText = this.desk ? 'Saved on this device' : 'Saved to your account';
     this.queue = Promise.resolve();
     this.seq = 0;
@@ -86,7 +90,7 @@ export class Editor {
     root.innerHTML = `<div class="wrap editor program-editor" data-studio="${e.id}" style="--tint:${e.colors[0]};--tint-paper:${e.colors[1]}"><div class="crumb"><a href="#/">Occasions</a> / <a href="#/studio/${e.id}">${h(e.name)} studio</a> / Editor</div><div class="page-head"><div><span class="eyeline"><i></i> THE PERSONALIZATION ROOM &nbsp; / &nbsp; ${h(e.hi)}</span><h1>${h(e.name)} <em>studio.</em></h1><p>${h(e.pages[0].intro[1])} &nbsp;·&nbsp; Write the six pages of your invitation.</p></div><span id="save-state" role="status" class="status-pill"></span></div><div class="editor-grid"><section class="panel form-panel"><div class="tabbar" role="group" aria-label="Editor sections">${['Six pages', 'Design & media', 'When & where'].map((v, i) => `<button data-tab="${i}" aria-pressed="${i === 0}">${v}</button>`).join('')}</div><fieldset id="editor-fields"><div class="form-section" data-section="0"><small class="eyeline">01 / THE MANUSCRIPT</small><h2>Write your chapters</h2><div class="writing-desk">${this.select('Invitation language · भाषा', 'language', { hi: 'हिन्दी', en: 'English' })}<label class="field">Chapter to edit · पृष्ठ चुनें<select data-edit-page>${e.pages.map((p, i) => `<option value="${i}">${num(i + 1)} · ${h(local(p.title, d.language))}</option>`).join('')}</select></label></div>${e.pages.map((p, i) => this.pane(p, i)).join('')}<div class="editor-turns"><button data-step="-1">← Previous page</button><button data-step="1">Next page →</button></div></div>
  <div class="form-section" data-section="1" hidden><small class="eyeline">02 / STATIONERY & ALBUM</small><h2>Design & media</h2>${this.select(h(e.name) + ' edition', 'template', Object.fromEntries(designs.map((t) => [t.code, t.name])))}<div class="two">${this.select('Color story', 'palette', c.palettes)}${this.select('Lettering', 'font', c.fonts)}</div><div class="two">${this.select('Cinematic opening', 'opening', c.openings)}${this.select('Background music', 'music', c.music)}</div>${['photo', 'video'].map((k) => `<div class="upload-field"><label class="field">${ic(k === 'photo' ? 'image' : 'camera', 14)} ${k === 'photo' ? 'Cover portrait · JPG, PNG, WebP · 4 MB' : 'Featured film · MP4, WebM · 12 MB'}<input type="file" data-file="${k}" accept="${accept[k]}"></label><button class="text-link" data-remove="${k}" ${d[k] ? '' : 'hidden'}>Remove ${k}</button></div>`).join('')}<div class="album-editor"><span class="eyeline">THE MEMORY ALBUM</span><h3>Gallery pages</h3><p class="fine">Your cover photo and film also appear here. Add up to 8 more photos or short films, in the order guests should see them.</p><div id="album-list"></div><label class="field">Add memories · तस्वीरें या वीडियो<input type="file" multiple data-file="gallery" accept="${accept.photo},${accept.video}"></label></div>${this.desk ? this.desk.mediaControls() : '<p class="fine">Uploads stay private until you publish.</p>'}</div>
  <div class="form-section" data-section="2" hidden><small class="eyeline">03 / HOST’S NOTES</small><h2>When & where</h2><div class="two">${this.field('Date · तारीख', 'date', 'date')}${this.field('Time · IST (UTC+05:30)', 'time', 'time')}</div>${this.field('Venue · स्थान', 'venue', 'text', 'maxlength="240" placeholder="Venue name and address"')}${this.field('Google Maps link · optional', 'map', 'url', 'maxlength="500" placeholder="https://maps.app.goo.gl/…"')}${this.text('Schedule · one line per activity', 'schedule', 650, 3, '18:00 · Welcome\n19:30 · Dinner')}${this.toggle('Show a live countdown on the cover', 'countdown')}<p class="fine">RSVP is controlled on page 06. Venue and schedule appear in the chapters for this occasion.</p></div></fieldset>
- <p class="publish-note">${ic('lock', 12)} ${this.desk ? 'Drafts stay in this browser. Anyone with a guest link can read and forward that copy. After editing, share a new link; old copies cannot be changed or revoked. A printed QR opens the last shared copy.' : 'Drafts are private. Publishing shares your invitation, venue and attached files with anyone who has its link. Print/download uses this draft; a shared QR always opens the last published version.'}</p><div class="form-actions"><button class="btn plain" data-do="save">${ic('lock', 14)} Save draft</button><button class="btn primary" data-do="publish">${ic('letter')} ${this.desk ? 'Create guest link' : this.r.published ? 'Update live invitation' : 'Publish invitation'}</button></div><div class="save-error" role="alert"></div></section>
+ <p class="publish-note">${ic('lock', 12)} ${this.desk ? 'Drafts stay in this browser. Anyone with a guest link can read and forward that copy. After editing, share a new link; old copies cannot be changed or revoked. A printed QR opens the last shared copy.' : 'Drafts are private. Publishing shares your invitation, venue and attached files with anyone who has its link. Print/download uses this draft; a shared QR always opens the last published version.'}</p><div class="form-actions"><button class="btn plain" data-do="save">${ic('lock', 14)} Save draft</button><button class="btn primary" data-do="publish">${ic('letter')} ${this.desk ? 'Create guest link · लिंक बनाएँ' : this.r.published ? 'Update live invitation' : 'Publish invitation'}</button></div><div class="save-error" role="alert"></div></section>
  <aside class="panel preview-col"><div class="preview-top"><span><i class="dot"></i> LIVE PAGE PROOF</span><small id="design-caption"></small></div><div class="preview-frame" id="live-poster"></div><div class="proof-nav"><button data-step="-1" aria-label="Previous proof page">←</button><span id="proof-count"></span><button data-step="1" aria-label="Next proof page">→</button></div><div class="preview-foot"><button class="btn plain" data-do="play">${ic('play', 14)} Play invitation</button><button class="text-link" data-do="pdf">Print / PDF</button><button class="text-link" data-do="card">${ic('download', 14)} Card</button></div></aside></div></div>`;
     this.el = root.firstElementChild;
     this.$ = (s) => $(s, this.el);
@@ -142,10 +146,18 @@ export class Editor {
         if (fromChange) this.page(Number(el.value));
         return;
       }
-      if (fromChange !== el.matches('select,[type="checkbox"],[type="time"],[type="date"]')) return;
+      // Some keyboards/autofill commit text with just `change`. Handle either event;
+      // equality checks below avoid a second save when both are delivered.
+      el.setCustomValidity?.('');
       if (k.key) {
         const key = k.key,
-          val = el.type === 'checkbox' ? el.checked : el.value;
+          val =
+            el.type === 'checkbox'
+              ? el.checked
+              : el.type === 'time'
+                ? minuteTime(el.value)
+                : el.value;
+        if (d[key] === val) return;
         if (key === 'language' && d.language !== val) {
           const old = d.message;
           d.message = personal(d, val);
@@ -161,9 +173,15 @@ export class Editor {
             this.$(`[data-key="${key}"]`).value = d[key];
           }
         }
-      } else if (k.chapterField) d.fields[k.chapterField] = el.value;
-      else if (k.caption) d.gallery.find((m) => m.id === k.caption).caption = el.value;
-      else return;
+      } else if (k.chapterField) {
+        const val = el.type === 'time' ? minuteTime(el.value) : el.value;
+        if (val === (d.fields[k.chapterField] || '')) return;
+        d.fields[k.chapterField] = val;
+      } else if (k.caption) {
+        const m = d.gallery.find((m) => m.id === k.caption);
+        if (m.caption === el.value) return;
+        m.caption = el.value;
+      } else return;
       this.changed();
     };
     this.el.oninput = change;
@@ -269,14 +287,16 @@ export class Editor {
         return;
       }
       const n = this.seq,
-        body = { data: structuredClone(this.d), version: this.r.version };
+        body = { data: cloneCard(this.d), version: this.r.version };
       this.status('Saving…');
       const r = this.desk
-        ? await this.desk.save(this.r.id, body)
+        ? await this.desk.save(body, this.r.slug)
         : this.r.id
           ? await api('invitations/' + this.r.id, { method: 'PUT', body })
           : await api('invitations', { method: 'POST', body });
-      Object.assign(this.r, { id: r.id, slug: r.slug, version: r.version, published: r.published });
+      Object.assign(this.r, { id: r.id, version: r.version });
+      // A previous autosave may finish after a new guest URL has already been displayed.
+      if (!this.desk) Object.assign(this.r, { slug: r.slug, published: r.published });
       this.saved = n;
       if (this.active && location.hash.startsWith('#/new'))
         history.replaceState(null, '', '#/edit/' + r.id);
@@ -291,24 +311,61 @@ export class Editor {
       await this.readyMedia();
       if (!this.active) return;
       const slug = this.r.published ? this.r.slug : '';
-      if (action === 'play') return preview(structuredClone(this.d), this.media);
+      if (action === 'play') return preview(cloneCard(this.d), this.media);
       if (action === 'pdf') return printCard(this.d, this.media, slug);
       return keepsake(this.d, this.media, slug);
     }
-    this.account(async () => {
+    return this.account(async () => {
       if (action === 'save') {
         await this.save();
         toast(this.savedText + '.');
       } else await this.publish();
     });
   }
+  completeShare(slug) {
+    if (!this.active) return;
+    const t = (en, hi) => choose(this.d.language, en, hi);
+    Object.assign(this.r, { slug, published: true });
+    this.seq++; // Persist even if only the accepted link changed.
+    const m = showLink({ slug, fromEditor: true }, this.d.language);
+    const note = $('[data-link-storage]', m);
+    this.$('.save-error').textContent = '';
+    // Showing/copying this URL must never wait on a slow, full or blocked device DB.
+    this.save()
+      .then(() => {
+        note.textContent = t(
+          'Draft and guest link saved on this device.',
+          'ड्राफ़्ट और लिंक इस डिवाइस पर सेव हो गए।',
+        );
+      })
+      .catch((e) => {
+        note.textContent = t(
+          'Your link works. The draft and link could not be saved on this device. Copy the link before leaving.',
+          'लिंक काम करता है। इस डिवाइस पर ड्राफ़्ट और लिंक सेव नहीं हुए। पेज बंद करने से पहले लिंक कॉपी करें।',
+        );
+        if (this.active && this.r.slug === slug) {
+          this.status(t('Link ready · not saved', 'लिंक तैयार है · सेव नहीं हुआ'));
+          this.$('.save-error').textContent = note.textContent + ' ' + message(e);
+        }
+      });
+  }
+  invalid(control, text) {
+    control.setCustomValidity(text);
+    control.focus();
+    control.reportValidity?.();
+    throw Error(text);
+  }
   async publish() {
     const d = this.d;
     if (!d.person.trim() || !d.message.trim()) {
       this.tab(0);
       this.page(d.person.trim() ? notePage(this.e) : 0);
-      this.$(`[data-key="${d.person.trim() ? 'message' : 'person'}"]`).focus();
-      throw Error('नाम और संदेश भरें, फिर प्रकाशित करें।');
+      this.invalid(
+        this.$(`[data-key="${d.person.trim() ? 'message' : 'person'}"]`),
+        d.person.trim()
+          ? 'Add an invitation message · पहले निमंत्रण संदेश लिखें।'
+          : 'Add the name on the invitation · पहले निमंत्रण पर नाम लिखें।',
+      );
     }
     if (this.desk && d.rsvp) {
       try {
@@ -316,29 +373,45 @@ export class Editor {
       } catch (err) {
         this.tab(0);
         this.page(this.e.pages.findIndex((p) => p.blocks.includes('reply')));
-        this.$('[data-key="phone"]').focus();
-        throw err;
+        this.invalid(
+          this.$(
+            `[data-key="${d.email && !this.$('[data-key="email"]').validity.valid ? 'email' : 'phone'}"]`,
+          ),
+          message(err),
+        );
       }
     }
     const btn = this.$('[data-do="publish"]'),
       fields = this.$('#editor-fields');
     fields.disabled = btn.disabled = true;
     try {
+      if (this.desk) {
+        btn.textContent = 'Preparing link… · लिंक बन रहा है…';
+        const { slug, omitted } = await this.desk.prepareLink(cloneCard(d));
+        if (!this.active) return;
+        if (omitted.length) {
+          this.desk.offerCompact(
+            omitted,
+            d.language,
+            () => this.completeShare(slug),
+            () => this.action('card').catch((e) => this.err(e)),
+          );
+        } else this.completeShare(slug);
+        return;
+      }
       await this.save();
-      const r = this.desk
-        ? await this.desk.publish(this.r)
-        : await api(`invitations/${this.r.id}/publish`, {
-            method: 'POST',
-            body: { version: this.r.version },
-          });
+      const r = await api(`invitations/${this.r.id}/publish`, {
+        method: 'POST',
+        body: { version: this.r.version },
+      });
       Object.assign(this.r, { slug: r.slug, published: true, version: r.version });
       if (this.active) {
-        btn.innerHTML =
-          ic('letter') + (this.desk ? ' Create guest link' : ' Update live invitation');
+        btn.innerHTML = ic('letter') + ' Update live invitation';
         showLink(this.r);
       }
     } finally {
       fields.disabled = btn.disabled = false;
+      if (this.desk) btn.innerHTML = ic('letter') + ' Create guest link · लिंक बनाएँ';
     }
   }
   ids() {
@@ -347,13 +420,14 @@ export class Editor {
   forget(id) {
     if (this.assets.get(id)?.startsWith('blob:')) URL.revokeObjectURL(this.assets.get(id));
     this.assets.delete(id);
+    this.desk?.forget(id);
   }
   fetchMedia(id) {
     if (!id || this.assets.has(id)) return Promise.resolve();
     if (this.pending.has(id)) return this.pending.get(id);
     const p = (
       this.desk
-        ? this.desk.getMedia(this.r.id, id)
+        ? this.desk.getMedia(id)
         : api(`invitations/${this.r.id}/media/${id}`, { blob: true })
     )
       .then((blob) => {
@@ -380,7 +454,7 @@ export class Editor {
       throw Error('Choose at most eight additional memories.');
     this.uploading = true;
     try {
-      await this.save();
+      if (!this.desk) await this.save();
       for (const file of files) {
         if (!this.active) break;
         const kind =
@@ -390,7 +464,7 @@ export class Editor {
           throw Error('That ' + kind + ' is over the size limit.');
         this.status((this.desk ? 'Adding ' : 'Uploading ') + kind + '…');
         let m;
-        if (this.desk) m = await this.desk.addMedia(this.r.id, kind, file);
+        if (this.desk) m = this.desk.addMedia(kind, file);
         else {
           const body = new FormData();
           body.append('file', file);
@@ -402,8 +476,11 @@ export class Editor {
           this.forget(this.d[slot]);
           this.d[slot] = m.id;
         }
-        this.seq++;
-        await this.save();
+        if (this.desk) this.changed();
+        else {
+          this.seq++;
+          await this.save();
+        }
         this.paintGallery();
         await this.fetchMedia(m.id);
       }

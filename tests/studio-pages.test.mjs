@@ -129,3 +129,71 @@ test('RSVP requires an intentional destination; slip identifies the invitation a
   ])
     assert.throws(() => readReply([...r.slice(0, 4), answer, seats, '']));
 });
+
+test('minute-only mobile times (including in existing drafts) serialize without changing the v1 format', () => {
+  const d = {
+    ...startCard(designOf('birthday-signature')),
+    person: 'Pari',
+    time: '18:30:00.000',
+    fields: { cakeTime: '19:15:00' },
+  };
+  const r = readInvite(unpack(makeInvite(id, d, {})));
+  assert.equal(r.data.time, '18:30');
+  assert.equal(r.data.fields.cakeTime, '19:15');
+  for (const invalid of ['24:00:00', '11:30:47'])
+    assert.throws(() => makeInvite(id, { ...d, time: invalid }, {}));
+});
+test('a compact alternative lists omitted media, keeps linked films/captions and never changes the editable draft', async () => {
+  const { prepareLink } = await import('../celebration-studio/public/pages/portable.js');
+  const d = {
+      ...card(),
+      video: 'local-big',
+      photo: 'cover',
+      gallery: [{ id: 'public-film', kind: 'video', caption: 'Blessings' }],
+    },
+    original = structuredClone(d);
+  const urls = {
+    cover: 'https://media.example.org/photo.jpg',
+    'public-film': 'https://media.example.org/film.webm',
+    'local-big': new Blob([new Uint8Array(4000)], { type: 'video/webm' }),
+  };
+  const result = await prepareLink(id, d, (key) => urls[key]);
+  const r = readInvite(unpack(result.slug));
+  assert.equal(result.omitted.length, 1);
+  assert.match(result.omitted[0], /Featured film/);
+  assert.equal(r.data.video, '');
+  assert.equal(r.media.photo, urls.cover);
+  assert.equal(r.media.gallery.g0, urls['public-film']);
+  assert.equal(r.data.gallery[0].caption, 'Blessings');
+  assert.deepEqual(d, original);
+  await assert.rejects(() => prepareLink(id, { ...d, rsvp: true }, (key) => urls[key]), /page 06/);
+});
+
+test('previously delivered v1 guest links still decode', () => {
+  const issued =
+    'v1.eNqLVip1LnD0iIzwN8hPdTfLSSxW0lFKyiwqyUhJrNQtzkzPSywpLUpV0qlWKkgtKs7PU7JSerBkzoMlKx4s7X2wZN2DJcseLNkP5Co8WDL1wZJ9QAoouQ0suQJoVG5pcWYyUE9efl6qUm0sAHF7M80';
+  assert.equal(readInvite(unpack(issued)).data.person, 'जन्मदिन का जश्न');
+});
+test('over-budget attachments yield an explicitly labelled text link, not truncated invitation text', async () => {
+  const { prepareLink } = await import('../celebration-studio/public/pages/portable.js');
+  const { randomBytes } = await import('node:crypto');
+  const d = {
+    ...card(),
+    message: 'नमस्ते 🙏',
+    gallery: Array.from({ length: 8 }, (_, i) => ({
+      id: 'm' + i,
+      kind: 'photo',
+      caption: 'Album memory ' + i,
+    })),
+  };
+  const result = await prepareLink(
+    id,
+    d,
+    () => 'https://media.example.org/' + randomBytes(1060).toString('base64url'),
+  );
+  assert.equal(result.omitted.length, 8);
+  assert.equal(result.omitted[7], 'Album 8 · Album memory 7');
+  const { data } = readInvite(unpack(result.slug));
+  assert.equal(data.message, d.message);
+  assert.deepEqual(data.gallery, []);
+});

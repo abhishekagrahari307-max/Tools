@@ -1,20 +1,23 @@
 // V1 is a portable snapshot, not a lookup key. Keep the v1 catalog/decoder for old links.
 import { zlibSync, unzlibSync, qrcode } from './vendor/codecs.js';
-import { state, initial, eventOf, designOf, mapLink } from '../shared.js';
+import { state, initial, eventOf, designOf, mapLink, minuteTime } from '../shared.js';
 
 const base = new URL('../../', import.meta.url).href;
 export const MAX_LINK = 8000;
+export const MAX_QR = 2953;
 const MAX_RAW = 64 * 1024;
 export const publicURL = (token) => base + '#/i/' + token;
 export const replyURL = (token) => base + '#/reply/' + token;
 const b64 = (bytes) =>
   btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
     .replace(/=+$/, '');
 export const newID = () => b64(crypto.getRandomValues(new Uint8Array(12)));
 const validID = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{16}$/.test(v);
 const object = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+export class LinkSizeError extends Error {}
 function need(
   ok,
   text = 'This link is incomplete or invalid. Ask the sender to copy the whole link again.',
@@ -23,10 +26,10 @@ function need(
 }
 export function pack(value) {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
-  need(
-    bytes.length <= MAX_RAW,
-    'This invitation is too large for a link. Use the downloadable Card instead.',
-  );
+  if (bytes.length > MAX_RAW)
+    throw new LinkSizeError(
+      'This invitation is too large for a link. Shorten the text or use the downloadable Card.',
+    );
   return 'v1.' + b64(zlibSync(bytes, { level: 9 }));
 }
 export function unpack(token) {
@@ -35,7 +38,7 @@ export function unpack(token) {
       typeof token === 'string' && token.length <= MAX_LINK && /^v1\.[A-Za-z0-9_-]+$/.test(token),
     );
     const zipped = Uint8Array.from(
-      atob(token.slice(3).replaceAll('-', '+').replaceAll('_', '/')),
+      atob(token.slice(3).replace(/-/g, '+').replace(/_/g, '/')),
       (c) => c.charCodeAt(0),
     );
     need(zipped.length >= 8);
@@ -135,10 +138,18 @@ export function makeInvite(id, d, media) {
     delta = {},
     contact = contacts(d);
   for (const k of [...Object.keys(limits), ...Object.keys(enums), ...flags, 'language']) {
-    const v = Object.hasOwn(contact, k) ? contact[k] : d[k];
+    const v = owns(contact, k) ? contact[k] : k === 'time' ? minuteTime(d.time) : d[k];
     if (v !== seed[k]) delta[k] = v;
   }
-  const fields = Object.fromEntries(Object.entries(d.fields).filter(([, v]) => v));
+  const specs = eventOf(d.occasion).pages.flatMap((p) => p.fields);
+  const fields = Object.fromEntries(
+    Object.entries(d.fields)
+      .filter(([, v]) => v)
+      .map(([key, v]) => [
+        key,
+        specs.some((s) => s.key === key && s.kind === 'time') ? minuteTime(v) : v,
+      ]),
+  );
   if (Object.keys(fields).length) delta.fields = fields;
   if (d.photo) delta.photo = media.photo;
   if (d.video) delta.video = media.video;
@@ -147,10 +158,10 @@ export function makeInvite(id, d, media) {
   const data = [id, d.template, delta];
   readInvite(data);
   const token = pack(data);
-  need(
-    publicURL(token).length <= MAX_LINK,
-    'The complete invitation exceeds the 8,000-character link limit. Use direct HTTPS media links, shorten the text, or send the full downloaded Card.',
-  );
+  if (publicURL(token).length > MAX_LINK)
+    throw new LinkSizeError(
+      'This invitation exceeds the 8,000-character link limit. Shorten the text or send the full downloaded Card.',
+    );
   return token;
 }
 export function readInvite(raw) {
@@ -162,9 +173,13 @@ export function readInvite(raw) {
     e = eventOf(t.occasion),
     media = { photo: '', video: '', gallery: {} };
   for (const [k, v] of Object.entries(delta)) {
-    if (Object.hasOwn(limits, k)) need(short(v, limits[k]));
-    else if (Object.hasOwn(enums, k))
-      need(typeof v === 'string' && Object.hasOwn(state.catalog[enums[k]], v));
+    if (k === 'time')
+      need(
+        typeof v === 'string' && (!v || time(v)),
+        'Choose an event time in hours and minutes (HH:mm).',
+      );
+    else if (owns(limits, k)) need(short(v, limits[k]));
+    else if (owns(enums, k)) need(typeof v === 'string' && owns(state.catalog[enums[k]], v));
     else if (flags.includes(k)) need(typeof v === 'boolean');
     else if (k === 'language') need(['hi', 'en'].includes(v));
     else if (k === 'fields') {
@@ -204,7 +219,6 @@ export function readInvite(raw) {
         new Date(d.date).toISOString().startsWith(d.date + 'T')),
     'Choose a valid date.',
   );
-  need(!d.time || time(d.time), 'Choose a valid time.');
   need(
     !d.map || mapLink({ ...d, venue: '' }),
     'Use an HTTPS Google Maps link or leave the link blank.',
@@ -236,21 +250,28 @@ export function qrURL(token) {
   if (!token) return '';
   if (token === cachedToken) return cachedQR;
   const url = publicURL(token);
-  if (url.length > 2953) return '';
-  const code = qrcode(0, url.length <= 2331 ? 'M' : 'L');
-  code.addData(url, 'Byte');
-  code.make();
-  const n = code.getModuleCount(),
-    scale = 6,
-    c = document.createElement('canvas');
-  c.width = c.height = (n + 8) * scale;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.fillStyle = '#221a18';
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++)
-      if (code.isDark(y, x)) ctx.fillRect((x + 4) * scale, (y + 4) * scale, scale, scale);
-  cachedToken = token;
-  return (cachedQR = c.toDataURL('image/png'));
+  if (url.length > MAX_QR) return '';
+  try {
+    const code = qrcode(0, url.length <= 2331 ? 'M' : 'L');
+    code.addData(url, 'Byte');
+    code.make();
+    const n = code.getModuleCount(),
+      scale = 6,
+      c = document.createElement('canvas');
+    c.width = c.height = (n + 8) * scale;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#221a18';
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++)
+        if (code.isDark(y, x)) ctx.fillRect((x + 4) * scale, (y + 4) * scale, scale, scale);
+    const png = c.toDataURL('image/png');
+    if (!png.startsWith('data:image/png;base64,')) return '';
+    cachedToken = token;
+    return (cachedQR = png);
+  } catch {
+    // Canvas/readback may be unavailable in a privacy browser. The URL still works.
+    return '';
+  }
 }

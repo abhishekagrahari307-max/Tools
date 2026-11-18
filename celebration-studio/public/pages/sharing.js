@@ -2,6 +2,7 @@ import { $, h, ic, choose, copy, modal, message } from '../shared.js';
 import {
   publicURL,
   qrURL,
+  MAX_QR,
   replyURL,
   newID,
   pack,
@@ -10,21 +11,67 @@ import {
   httpsMedia,
 } from './links.js';
 
-export function showLink({ slug }, lang = 'en') {
+export function showLink({ slug, fromEditor = false }, lang = 'en') {
   const t = (en, hi) => choose(lang, en, hi),
-    url = publicURL(slug),
-    qr = qrURL(slug);
+    url = publicURL(slug);
   const el = modal(
     t('Your guest link is ready.', 'आपका निमंत्रण लिंक तैयार है।'),
     `
     <p>${t('Send this copy to your guests. It opens all six pages without a login.', 'यह कॉपी मेहमानों को भेजें। वे बिना लॉगिन छहों पन्ने खोल सकते हैं।')}</p>
     <label class="field">${t('Full guest link', 'पूरा निमंत्रण लिंक')}<input id="share-url" readonly value="${h(url)}"></label>
     <div class="actions"><button class="btn primary" id="copy-url">${ic('copy')} ${t('Copy link', 'लिंक कॉपी करें')}</button><a class="btn plain" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent(t('You’re invited! ', 'आप सादर आमंत्रित हैं! ') + url)}">WhatsApp ${ic('up', 13)}</a></div>
-    ${qr ? `<div class="share-qr portable-qr"><img src="${h(qr)}" alt="${t('Scan to open the invitation', 'निमंत्रण खोलने के लिए स्कैन करें')}"><a class="text-link" download="invitation-qr.png" href="${h(qr)}">${ic('download')} ${t('Download QR (PNG)', 'QR डाउनलोड करें (PNG)')}</a></div>` : `<p class="fine">${t('This link works, but is too long for one QR code. For a QR, shorten the text or replace embedded photos with direct HTTPS links.', 'लिंक काम करता है लेकिन एक QR में नहीं समाएगा। QR के लिए संदेश छोटा करें या फ़ोटो के HTTPS लिंक लगाएँ।')}</p>`}
+    <p role="status" data-copy-status></p>
+    <div data-optional-qr></div>
     <a class="text-link" data-open-guest href="${h(url)}" target="_blank" rel="noopener noreferrer">${t('Open guest view', 'मेहमान का निमंत्रण खोलें')} ${ic('up', 13)}</a>
+    ${fromEditor ? `<p class="fine" data-link-storage role="status">${t('You can copy this link now. Trying to save the draft on this device…', 'आप अभी लिंक कॉपी कर सकते हैं। ड्राफ़्ट सेव करने की कोशिश जारी है…')}</p>` : ''}
     <p class="fine">${t('Anyone with the link can read or forward this copy, including any venue and RSVP contact. Editing or deleting a draft does not change links already sent.', 'लिंक वाला कोई भी व्यक्ति स्थान और RSVP संपर्क सहित यह कॉपी पढ़ या भेज सकता है। ड्राफ़्ट बदलने या हटाने से भेजे हुए लिंक नहीं बदलते।')}</p>`,
   );
-  $('#copy-url', el).onclick = () => copy(url, $('#share-url', el));
+  const field = $('#share-url', el),
+    status = $('[data-copy-status]', el),
+    qrBox = $('[data-optional-qr]', el);
+  field.onclick = () => field.select();
+  $('#copy-url', el).onclick = async () => {
+    const ok = await copy(url, field);
+    status.textContent = ok
+      ? t('Copied. Paste the link in your chat.', 'लिंक कॉपी हो गया। अब चैट में पेस्ट करें।')
+      : t(
+          'The link is selected. Long-press or use your browser’s Copy command.',
+          'लिंक चुना हुआ है। उसे दबाकर रखें और कॉपी चुनें।',
+        );
+  };
+  // Display the URL first. QR encoding or canvas readback must not prevent delivery.
+  setTimeout(() => {
+    if (!qrBox.isConnected || !el.hasAttribute('open')) return;
+    const qr = qrURL(slug);
+    if (qr)
+      qrBox.innerHTML = `<div class="share-qr portable-qr"><img src="${h(qr)}" alt="${t('Scan to open the invitation', 'निमंत्रण खोलने के लिए स्कैन करें')}"><a class="text-link" download="invitation-qr.png" href="${h(qr)}">${ic('download')} ${t('Download QR (PNG)', 'QR डाउनलोड करें (PNG)')}</a></div>`;
+    else if (url.length > MAX_QR)
+      qrBox.textContent = t(
+        'This link works but is too long for one QR. Copy it above, or shorten the text or use HTTPS media URLs for a QR.',
+        'लिंक काम करता है लेकिन एक QR में नहीं समाएगा। ऊपर से लिंक कॉपी करें।',
+      );
+    else
+      qrBox.textContent = t(
+        'No QR is available for this link on this device. Use the full guest link above.',
+        'यहाँ QR उपलब्ध नहीं है। ऊपर दिया पूरा लिंक भेजें।',
+      );
+  }, 0);
+  return el;
+}
+export function offerCompact(omitted, lang, accept, download) {
+  const t = (en, hi) => choose(lang, en, hi);
+  const el = modal(
+    t('Choose what to send', 'कैसे भेजना चाहेंगे?'),
+    `<p>${t('These files cannot fit in this guest link. The other invitation details are ready to share.', 'ये फ़ाइलें इस लिंक में शामिल नहीं हो सकतीं। निमंत्रण की बाकी जानकारी तैयार है।')}</p><ul>${omitted.map((label) => `<li>${h(label)}</li>`).join('')}</ul>
+     <p>${t('Create a link without the listed files, or download the complete HTML card. Your original invitation is not changed.', 'इन फ़ाइलों के बिना लिंक बनाएँ या पूरा HTML कार्ड डाउनलोड करें। आपके मूल निमंत्रण से कुछ नहीं हटेगा।')}</p>
+     <div class="actions"><button class="btn primary" data-accept-compact>${t('Create link without these files', 'इन फ़ाइलों के बिना लिंक बनाएँ')}</button><button class="btn plain" data-full-card>${t('Download full card', 'पूरा कार्ड डाउनलोड करें')}</button></div>
+     <p class="fine">${t('To include full-size files in the guest link, use direct public HTTPS media URLs.', 'लिंक में पूरा वीडियो या फ़ोटो रखने के लिए उसका सार्वजनिक HTTPS पता जोड़ें।')}</p>`,
+  );
+  $('[data-accept-compact]', el).onclick = accept;
+  $('[data-full-card]', el).onclick = () => {
+    el.close();
+    download();
+  };
 }
 export function contactFields(editor) {
   return `<div data-contact-fields><p class="fine">Guests send their reply to you, not to a server. Add a WhatsApp number or an email. Anyone with the guest link can see this contact.</p>${editor.field('Host WhatsApp · देश कोड सहित', 'phone', 'tel', 'maxlength="32" placeholder="+91 …"')}${editor.field('Host email · ईमेल', 'email', 'email', 'maxlength="150" placeholder="host@example.com"')}</div>`;
