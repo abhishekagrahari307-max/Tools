@@ -7,6 +7,20 @@
 - **[Birthday Wish Studio](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/)** — the original birthday cards, including [Garima’s card](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/#/wish/garima). [Sharing guide](birthday-wishes/README.md).
 - **[File tools](https://abhishekagrahari307-max.github.io/Tools/file-tools.html)** — convert, resize, merge, shrink and PDF-to-Word, all inside the browser tab. Files are never uploaded; PDF libraries are vendored in `vendor/`, so nothing loads from a CDN.
 
+- **[ToolKit Quiz](https://abhishekagrahari307-max.github.io/Tools/quiz.html)** — 120 questions across six subjects. Practice mode explains every answer, the timed test gives 20 questions in 15 minutes, and your score history stays in the browser. No sign-up, no network calls.
+
+## Quiz
+
+`quiz.html` + `quiz-data.js` + `quiz.js` — a self-contained quiz app:
+
+- **120 questions**: Physics, Chemistry, Mathematics, Biology, General Knowledge, Computer & Web (20 each, with a one-line explanation and a topic for every question).
+- **Practice mode** checks each answer as you go and shows the explanation; **timed test** gives 20 questions in 15 minutes with a countdown, mark-for-review, a question grid and a two-step submit.
+- **Results**: score ring, correct/wrong/skipped, time, per-question review with filters, “retry the wrong ones”, share text and a print layout.
+- **History** in `localStorage` only (last 30 attempts, best score shown on each subject card) — no account, no server, no network requests.
+- Keyboard support (1–4 to answer, arrow keys to move), 360 px layout, and no CDN: icons are inline SVG and the score ring is CSS.
+
+`web-quiz.html` is now a `noindex` redirect to the new page. Question bank integrity (four options, valid keys, no duplicates, balanced answer positions) is checked by `node --test tests/quiz.test.mjs`.
+
 ## File tools
 
 `file-tools.html` + `file-tools.js` are one page with 20 tools that run entirely on the visitor’s device. Files are never uploaded; `pdf-lib` (MIT) and `pdf.js` (Apache-2.0) are vendored in `vendor/` with their licences, and the worker path is local, so the page works offline and behind blocked CDNs.
