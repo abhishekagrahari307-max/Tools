@@ -193,7 +193,7 @@ function book(d, opts) {
 }
 export async function keepsake(d, media = {}, slug = '', lang = d.language || 'hi') {
   const [cover, photo, qr, css, albumEntries, video] = await Promise.all([
-    dataURL(art(d.design)),
+    dataURL(art(d.design, d.palette)),
     dataURL(media.photo),
     slug ? dataURL(qrURL(slug)) : '',
     fetch(asset('card.css')).then((r) => {
@@ -402,7 +402,7 @@ export function play(
     fxTimer = setTimeout(() => el.remove(), 3500);
   }
   function ticket() {
-    stage.innerHTML = `<div class="ticket"><div class="ticket-art"><img src="${h(art(d.design))}" alt=""><span>${h(d.design.name)}</span></div><div class="ticket-face"><small>${h(t(e.name, e.hi))} · ${t('A PERSONAL INVITATION', 'व्यक्तिगत निमंत्रण')}</small>${scene(d.opening)}<h1>${h(honoree(d) || local(e.pages[0].title, lang))}</h1><p>${h(local(e.pages[0].intro, lang))}</p><button class="btn open-card">${h(local(openText[d.opening] || openText.envelope, lang))} ${ic('arrow')}</button></div></div>`;
+    stage.innerHTML = `<div class="ticket"><div class="ticket-art"><img src="${h(art(d.design, d.palette))}" alt=""><span>${h(d.design.name)}</span></div><div class="ticket-face"><small>${h(t(e.name, e.hi))} · ${t('A PERSONAL INVITATION', 'व्यक्तिगत निमंत्रण')}</small>${scene(d.opening)}<h1>${h(honoree(d) || local(e.pages[0].title, lang))}</h1><p>${h(local(e.pages[0].intro, lang))}</p><button class="btn open-card">${h(local(openText[d.opening] || openText.envelope, lang))} ${ic('arrow')}</button></div></div>`;
     const btn = $('.open-card', stage);
     btn.onclick = () => {
       if (btn.disabled) return;

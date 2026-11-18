@@ -1,4 +1,5 @@
 // Original vector stationery plates. Each occasion has its own illustration, not an emoji or a recoloured stock photograph.
+import { pressArtwork } from './press.js';
 const petals = (n, r, c, edge = 'none') =>
   Array.from(
     { length: n },
@@ -127,8 +128,8 @@ function nightMotif(id) {
 }
 
 const cache = new Map();
-export function plate(id, edition, colors) {
-  const key = id + '/' + edition;
+export function plate(id, edition, colors, frame = '') {
+  const key = [id, edition, frame, ...colors].join('/');
   if (cache.has(key)) return cache.get(key);
   const [ink, paper, accent, dark] = colors;
   const jewel = ['wedding', 'diwali', 'festival-party', 'new-year', 'karwa-chauth'].includes(id),
@@ -137,26 +138,34 @@ export function plate(id, edition, colors) {
     deep = night || (jewel && !folio);
   const bg = deep ? dark : paper,
     detail = deep ? gold : accent;
-  const surround = [...Array(22)]
-    .map((_, i) => {
-      const x = (i * 83 + 11) % 477,
-        y = (i * 53 + 19) % 251;
-      return i % 3 ? bead(x, y, 1.6, detail) : star(x, y, 3 + (i % 4), detail);
-    })
-    .join('');
-  const border =
-    id === 'birthday' || id === 'baby-shower'
-      ? `<path d="M0 12${'q12 21 24 0'.repeat(21)}" stroke="${detail}" fill="none"/>`
-      : id === 'festival-party'
-        ? `<path d="M0 222h480m-480-9h480m-480-10h480" stroke="${accent}" opacity=".5"/>`
-        : `<rect x="12" y="12" width="456" height="236" rx="3" fill="none" stroke="${detail}"/><rect x="17" y="17" width="446" height="226" fill="none" stroke="${detail}" stroke-dasharray="1 6"/>`;
-  const framing = folio
-    ? `<g transform="rotate(-6 240 130)"><rect x="69" y="32" width="346" height="197" fill="#6e4439" opacity=".17"/><rect x="65" y="26" width="346" height="197" fill="#fff2d8" stroke="${detail}"/><path d="M88 140h102m-102 16h83m-83 16h92" stroke="${ink}" opacity=".4"/><circle cx="107" cy="74" r="18" fill="none" stroke="${detail}"/><path d="M82 66q25 12 52 0m-52 8q25 12 52 0" fill="none" stroke="${detail}"/></g>`
-    : night
-      ? `<g fill="none" stroke="${gold}" opacity=".52"><path d="M83 239V115Q97 50 240 17q140 33 157 98v124Z"/><circle cx="240" cy="134" r="89" stroke-dasharray="1 5"/></g>`
-      : `<circle cx="240" cy="132" r="93" fill="${detail}" opacity=".09"/><circle cx="240" cy="132" r="95" fill="none" stroke="${detail}" stroke-dasharray="1 7" opacity=".7"/>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 260"><defs><linearGradient id="metal" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#ab7940"/><stop offset=".46" stop-color="#ffdf8b"/><stop offset="1" stop-color="#bd904e"/></linearGradient><pattern id="mesh" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M0 0l7 7m0-7L0 7" stroke="${gold}" stroke-width=".6"/></pattern><pattern id="grain" width="8" height="7" patternUnits="userSpaceOnUse"><circle cx="1" cy="3" r=".65" fill="${detail}" opacity=".29"/></pattern></defs><rect width="480" height="260" fill="${bg}"/><rect width="480" height="260" fill="url(#grain)"/>${border}<g opacity=".65">${surround}</g>${framing}<g transform="translate(${folio ? '282 130' : '240 130'}) scale(${folio ? '1.07' : night ? '1.27' : '1.4'})">${night ? nightMotif(id) : motif(id, ink, accent)}</g></svg>`;
+  const head = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 260"><defs><linearGradient id="metal" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#ab7940"/><stop offset=".46" stop-color="#ffdf8b"/><stop offset="1" stop-color="#bd904e"/></linearGradient><pattern id="mesh" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M0 0l7 7m0-7L0 7" stroke="${gold}" stroke-width=".6"/></pattern><pattern id="grain" width="8" height="7" patternUnits="userSpaceOnUse"><circle cx="1" cy="3" r=".65" fill="${detail}" opacity=".29"/></pattern></defs>`;
+  const subject = night ? nightMotif(id) : motif(id, ink, accent);
+  let body;
+  if (frame) body = pressArtwork(frame, colors, subject);
+  else {
+    const surround = [...Array(22)]
+      .map((_, i) => {
+        const x = (i * 83 + 11) % 477,
+          y = (i * 53 + 19) % 251;
+        return i % 3 ? bead(x, y, 1.6, detail) : star(x, y, 3 + (i % 4), detail);
+      })
+      .join('');
+    const border =
+      id === 'birthday' || id === 'baby-shower'
+        ? `<path d="M0 12${'q12 21 24 0'.repeat(21)}" stroke="${detail}" fill="none"/>`
+        : id === 'festival-party'
+          ? `<path d="M0 222h480m-480-9h480m-480-10h480" stroke="${accent}" opacity=".5"/>`
+          : `<rect x="12" y="12" width="456" height="236" rx="3" fill="none" stroke="${detail}"/><rect x="17" y="17" width="446" height="226" fill="none" stroke="${detail}" stroke-dasharray="1 6"/>`;
+    const framing = folio
+      ? `<g transform="rotate(-6 240 130)"><rect x="69" y="32" width="346" height="197" fill="#6e4439" opacity=".17"/><rect x="65" y="26" width="346" height="197" fill="#fff2d8" stroke="${detail}"/><path d="M88 140h102m-102 16h83m-83 16h92" stroke="${ink}" opacity=".4"/><circle cx="107" cy="74" r="18" fill="none" stroke="${detail}"/><path d="M82 66q25 12 52 0m-52 8q25 12 52 0" fill="none" stroke="${detail}"/></g>`
+      : night
+        ? `<g fill="none" stroke="${gold}" opacity=".52"><path d="M83 239V115Q97 50 240 17q140 33 157 98v124Z"/><circle cx="240" cy="134" r="89" stroke-dasharray="1 5"/></g>`
+        : `<circle cx="240" cy="132" r="93" fill="${detail}" opacity=".09"/><circle cx="240" cy="132" r="95" fill="none" stroke="${detail}" stroke-dasharray="1 7" opacity=".7"/>`;
+    body = `<rect width="480" height="260" fill="${bg}"/><rect width="480" height="260" fill="url(#grain)"/>${border}<g opacity=".65">${surround}</g>${framing}<g transform="translate(${folio ? '282 130' : '240 130'}) scale(${folio ? '1.07' : night ? '1.27' : '1.4'})">${subject}</g>`;
+  }
+  const svg = head + body + '</svg>';
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/'/g, '%27');
+  if (cache.size >= 96) cache.delete(cache.keys().next().value);
   cache.set(key, url);
   return url;
 }

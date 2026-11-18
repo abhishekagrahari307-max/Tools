@@ -168,8 +168,10 @@ export class Editor {
         d[key] = val;
         if (key === 'template') {
           d.design = designOf(val) || d.design;
-          for (const key of ['palette', 'opening']) {
-            d[key] = d.design[key];
+          for (const key of this.desk
+            ? ['palette', 'opening', 'font', 'music']
+            : ['palette', 'opening']) {
+            d[key] = d.design[key] || (key === 'font' ? 'serif' : 'chimes');
             this.$(`[data-key="${key}"]`).value = d[key];
           }
         }
@@ -298,7 +300,7 @@ export class Editor {
       // A previous autosave may finish after a new guest URL has already been displayed.
       if (!this.desk) Object.assign(this.r, { slug: r.slug, published: r.published });
       this.saved = n;
-      if (this.active && location.hash.startsWith('#/new'))
+      if (this.active && /^#\/(new|from-template)\//.test(location.hash))
         history.replaceState(null, '', '#/edit/' + r.id);
       this.status(n === this.seq ? this.savedText : 'Saving changes…');
     });

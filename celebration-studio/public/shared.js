@@ -12,6 +12,7 @@ export const icons = {
   down: 'm6 9 6 6 6-6',
   back: 'm14 5-7 7 7 7',
   close: 'M6 6l12 12M18 6 6 18',
+  search: 'M16 16l5 5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   letter: 'M3 5h18v14H3zM3 6l9 7 9-7',
   feather: 'M3 21l11-11m-9 8c-2-7 6-16 15-15 1 9-8 17-15 15z',
@@ -80,9 +81,20 @@ export const designOf = (id) => state.catalog.templates.find((t) => t.code === i
 export const designsFor = (id) => state.catalog.templates.filter((t) => t.occasion === id);
 export const choose = (lang, en, hi) => (lang === 'hi' ? hi : en);
 export const local = (pair, lang) => choose(lang, pair[0], pair[1]);
-export const art = (t) => {
+export const art = (t, palette = t?.palette) => {
   const e = state.catalog.occasions.find((e) => e.id === t?.art);
-  if (e) return plate(e.id, t.edition || 'signature', e.colors);
+  if (e) {
+    if (t.print) {
+      const p = state.catalog.palettes[palette];
+      return plate(
+        e.id,
+        t.edition,
+        [p[1], p[2], p[3] || e.colors[2], p[4] || e.colors[3]],
+        t.print,
+      );
+    }
+    return plate(e.id, t.edition || 'signature', e.colors);
+  }
   return asset(
     'assets/' +
       (t?.art === 'classic'
@@ -114,10 +126,10 @@ export function initial(t, e) {
     venue: '',
     map: '',
     schedule: '',
-    font: 'serif',
+    font: t.font || 'serif',
     palette: t.palette,
     opening: t.occasion ? t.opening : e.opening || t.opening,
-    music: 'chimes',
+    music: t.music || 'chimes',
     rsvp: true,
     countdown: true,
     photo: '',

@@ -2,7 +2,9 @@
 
 **[Open Garima’s birthday card](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/#/wish/garima)** · [Open the studio](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/)
 
-Choose one of six designs, add a name, a message in Hindi, Hinglish or English, and an optional photo. Play the preview to try the reveal.
+Use **Dashboard** in the top bar to open [Celebration Studio’s dashboard](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/#/dashboard). On the dashboard, **Open Birthday Wishes** returns here and **My birthday wishes** opens your saved wish cards. For a party invitation rather than a greeting card, browse the [100 birthday invitation templates](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/#/studio/birthday).
+
+Choose one of six original wish-card designs, add a name, a message in Hindi, Hinglish or English, and an optional photo. Play the preview to try the reveal.
 
 - **Share wish → Copy wish link:** paste the whole link into WhatsApp or another chat. It opens the recipient’s card directly on another device, without a login, download or access to the sender’s drafts.
 - **Share wish → Download birthday card:** send the self-contained HTML file instead. It works offline and keeps the photo at the draft’s resolution.
