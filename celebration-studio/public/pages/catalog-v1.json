@@ -1,0 +1,2509 @@
+{
+  "occasions": [
+    {
+      "id": "birthday",
+      "name": "Birthday",
+      "hi": "जन्मदिन",
+      "greeting": "जन्मदिन मुबारक हो",
+      "opening": "balloon",
+      "message": "केक की मिठास और अपनों की हँसी के बिना जन्मदिन अधूरा है। इस खास दिन हमारे साथ ज़रूर आइए!",
+      "alternate": "एक और साल, कुछ नए सपने और ढेर सारी खुशियाँ। यह जन्मदिन आपके साथ मनाने का इंतज़ार है।",
+      "group": "Milestones",
+      "mark": "✸",
+      "colors": [
+        "#83395a",
+        "#fff2e4",
+        "#d57958",
+        "#46273e"
+      ],
+      "englishMessage": "Save a slice of the day for us! Come for the cake and stay for the people who make every birthday feel like home.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Happy Birthday!",
+            "जन्मदिन मुबारक!"
+          ],
+          "intro": [
+            "Candles lit. Wishes ready.",
+            "मोमबत्तियाँ तैयार हैं, अब आपकी बारी है।"
+          ],
+          "fields": [
+            {
+              "key": "age",
+              "kind": "age",
+              "label": [
+                "Age this birthday (optional)",
+                "इस जन्मदिन पर उम्र (वैकल्पिक)"
+              ],
+              "limit": 3
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "wish-wall",
+          "title": [
+            "Special birthday wishes",
+            "अपनों की शुभकामनाएँ"
+          ],
+          "intro": [
+            "Little notes from the people who know you best.",
+            "परिवार और दोस्तों के दिल से निकले कुछ शब्द।"
+          ],
+          "fields": [
+            {
+              "key": "wishes",
+              "kind": "lines",
+              "label": [
+                "Family & friends’ wishes · one per line",
+                "परिवार और दोस्तों की शुभकामनाएँ · हर पंक्ति पर एक"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "Birthday party",
+            "जन्मदिन की पार्टी"
+          ],
+          "intro": [
+            "Keep a place at the party table.",
+            "पार्टी का पता, समय और कार्यक्रम यहाँ देखें।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Through the years",
+            "बचपन से अब तक"
+          ],
+          "intro": [
+            "From tiny footsteps to today’s smile.",
+            "नन्हे कदमों से आज की मुस्कान तक का सफ़र।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "cake",
+          "title": [
+            "A birthday surprise",
+            "जन्मदिन का सरप्राइज़"
+          ],
+          "intro": [
+            "Make a wish before the first slice.",
+            "केक का पहला टुकड़ा काटने से पहले एक इच्छा माँगें।"
+          ],
+          "fields": [
+            {
+              "key": "cakeTime",
+              "kind": "time",
+              "label": [
+                "Cake cutting time (IST)",
+                "केक कटिंग का समय"
+              ],
+              "limit": 5
+            },
+            {
+              "key": "surprise",
+              "kind": "note",
+              "label": [
+                "Secret birthday message",
+                "सरप्राइज़ संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Guest RSVP",
+            "पार्टी में आएँगे?"
+          ],
+          "intro": [
+            "Tell us how many slices to save.",
+            "बताइए आपके लिए केक के कितने हिस्से रखें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wedding",
+      "name": "Wedding",
+      "hi": "विवाह",
+      "greeting": "शुभ विवाह",
+      "opening": "envelope",
+      "message": "दो ज़िंदगियाँ एक नई राह पर चलने जा रही हैं। हमारे विवाह में पधारकर इस मिलन को अपना आशीर्वाद दें।",
+      "alternate": "हमारे सात फेरों और नई शुरुआत के साक्षी बनें। आपके साथ यह दिन और भी यादगार होगा।",
+      "group": "Milestones",
+      "mark": "❦",
+      "colors": [
+        "#702e43",
+        "#fff4dc",
+        "#bf8a42",
+        "#401c2d"
+      ],
+      "englishMessage": "Two families, one new beginning. Join us for the wedding and bring your love and blessings to our first steps together.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "The wedding invitation",
+            "शुभ विवाह"
+          ],
+          "intro": [
+            "Two names, one invitation.",
+            "दो नाम, दो परिवार और एक नई शुरुआत।"
+          ],
+          "fields": [
+            {
+              "key": "partner",
+              "kind": "short",
+              "label": [
+                "Second partner’s name",
+                "दूसरे जीवनसाथी का नाम"
+              ],
+              "limit": 100
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "families",
+          "title": [
+            "Meet the families",
+            "दोनों परिवारों का परिचय"
+          ],
+          "intro": [
+            "With the love and blessings of both families.",
+            "दोनों परिवार प्रेम और आदर सहित आपका स्वागत करते हैं।"
+          ],
+          "fields": [
+            {
+              "key": "familyA",
+              "kind": "note",
+              "label": [
+                "First family · introduction",
+                "पहले परिवार का परिचय"
+              ],
+              "limit": 700
+            },
+            {
+              "key": "familyB",
+              "kind": "note",
+              "label": [
+                "Second family · introduction",
+                "दूसरे परिवार का परिचय"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "story",
+          "title": [
+            "Our wedding story",
+            "हमारी कहानी"
+          ],
+          "intro": [
+            "Before the vows, there was a first hello.",
+            "सात फेरों से पहले, एक मुलाक़ात की कहानी थी।"
+          ],
+          "fields": [
+            {
+              "key": "story",
+              "kind": "note",
+              "label": [
+                "How your story began",
+                "आपकी कहानी की शुरुआत"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "rites",
+          "title": [
+            "Wedding functions",
+            "शादी के समारोह"
+          ],
+          "intro": [
+            "Four traditions, each with its own moment.",
+            "हर रस्म की अपनी रौनक और अपना समय।"
+          ],
+          "fields": [
+            {
+              "key": "haldi",
+              "kind": "short",
+              "label": [
+                "Haldi · time & place",
+                "हल्दी · समय और स्थान"
+              ],
+              "limit": 100
+            },
+            {
+              "key": "mehndi",
+              "kind": "short",
+              "label": [
+                "Mehndi · time & place",
+                "मेहंदी · समय और स्थान"
+              ],
+              "limit": 100
+            },
+            {
+              "key": "sangeet",
+              "kind": "short",
+              "label": [
+                "Sangeet · time & place",
+                "संगीत · समय और स्थान"
+              ],
+              "limit": 100
+            },
+            {
+              "key": "vivaah",
+              "kind": "short",
+              "label": [
+                "Wedding ceremony · time & place",
+                "विवाह · समय और स्थान"
+              ],
+              "limit": 100
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "location",
+          "title": [
+            "Venue & schedule",
+            "विवाह स्थल और कार्यक्रम"
+          ],
+          "intro": [
+            "Meet us at the mandap.",
+            "मंडप तक पहुँचने का रास्ता और आयोजन का क्रम।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Blessings & RSVP",
+            "आशीर्वाद और उपस्थिति"
+          ],
+          "intro": [
+            "Your presence will mean the world to both families.",
+            "दोनों परिवारों को आपके आगमन और आशीर्वाद का इंतज़ार है।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "engagement",
+      "name": "Engagement",
+      "hi": "सगाई",
+      "greeting": "सगाई का निमंत्रण",
+      "opening": "ring",
+      "message": "दो अंगूठियों और एक प्यारे वादे का जश्न है। हमारी सगाई में शामिल होकर खुशियाँ बाँटिए।",
+      "alternate": "नई कहानी का पहला पन्ना आपके साथ खोलना चाहते हैं। सगाई के इस पल में ज़रूर आइए।",
+      "group": "Milestones",
+      "mark": "◇",
+      "colors": [
+        "#805440",
+        "#fff2ea",
+        "#c39c50",
+        "#492e43"
+      ],
+      "englishMessage": "Two rings, one promise. We would love to have you beside us as we celebrate our engagement.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "An engagement in gold",
+            "सगाई का निमंत्रण"
+          ],
+          "intro": [
+            "A promise, set in gold.",
+            "सुनहरी अंगूठियों संग एक प्यारा वादा।"
+          ],
+          "fields": [
+            {
+              "key": "partner",
+              "kind": "short",
+              "label": [
+                "Partner’s name",
+                "जीवनसाथी का नाम"
+              ],
+              "limit": 100
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "portraits",
+          "title": [
+            "Meet the couple",
+            "जोड़ी से मिलिए"
+          ],
+          "intro": [
+            "Two voices at the start of one story.",
+            "एक कहानी की शुरुआत, दो लोगों की ज़ुबानी।"
+          ],
+          "fields": [
+            {
+              "key": "aboutA",
+              "kind": "note",
+              "label": [
+                "About the first partner",
+                "पहले साथी के बारे में"
+              ],
+              "limit": 700
+            },
+            {
+              "key": "aboutB",
+              "kind": "note",
+              "label": [
+                "About the second partner",
+                "दूसरे साथी के बारे में"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "promise",
+          "title": [
+            "The ring ceremony",
+            "अंगूठियों की रस्म"
+          ],
+          "intro": [
+            "A little circle with a lifetime inside.",
+            "एक छोटी सी अंगूठी में ढेर सारे सपने।"
+          ],
+          "fields": [
+            {
+              "key": "ringTime",
+              "kind": "time",
+              "label": [
+                "Ring exchange time (IST)",
+                "अंगूठी पहनाने का समय"
+              ],
+              "limit": 5
+            },
+            {
+              "key": "promise",
+              "kind": "note",
+              "label": [
+                "A promise or ceremony note",
+                "वादा या समारोह का विवरण"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Our inner circle",
+            "परिवार और दोस्त"
+          ],
+          "intro": [
+            "The faces beside us on this day.",
+            "इस दिन हमारे साथ खड़े अपनों की झलकियाँ।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "Location & timing",
+            "स्थान और समय"
+          ],
+          "intro": [
+            "Find the celebration.",
+            "सगाई के आयोजन तक पहुँचने की जानकारी।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Congratulations & RSVP",
+            "बधाई और उपस्थिति"
+          ],
+          "intro": [
+            "Leave a wish for the newly engaged couple.",
+            "होने वाले जीवनसाथियों के लिए बधाई लिखें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anniversary",
+      "name": "Anniversary",
+      "hi": "शादी की सालगिरह",
+      "greeting": "सालगिरह की शुभकामनाएँ",
+      "opening": "hearts",
+      "message": "साथ बिताए खूबसूरत सालों की यादों को फिर से सजाएँ। हमारी शादी की सालगिरह पर आपका सादर निमंत्रण है।",
+      "alternate": "प्यार की यह डोर यूँ ही मज़बूत रहे। इस सालगिरह की शाम हम आपके साथ मनाना चाहते हैं।",
+      "group": "Milestones",
+      "mark": "∞",
+      "colors": [
+        "#805d28",
+        "#fff5da",
+        "#c69547",
+        "#483229"
+      ],
+      "englishMessage": "Here’s to the years behind us and the chapters still to come. Celebrate our anniversary with us.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Our anniversary album",
+            "सालगिरह का सुनहरा पन्ना"
+          ],
+          "intro": [
+            "A love story worth keeping.",
+            "साथ निभाने की एक सुनहरी कहानी।"
+          ],
+          "fields": [
+            {
+              "key": "partner",
+              "kind": "short",
+              "label": [
+                "Partner’s name",
+                "जीवनसाथी का नाम"
+              ],
+              "limit": 100
+            },
+            {
+              "key": "years",
+              "kind": "age",
+              "label": [
+                "Years together",
+                "साथ बिताए वर्ष"
+              ],
+              "limit": 3
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "timeline",
+          "title": [
+            "Our journey",
+            "साथ का सफ़र"
+          ],
+          "intro": [
+            "One milestone at a time.",
+            "एक-एक याद से बना हमारा सफ़र।"
+          ],
+          "fields": [
+            {
+              "key": "journey",
+              "kind": "lines",
+              "label": [
+                "Milestones · one year and memory per line",
+                "हर पंक्ति पर एक साल और उसकी याद"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "wish-wall",
+          "title": [
+            "Words of love",
+            "प्यार भरी शुभकामनाएँ"
+          ],
+          "intro": [
+            "A toast to the life we have built.",
+            "साथ बिताए हर पल के नाम कुछ शब्द।"
+          ],
+          "fields": [
+            {
+              "key": "wishes",
+              "kind": "lines",
+              "label": [
+                "Anniversary toasts",
+                "अपनों की शुभकामनाएँ"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Golden memories",
+            "सुनहरी यादें"
+          ],
+          "intro": [
+            "A few pages from our family album.",
+            "हमारे एल्बम से चुने कुछ अनमोल पन्ने।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "The anniversary gathering",
+            "सालगिरह का आयोजन"
+          ],
+          "intro": [
+            "An evening to remember together.",
+            "साथ मिलकर यादों को फिर जीने की शाम।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Guest wishes & RSVP",
+            "स्नेह संदेश और उपस्थिति"
+          ],
+          "intro": [
+            "Add a wish for the next chapter.",
+            "इस सफ़र के अगले अध्याय के लिए शुभकामना दें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diwali",
+      "name": "Diwali",
+      "hi": "दीपावली",
+      "greeting": "शुभ दीपावली",
+      "opening": "diya",
+      "message": "दीपों की रोशनी और मिठाइयों की खुशबू के बीच आपका स्वागत है। इस दीपावली हमारे आँगन में खुशियों का एक दीप आप भी जलाएँ।",
+      "alternate": "आपके परिवार में सुख, शांति और समृद्धि के दीप सदा जलते रहें। शुभ दीपावली!",
+      "group": "Festivals",
+      "mark": "✧",
+      "colors": [
+        "#88501d",
+        "#fff1cd",
+        "#e4a03b",
+        "#50232e"
+      ],
+      "englishMessage": "Come light a diya with us this Diwali. May our courtyard be filled with familiar voices, warm light and the sweetness of sharing.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Festival of lights",
+            "शुभ दीपावली"
+          ],
+          "intro": [
+            "One more lamp for someone we love.",
+            "अपनों के नाम एक दीप और।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "Diwali wishes",
+            "दीपावली की शुभकामनाएँ"
+          ],
+          "intro": [
+            "From our home to yours.",
+            "हमारे आँगन से आपके घर तक खुशियों की रोशनी।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "lamps",
+          "title": [
+            "Puja schedule",
+            "पूजा और दीपोत्सव"
+          ],
+          "intro": [
+            "Light the lamps and follow the puja program.",
+            "दीप जलाएँ और पूजा का क्रम देखें।"
+          ],
+          "fields": [
+            {
+              "key": "puja",
+              "kind": "lines",
+              "label": [
+                "Puja activities & times",
+                "पूजा की रस्में और समय"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Lights of home",
+            "सजावट और यादें"
+          ],
+          "intro": [
+            "Rangoli at the door, diyas in every corner.",
+            "दहलीज़ की रंगोली, आँगन के दीप और अपनों की यादें।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "menu",
+          "title": [
+            "Dinner by lamplight",
+            "पार्टी और रात्रिभोज"
+          ],
+          "intro": [
+            "A place for you at our festive table.",
+            "त्योहार की थाली में आपके लिए भी जगह है।"
+          ],
+          "fields": [
+            {
+              "key": "dinner",
+              "kind": "lines",
+              "label": [
+                "Dinner & sweets menu",
+                "भोजन और मिठाइयों का मेनू"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "A family invitation",
+            "सपरिवार निमंत्रण"
+          ],
+          "intro": [
+            "Let us know who will join the evening.",
+            "बताइए परिवार के कितने सदस्य पधारेंगे।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "holi",
+      "name": "Holi",
+      "hi": "होली",
+      "greeting": "रंगों भरी होली मुबारक",
+      "opening": "confetti",
+      "message": "गुलाल के रंग और गुजिया की मिठास लिए होली आ गई है। अपनों के इस रंगोत्सव में आपका इंतज़ार रहेगा!",
+      "alternate": "खुशियों के रंग और दोस्ती की मिठास से आपका आँगन सदा भरा रहे। होली की हार्दिक शुभकामनाएँ!",
+      "group": "Festivals",
+      "mark": "✹",
+      "colors": [
+        "#873953",
+        "#fff0db",
+        "#19978c",
+        "#482441"
+      ],
+      "englishMessage": "Bring your brightest smile to our Holi gathering. Let’s share colours, gujiya and an afternoon of laughter.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "A riot of colour",
+            "होली का रंगोत्सव"
+          ],
+          "intro": [
+            "One invitation, a hundred colours.",
+            "एक निमंत्रण, खुशियों के सौ रंग।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "Holi wishes",
+            "रंगों भरी शुभकामनाएँ"
+          ],
+          "intro": [
+            "Signed with a splash of gulal.",
+            "गुलाल की छाप संग दिल की बात।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "colour-run",
+          "title": [
+            "The Rangotsav program",
+            "रंगोत्सव का कार्यक्रम"
+          ],
+          "intro": [
+            "Pick a colour and discover the festivities.",
+            "रंग चुनें और उत्सव का क्रम देखें।"
+          ],
+          "fields": [
+            {
+              "key": "rangotsav",
+              "kind": "lines",
+              "label": [
+                "Colour play, music & timings",
+                "रंग, संगीत और समय"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Colour diaries",
+            "रंगीन झलकियाँ"
+          ],
+          "intro": [
+            "Faces, colours and the moments in between.",
+            "रंग, मुस्कान और बीच के कुछ यादगार पल।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "menu",
+          "title": [
+            "Food & party",
+            "पकवान और पार्टी"
+          ],
+          "intro": [
+            "What’s cooking after the colours?",
+            "रंग खेलने के बाद क्या परोसा जाएगा?"
+          ],
+          "fields": [
+            {
+              "key": "food",
+              "kind": "lines",
+              "label": [
+                "Food, drinks & party highlights",
+                "पकवान, पेय और पार्टी की खास बातें"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Join the colour crew",
+            "होली में आपका स्वागत"
+          ],
+          "intro": [
+            "Count yourself in for the rangotsav.",
+            "रंगोत्सव में अपनी उपस्थिति दर्ज करें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "raksha-bandhan",
+      "name": "Raksha Bandhan",
+      "hi": "रक्षा बंधन",
+      "greeting": "रक्षाबंधन की शुभकामनाएँ",
+      "opening": "gift",
+      "message": "एक नन्ही सी राखी में बचपन की कितनी यादें हैं। आइए, इस रक्षाबंधन साथ बैठकर उन्हें फिर से जी लें।",
+      "alternate": "इस रेशमी डोर की तरह हमारा साथ हमेशा बना रहे। राखी की ढेर सारी शुभकामनाएँ!",
+      "group": "Family",
+      "mark": "✿",
+      "colors": [
+        "#923f32",
+        "#fff0d5",
+        "#ce8750",
+        "#512b31"
+      ],
+      "englishMessage": "A thread can hold a whole childhood of memories. Join our family for Raksha Bandhan and a day of being together.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "A bond in thread",
+            "रक्षाबंधन का निमंत्रण"
+          ],
+          "intro": [
+            "For a bond that grows with us.",
+            "एक डोर जो उम्र के साथ और मज़बूत होती गई।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "thread",
+          "title": [
+            "A sibling’s letter",
+            "भाई-बहन का खास संदेश"
+          ],
+          "intro": [
+            "From one end of the thread to the other.",
+            "इस डोर के एक छोर से दूसरे छोर तक।"
+          ],
+          "fields": [
+            {
+              "key": "sibling",
+              "kind": "short",
+              "label": [
+                "Sibling’s name",
+                "भाई या बहन का नाम"
+              ],
+              "limit": 100
+            },
+            {
+              "key": "letter",
+              "kind": "note",
+              "label": [
+                "A personal note to your sibling",
+                "अपना निजी स्नेह संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "wish-wall",
+          "title": [
+            "Rakhi wishes",
+            "राखी की शुभकामनाएँ"
+          ],
+          "intro": [
+            "Words to tie into the knot.",
+            "राखी की गाँठ में बाँध लें ये शुभकामनाएँ।"
+          ],
+          "fields": [
+            {
+              "key": "wishes",
+              "kind": "lines",
+              "label": [
+                "Family wishes",
+                "परिवार की शुभकामनाएँ"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Childhood scrapbook",
+            "बचपन का एल्बम"
+          ],
+          "intro": [
+            "Shared secrets and summers at home.",
+            "साझा शरारतें और बचपन की छुट्टियाँ।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "The family gathering",
+            "परिवार का मिलन"
+          ],
+          "intro": [
+            "Come home for Rakhi.",
+            "राखी पर घर आने की जानकारी।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Greetings & RSVP",
+            "शुभकामना और उपस्थिति"
+          ],
+          "intro": [
+            "Send a greeting and save your seat.",
+            "स्नेह संदेश के साथ अपनी उपस्थिति बताएँ।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "baby-shower",
+      "name": "Baby Shower",
+      "hi": "गोद भराई",
+      "greeting": "नन्ही खुशियों का स्वागत",
+      "opening": "gift",
+      "message": "हमारे घर आने वाली नन्ही खुशी के स्वागत में गोद भराई रखी है। अपना स्नेह और आशीर्वाद लेकर ज़रूर आइए।",
+      "alternate": "एक नया रिश्ता, एक नई धड़कन। नन्हे मेहमान के स्वागत की इस शाम में शामिल हों।",
+      "group": "Family",
+      "mark": "☾",
+      "colors": [
+        "#436b65",
+        "#fbf1e5",
+        "#d79a97",
+        "#3c445c"
+      ],
+      "englishMessage": "Our family is making room for a little wonder. Come shower the mother-to-be with kindness and blessings.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "A little wonder",
+            "गोद भराई का निमंत्रण"
+          ],
+          "intro": [
+            "A little guest, a whole sky of love.",
+            "नन्हे मेहमान के लिए आसमान भर प्यार।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "portrait",
+          "title": [
+            "Meet the mother-to-be",
+            "होने वाली माँ का परिचय"
+          ],
+          "intro": [
+            "A new chapter, in her own words.",
+            "एक नया अध्याय, माँ की ज़ुबानी।"
+          ],
+          "fields": [
+            {
+              "key": "intro",
+              "kind": "note",
+              "label": [
+                "Mother-to-be’s introduction",
+                "होने वाली माँ का परिचय"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "wish-wall",
+          "title": [
+            "A cradle of blessings",
+            "आशीर्वाद और शुभकामनाएँ"
+          ],
+          "intro": [
+            "Kind words for the growing family.",
+            "बढ़ते परिवार के लिए आशीष के बोल।"
+          ],
+          "fields": [
+            {
+              "key": "blessings",
+              "kind": "lines",
+              "label": [
+                "Blessings · one per line",
+                "आशीर्वाद · हर पंक्ति पर एक"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "agenda",
+          "title": [
+            "Godh bharai ceremony",
+            "गोद भराई की रस्में"
+          ],
+          "intro": [
+            "The rituals and little details of the day.",
+            "दिन की रस्में, समय और स्थान।"
+          ],
+          "fields": [
+            {
+              "key": "ceremony",
+              "kind": "lines",
+              "label": [
+                "Ceremony highlights",
+                "रस्मों की खास बातें"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Our family album",
+            "परिवार की तस्वीरें"
+          ],
+          "intro": [
+            "Treasures for a little one to look back on.",
+            "नन्हे मेहमान के लिए संजोई हुई यादें।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Come shower your love",
+            "स्नेह सहित निमंत्रण"
+          ],
+          "intro": [
+            "Tell us if you can join the family.",
+            "बताइए क्या आप इस खुशी में शामिल होंगे।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "housewarming",
+      "name": "Housewarming",
+      "hi": "गृह प्रवेश",
+      "greeting": "शुभ गृह प्रवेश",
+      "opening": "envelope",
+      "message": "हमारे नए घर को आपके कदमों और आशीर्वाद का इंतज़ार है। गृह प्रवेश के शुभ अवसर पर सपरिवार पधारें।",
+      "alternate": "ईंटों से बने इस घर को अपनों की हँसी से घर बनाएँ। हमारे नए पते पर आपका स्वागत है।",
+      "group": "Family",
+      "mark": "⌂",
+      "colors": [
+        "#43604b",
+        "#f8efdb",
+        "#bd7542",
+        "#374735"
+      ],
+      "englishMessage": "A new home becomes our home when loved ones walk through the door. Please join us for our griha pravesh.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Welcome to our new home",
+            "नए घर में स्वागत"
+          ],
+          "intro": [
+            "A new key and an open door.",
+            "नई चाबी, नया घर और खुला दरवाज़ा।"
+          ],
+          "fields": [
+            {
+              "key": "house",
+              "kind": "short",
+              "label": [
+                "House name (optional)",
+                "घर का नाम"
+              ],
+              "limit": 100
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "portrait",
+          "title": [
+            "Meet our family",
+            "हमारे परिवार से मिलें"
+          ],
+          "intro": [
+            "Meet the people who make this place home.",
+            "जिनसे यह मकान घर बनता है, उनसे मिलिए।"
+          ],
+          "fields": [
+            {
+              "key": "family",
+              "kind": "note",
+              "label": [
+                "Introduce your family",
+                "अपने परिवार का परिचय"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "Griha pravesh invitation",
+            "गृह प्रवेश का निमंत्रण"
+          ],
+          "intro": [
+            "From our doorstep to yours.",
+            "हमारी चौखट से स्नेह भरा बुलावा।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "lamps",
+          "title": [
+            "Puja & havan",
+            "पूजा और हवन का क्रम"
+          ],
+          "intro": [
+            "Join us for the first rituals in our new home.",
+            "नए घर की पहली पूजा में हमारे साथ बैठें।"
+          ],
+          "fields": [
+            {
+              "key": "havan",
+              "kind": "lines",
+              "label": [
+                "Puja, havan & timings",
+                "पूजा, हवन और समय"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "schedule"
+          ]
+        },
+        {
+          "kind": "album",
+          "title": [
+            "A tour of our home",
+            "नए घर की झलक"
+          ],
+          "intro": [
+            "Corners we cannot wait to share.",
+            "घर के वे कोने जो हम आपको दिखाना चाहते हैं।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Directions & RSVP",
+            "पता, नक्शा और उपस्थिति"
+          ],
+          "intro": [
+            "Find our new address and tell us you’re coming.",
+            "हमारा नया पता देखें और आने की सूचना दें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "venue",
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "festival-party",
+      "name": "Festival Party",
+      "hi": "उत्सव",
+      "greeting": "उत्सव में आपका स्वागत है",
+      "opening": "scratch",
+      "message": "संगीत, स्वाद और अपनों का साथ—इस उत्सव की रौनक आपसे ही है। हमारे जश्न में ज़रूर शामिल हों!",
+      "alternate": "मिलकर खुशियाँ बाँटने की एक शाम आपके नाम। सपरिवार आमंत्रित हैं।",
+      "group": "Festivals",
+      "mark": "✷",
+      "colors": [
+        "#65509a",
+        "#f3edf9",
+        "#e36ba5",
+        "#201b3f"
+      ],
+      "englishMessage": "Your name is on the guest list. Join our festival party for music, conversation and a night to remember.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Your backstage pass",
+            "पार्टी में स्वागत"
+          ],
+          "intro": [
+            "One pass to the dance floor.",
+            "डांस फ़्लोर तक आपका पास।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "The special invitation",
+            "एक खास बुलावा"
+          ],
+          "intro": [
+            "A personal note before the lights go up.",
+            "लाइटें जगमगाने से पहले, आपके नाम एक संदेश।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "setlist",
+          "title": [
+            "Tonight’s set list",
+            "पार्टी का कार्यक्रम"
+          ],
+          "intro": [
+            "The running order for the night.",
+            "शाम के कार्यक्रमों की पूरी लय।"
+          ],
+          "fields": [
+            {
+              "key": "lineup",
+              "kind": "lines",
+              "label": [
+                "Acts, music & set times",
+                "प्रस्तुतियाँ और समय"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Party highlights",
+            "पार्टी की झलकियाँ"
+          ],
+          "intro": [
+            "A highlight reel for the guest list.",
+            "हमारे जश्न की तस्वीरें और वीडियो।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "Meet at the venue",
+            "पार्टी का पता"
+          ],
+          "intro": [
+            "Here’s where the music starts.",
+            "जहाँ संगीत की शुरुआत होगी, वह स्थान।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Guest confirmation",
+            "अपना पास पक्का करें"
+          ],
+          "intro": [
+            "Tell the host how many are in your crew.",
+            "मेज़बान को अपने समूह की संख्या बताएँ।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "karwa-chauth",
+      "name": "Karwa Chauth",
+      "hi": "करवा चौथ",
+      "greeting": "करवा चौथ की शुभकामनाएँ",
+      "opening": "hearts",
+      "message": "चाँदनी और स्नेह से सजी करवा चौथ की शाम हमारे संग बिताएँ। आपका सादर निमंत्रण है।",
+      "alternate": "चाँद की तरह आपके रिश्ते में स्नेह की रोशनी बनी रहे। शुभ करवा चौथ!",
+      "group": "Festivals",
+      "mark": "☽",
+      "colors": [
+        "#81435c",
+        "#fcf0e9",
+        "#ac8d56",
+        "#35223e"
+      ],
+      "englishMessage": "Join us under the moon for an evening of love and togetherness this Karwa Chauth.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "Beneath the moon",
+            "चाँदनी का निमंत्रण"
+          ],
+          "intro": [
+            "An evening in silver and rose.",
+            "चाँदनी और स्नेह से सजी एक शाम।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "A moonlit wish",
+            "चाँदनी संदेश"
+          ],
+          "intro": [
+            "For the bonds we cherish.",
+            "उन रिश्तों के नाम जो दिल के करीब हैं।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "rites",
+          "title": [
+            "Evening rituals",
+            "शाम की रस्में"
+          ],
+          "intro": [
+            "An evening shaped by family traditions.",
+            "अपनों की परंपराओं से सजी शाम।"
+          ],
+          "fields": [
+            {
+              "key": "rituals",
+              "kind": "lines",
+              "label": [
+                "Rituals and timings",
+                "रस्में और समय"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Moonlight memories",
+            "चाँदनी की यादें"
+          ],
+          "intro": [
+            "Keepsakes from our evenings together.",
+            "साथ बिताई शामों की कुछ झलकियाँ।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "The gathering",
+            "शाम का मिलन"
+          ],
+          "intro": [
+            "Meet us for moonrise.",
+            "चाँद के स्वागत में साथ मिलें।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Love & RSVP",
+            "स्नेह और उपस्थिति"
+          ],
+          "intro": [
+            "Let us know if you can come.",
+            "हमारे साथ इस शाम को मनाने का जवाब दें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new-year",
+      "name": "New Year",
+      "hi": "नव वर्ष",
+      "greeting": "नव वर्ष मंगलमय हो",
+      "opening": "confetti",
+      "message": "नई उम्मीदों और नए सपनों का स्वागत साथ करें। नए साल की इस शाम आपके बिना जश्न अधूरा है।",
+      "alternate": "बीते साल की प्यारी यादों और आने वाले कल की खुशियों के नाम। नव वर्ष की शुभकामनाएँ!",
+      "group": "Festivals",
+      "mark": "✺",
+      "colors": [
+        "#304c66",
+        "#edf4f4",
+        "#c59a56",
+        "#182b41"
+      ],
+      "englishMessage": "Let’s turn the page on a new year together. Join us for the countdown and the first wishes of the year.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "At the stroke of midnight",
+            "नव वर्ष का निमंत्रण"
+          ],
+          "intro": [
+            "A new year begins with us.",
+            "नए साल की शुरुआत हमारे साथ।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "New year wishes",
+            "नव वर्ष संदेश"
+          ],
+          "intro": [
+            "A little hope for the year ahead.",
+            "आने वाले साल के लिए एक नई उम्मीद।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "setlist",
+          "title": [
+            "Countdown program",
+            "उलटी गिनती का कार्यक्रम"
+          ],
+          "intro": [
+            "The moments leading to midnight.",
+            "आधी रात से पहले के खास पल।"
+          ],
+          "fields": [
+            {
+              "key": "countdownPlan",
+              "kind": "lines",
+              "label": [
+                "Countdown activities",
+                "नव वर्ष की गतिविधियाँ"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "The year in pictures",
+            "साल की यादें"
+          ],
+          "intro": [
+            "The year we leave behind, in photographs.",
+            "बीते साल की तस्वीरों का सफ़र।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "location",
+          "title": [
+            "New year’s eve",
+            "नए साल की शाम"
+          ],
+          "intro": [
+            "Where to raise a toast.",
+            "मिलकर नए साल का स्वागत कहाँ करें।"
+          ],
+          "fields": [],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Count me in",
+            "जश्न में शामिल हों"
+          ],
+          "intro": [
+            "Add your name to the countdown.",
+            "उलटी गिनती में अपना नाम जोड़ें।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "christmas",
+      "name": "Christmas",
+      "hi": "क्रिसमस",
+      "greeting": "मेरी क्रिसमस",
+      "opening": "gift",
+      "message": "टिमटिमाती रोशनी और मीठी धुनों के बीच क्रिसमस मनाएँ। हमारे घर इस खुशियों भरी शाम में आपका स्वागत है।",
+      "alternate": "क्रिसमस की गर्मजोशी और प्यार से आपका घर भर जाए। मिलकर इस दिन को खास बनाएँ।",
+      "group": "Festivals",
+      "mark": "✶",
+      "colors": [
+        "#315d4a",
+        "#fcf2df",
+        "#b45658",
+        "#183e36"
+      ],
+      "englishMessage": "Come in from the cold for carols, festive treats and a Christmas gathering filled with warmth.",
+      "pages": [
+        {
+          "kind": "cover",
+          "title": [
+            "A Christmas gathering",
+            "क्रिसमस का निमंत्रण"
+          ],
+          "intro": [
+            "A star is lit for you.",
+            "आपके नाम एक सितारा जगमगाया है।"
+          ],
+          "fields": [],
+          "blocks": []
+        },
+        {
+          "kind": "letter",
+          "title": [
+            "Christmas wishes",
+            "क्रिसमस की शुभकामनाएँ"
+          ],
+          "intro": [
+            "With warmth from our family.",
+            "हमारे परिवार की ओर से ढेर सारा प्यार।"
+          ],
+          "fields": [],
+          "blocks": [
+            "message"
+          ]
+        },
+        {
+          "kind": "setlist",
+          "title": [
+            "Carols & festivities",
+            "कैरल और उत्सव"
+          ],
+          "intro": [
+            "What’s playing under the tree.",
+            "क्रिसमस ट्री के पास क्या होगा खास।"
+          ],
+          "fields": [
+            {
+              "key": "carols",
+              "kind": "lines",
+              "label": [
+                "Carols & activities",
+                "कैरल और कार्यक्रम"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": []
+        },
+        {
+          "kind": "album",
+          "title": [
+            "Under the tree",
+            "क्रिसमस की यादें"
+          ],
+          "intro": [
+            "A keepsake of the season.",
+            "इस त्योहार की मुस्कानें संजो लें।"
+          ],
+          "fields": [
+            {
+              "key": "memory",
+              "kind": "note",
+              "label": [
+                "A note for the album",
+                "इन यादों की कहानी"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "gallery"
+          ]
+        },
+        {
+          "kind": "menu",
+          "title": [
+            "Christmas supper",
+            "क्रिसमस का भोजन"
+          ],
+          "intro": [
+            "Our festive table awaits.",
+            "त्योहार के भोजन पर आपका स्वागत है।"
+          ],
+          "fields": [
+            {
+              "key": "supper",
+              "kind": "lines",
+              "label": [
+                "Supper menu",
+                "भोजन का मेनू"
+              ],
+              "limit": 600
+            }
+          ],
+          "blocks": [
+            "venue",
+            "schedule"
+          ]
+        },
+        {
+          "kind": "reply",
+          "title": [
+            "Season’s greetings & RSVP",
+            "शुभकामना और उपस्थिति"
+          ],
+          "intro": [
+            "Tell us who to set a place for.",
+            "बताइए साथ कितने मेहमान आएँगे।"
+          ],
+          "fields": [
+            {
+              "key": "farewell",
+              "kind": "note",
+              "label": [
+                "Closing words from the host",
+                "मेज़बान का आखिरी संदेश"
+              ],
+              "limit": 700
+            }
+          ],
+          "blocks": [
+            "reply"
+          ]
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "code": "birthday-signature",
+      "name": "Buttercream Wishes",
+      "caption": "Illustrated signature plate",
+      "collection": "Milestones",
+      "art": "birthday",
+      "opening": "balloon",
+      "palette": "rose",
+      "occasion": "birthday",
+      "edition": "signature"
+    },
+    {
+      "code": "birthday-folio",
+      "name": "Birthday Post",
+      "caption": "The letterpress folio",
+      "collection": "Milestones",
+      "art": "birthday",
+      "opening": "gift",
+      "palette": "ink",
+      "occasion": "birthday",
+      "edition": "folio"
+    },
+    {
+      "code": "birthday-nocturne",
+      "name": "Midnight Candles",
+      "caption": "The night edition",
+      "collection": "Milestones",
+      "art": "birthday",
+      "opening": "confetti",
+      "palette": "night",
+      "occasion": "birthday",
+      "edition": "nocturne"
+    },
+    {
+      "code": "wedding-signature",
+      "name": "The Palace Courtyard",
+      "caption": "Illustrated signature plate",
+      "collection": "Milestones",
+      "art": "wedding",
+      "opening": "envelope",
+      "palette": "wine",
+      "occasion": "wedding",
+      "edition": "signature"
+    },
+    {
+      "code": "wedding-folio",
+      "name": "Vows on Vellum",
+      "caption": "The letterpress folio",
+      "collection": "Milestones",
+      "art": "wedding",
+      "opening": "hearts",
+      "palette": "ink",
+      "occasion": "wedding",
+      "edition": "folio"
+    },
+    {
+      "code": "wedding-nocturne",
+      "name": "The Moonlit Mandap",
+      "caption": "The night edition",
+      "collection": "Milestones",
+      "art": "wedding",
+      "opening": "diya",
+      "palette": "night",
+      "occasion": "wedding",
+      "edition": "nocturne"
+    },
+    {
+      "code": "engagement-signature",
+      "name": "The Gilded Promise",
+      "caption": "Illustrated signature plate",
+      "collection": "Milestones",
+      "art": "engagement",
+      "opening": "ring",
+      "palette": "rose",
+      "occasion": "engagement",
+      "edition": "signature"
+    },
+    {
+      "code": "engagement-folio",
+      "name": "A Letter for Two",
+      "caption": "The letterpress folio",
+      "collection": "Milestones",
+      "art": "engagement",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "engagement",
+      "edition": "folio"
+    },
+    {
+      "code": "engagement-nocturne",
+      "name": "Afterglow Atelier",
+      "caption": "The night edition",
+      "collection": "Milestones",
+      "art": "engagement",
+      "opening": "hearts",
+      "palette": "night",
+      "occasion": "engagement",
+      "edition": "nocturne"
+    },
+    {
+      "code": "anniversary-signature",
+      "name": "Golden Years",
+      "caption": "Illustrated signature plate",
+      "collection": "Milestones",
+      "art": "anniversary",
+      "opening": "hearts",
+      "palette": "saffron",
+      "occasion": "anniversary",
+      "edition": "signature"
+    },
+    {
+      "code": "anniversary-folio",
+      "name": "Our Archival Album",
+      "caption": "The letterpress folio",
+      "collection": "Milestones",
+      "art": "anniversary",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "anniversary",
+      "edition": "folio"
+    },
+    {
+      "code": "anniversary-nocturne",
+      "name": "Anniversary Nocturne",
+      "caption": "The night edition",
+      "collection": "Milestones",
+      "art": "anniversary",
+      "opening": "gift",
+      "palette": "night",
+      "occasion": "anniversary",
+      "edition": "nocturne"
+    },
+    {
+      "code": "diwali-signature",
+      "name": "The Diya Courtyard",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "diwali",
+      "opening": "diya",
+      "palette": "saffron",
+      "occasion": "diwali",
+      "edition": "signature"
+    },
+    {
+      "code": "diwali-folio",
+      "name": "Letters by Lamplight",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "diwali",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "diwali",
+      "edition": "folio"
+    },
+    {
+      "code": "diwali-nocturne",
+      "name": "Amavasya Gold",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "diwali",
+      "opening": "confetti",
+      "palette": "night",
+      "occasion": "diwali",
+      "edition": "nocturne"
+    },
+    {
+      "code": "holi-signature",
+      "name": "Gulal Garden",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "holi",
+      "opening": "confetti",
+      "palette": "rose",
+      "occasion": "holi",
+      "edition": "signature"
+    },
+    {
+      "code": "holi-folio",
+      "name": "A Colour Postcard",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "holi",
+      "opening": "scratch",
+      "palette": "ink",
+      "occasion": "holi",
+      "edition": "folio"
+    },
+    {
+      "code": "holi-nocturne",
+      "name": "Rang After Dark",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "holi",
+      "opening": "balloon",
+      "palette": "night",
+      "occasion": "holi",
+      "edition": "nocturne"
+    },
+    {
+      "code": "raksha-bandhan-signature",
+      "name": "The Silk Thread",
+      "caption": "Illustrated signature plate",
+      "collection": "Family",
+      "art": "raksha-bandhan",
+      "opening": "gift",
+      "palette": "saffron",
+      "occasion": "raksha-bandhan",
+      "edition": "signature"
+    },
+    {
+      "code": "raksha-bandhan-folio",
+      "name": "Childhood Post",
+      "caption": "The letterpress folio",
+      "collection": "Family",
+      "art": "raksha-bandhan",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "raksha-bandhan",
+      "edition": "folio"
+    },
+    {
+      "code": "raksha-bandhan-nocturne",
+      "name": "A Glimmer of Rakhi",
+      "caption": "The night edition",
+      "collection": "Family",
+      "art": "raksha-bandhan",
+      "opening": "hearts",
+      "palette": "night",
+      "occasion": "raksha-bandhan",
+      "edition": "nocturne"
+    },
+    {
+      "code": "baby-shower-signature",
+      "name": "The Little Cradle",
+      "caption": "Illustrated signature plate",
+      "collection": "Family",
+      "art": "baby-shower",
+      "opening": "gift",
+      "palette": "forest",
+      "occasion": "baby-shower",
+      "edition": "signature"
+    },
+    {
+      "code": "baby-shower-folio",
+      "name": "Letters to Baby",
+      "caption": "The letterpress folio",
+      "collection": "Family",
+      "art": "baby-shower",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "baby-shower",
+      "edition": "folio"
+    },
+    {
+      "code": "baby-shower-nocturne",
+      "name": "Starlit Lullaby",
+      "caption": "The night edition",
+      "collection": "Family",
+      "art": "baby-shower",
+      "opening": "hearts",
+      "palette": "night",
+      "occasion": "baby-shower",
+      "edition": "nocturne"
+    },
+    {
+      "code": "housewarming-signature",
+      "name": "The Mango Toran",
+      "caption": "Illustrated signature plate",
+      "collection": "Family",
+      "art": "housewarming",
+      "opening": "envelope",
+      "palette": "forest",
+      "occasion": "housewarming",
+      "edition": "signature"
+    },
+    {
+      "code": "housewarming-folio",
+      "name": "From Our Doorstep",
+      "caption": "The letterpress folio",
+      "collection": "Family",
+      "art": "housewarming",
+      "opening": "gift",
+      "palette": "ink",
+      "occasion": "housewarming",
+      "edition": "folio"
+    },
+    {
+      "code": "housewarming-nocturne",
+      "name": "Courtyard at Dusk",
+      "caption": "The night edition",
+      "collection": "Family",
+      "art": "housewarming",
+      "opening": "diya",
+      "palette": "night",
+      "occasion": "housewarming",
+      "edition": "nocturne"
+    },
+    {
+      "code": "festival-party-signature",
+      "name": "Neon Guest Pass",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "festival-party",
+      "opening": "scratch",
+      "palette": "night",
+      "occasion": "festival-party",
+      "edition": "signature"
+    },
+    {
+      "code": "festival-party-folio",
+      "name": "The Backstage Letter",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "festival-party",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "festival-party",
+      "edition": "folio"
+    },
+    {
+      "code": "festival-party-nocturne",
+      "name": "Disco After Hours",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "festival-party",
+      "opening": "confetti",
+      "palette": "night",
+      "occasion": "festival-party",
+      "edition": "nocturne"
+    },
+    {
+      "code": "karwa-chauth-signature",
+      "name": "Moon Through Silk",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "karwa-chauth",
+      "opening": "hearts",
+      "palette": "wine",
+      "occasion": "karwa-chauth",
+      "edition": "signature"
+    },
+    {
+      "code": "karwa-chauth-folio",
+      "name": "A Moonrise Letter",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "karwa-chauth",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "karwa-chauth",
+      "edition": "folio"
+    },
+    {
+      "code": "karwa-chauth-nocturne",
+      "name": "Velvet Moon",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "karwa-chauth",
+      "opening": "diya",
+      "palette": "night",
+      "occasion": "karwa-chauth",
+      "edition": "nocturne"
+    },
+    {
+      "code": "new-year-signature",
+      "name": "The Midnight Clock",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "new-year",
+      "opening": "confetti",
+      "palette": "night",
+      "occasion": "new-year",
+      "edition": "signature"
+    },
+    {
+      "code": "new-year-folio",
+      "name": "Postmarked January",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "new-year",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "new-year",
+      "edition": "folio"
+    },
+    {
+      "code": "new-year-nocturne",
+      "name": "Fireworks at Twelve",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "new-year",
+      "opening": "scratch",
+      "palette": "night",
+      "occasion": "new-year",
+      "edition": "nocturne"
+    },
+    {
+      "code": "christmas-signature",
+      "name": "The Evergreen Star",
+      "caption": "Illustrated signature plate",
+      "collection": "Festivals",
+      "art": "christmas",
+      "opening": "gift",
+      "palette": "forest",
+      "occasion": "christmas",
+      "edition": "signature"
+    },
+    {
+      "code": "christmas-folio",
+      "name": "North Pole Post",
+      "caption": "The letterpress folio",
+      "collection": "Festivals",
+      "art": "christmas",
+      "opening": "envelope",
+      "palette": "ink",
+      "occasion": "christmas",
+      "edition": "folio"
+    },
+    {
+      "code": "christmas-nocturne",
+      "name": "A Candlelit Carol",
+      "caption": "The night edition",
+      "collection": "Festivals",
+      "art": "christmas",
+      "opening": "diya",
+      "palette": "night",
+      "occasion": "christmas",
+      "edition": "nocturne"
+    }
+  ],
+  "openings": {
+    "envelope": "Envelope reveal",
+    "gift": "Gift unwrapping",
+    "balloon": "Balloon pop",
+    "ring": "Ring box",
+    "scratch": "Scratch to reveal",
+    "hearts": "Floating hearts",
+    "diya": "Light a diya",
+    "confetti": "Confetti shower"
+  },
+  "palettes": {
+    "wine": [
+      "Mulberry",
+      "#702e43",
+      "#fbf1e9"
+    ],
+    "forest": [
+      "Botanical",
+      "#325546",
+      "#f0f2e6"
+    ],
+    "saffron": [
+      "Marigold",
+      "#894717",
+      "#fff0d8"
+    ],
+    "night": [
+      "Midnight",
+      "#293951",
+      "#f0eff7"
+    ],
+    "rose": [
+      "Dusty rose",
+      "#8c465c",
+      "#fbeef0"
+    ],
+    "ink": [
+      "Ink & paper",
+      "#5b493b",
+      "#f8f1df"
+    ]
+  },
+  "fonts": {
+    "serif": "Editorial serif",
+    "sans": "Modern sans",
+    "hand": "Handwritten"
+  },
+  "music": {
+    "chimes": "Soft chimes",
+    "festive": "Celebration bells",
+    "none": "No music"
+  }
+}

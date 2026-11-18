@@ -7,6 +7,8 @@ import {
   choose,
   local,
   api,
+  asset,
+  state,
   toast,
   message,
   qrURL,
@@ -102,9 +104,9 @@ function receipt(slug) {
   }
   return v;
 }
-function rsvp(root, slug, lang, draft) {
+function rsvp(root, slug, lang, draft, d, inviteID) {
   const t = (en, hi) => choose(lang, en, hi);
-  root.innerHTML = `<h3>${t('Will you join us?', 'क्या आप आएँगे?')}</h3><p>${t('Only the host and administrator can see your reply.', 'आपका जवाब केवल मेज़बान और एडमिन देख सकते हैं।')}</p><form class="rsvp-form"><label class="field">${t('Your name', 'आपका नाम')}<input name="name" required maxlength="80" autocomplete="name" value="${h(draft.name)}"></label><div class="two"><label class="field">${t('Your response', 'आपका जवाब')}<select name="attendance">${[
+  root.innerHTML = `<h3>${t('Will you join us?', 'क्या आप आएँगे?')}</h3><p>${state.pages ? t('Prepare your reply, then send it to the host in WhatsApp or email.', 'अपना जवाब तैयार करें, फिर WhatsApp या ईमेल से मेज़बान को भेजें।') : t('Only the host and administrator can see your reply.', 'आपका जवाब केवल मेज़बान और एडमिन देख सकते हैं।')}</p><form class="rsvp-form"><label class="field">${t('Your name', 'आपका नाम')}<input name="name" required maxlength="80" autocomplete="name" value="${h(draft.name)}"></label><div class="two"><label class="field">${t('Your response', 'आपका जवाब')}<select name="attendance">${[
     ['yes', 'Yes, I’ll be there', 'हाँ, ज़रूर आऊँगा/आऊँगी'],
     ['maybe', 'Maybe', 'शायद'],
     ['no', 'Unable to attend', 'नहीं आ पाऊँगा/पाऊँगी'],
@@ -115,12 +117,13 @@ function rsvp(root, slug, lang, draft) {
     )
     .join(
       '',
-    )}</select></label><label class="field">${t('Guests, including you', 'आप सहित मेहमानों की संख्या')}<input name="party" type="number" min="1" max="20" value="${h(draft.party)}" required></label></div><label class="field">${t('A note for the host (optional)', 'मेज़बान के लिए संदेश (वैकल्पिक)')}<textarea name="note" rows="2" maxlength="300">${h(draft.note)}</textarea></label><button class="btn primary">${draft.sent ? t('Update my RSVP', 'जवाब बदलें') : t('Send RSVP', 'जवाब भेजें')} ${ic('arrow')}</button><p role="status" class="reply-status"></p></form>`;
+    )}</select></label><label class="field">${t('Guests, including you', 'आप सहित मेहमानों की संख्या')}<input name="party" type="number" min="1" max="20" value="${h(draft.party)}" required></label></div><label class="field">${t('A note for the host (optional)', 'मेज़बान के लिए संदेश (वैकल्पिक)')}<textarea name="note" rows="2" maxlength="300">${h(draft.note)}</textarea></label><button class="btn primary">${state.pages ? t('Prepare my reply', 'जवाब तैयार करें') : draft.sent ? t('Update my RSVP', 'जवाब बदलें') : t('Send RSVP', 'जवाब भेजें')} ${ic('arrow')}</button><p role="status" class="reply-status"></p></form>`;
   const f = $('form', root),
     btn = $('button', f),
     status = $('.reply-status', f),
     sync = () => {
       for (const k of ['name', 'attendance', 'note', 'party']) draft[k] = f.elements[k].value;
+      if (state.pages) status.replaceChildren();
       f.party.disabled = f.attendance.value !== 'yes';
     };
   sync();
@@ -144,6 +147,10 @@ function rsvp(root, slug, lang, draft) {
     btn.disabled = true;
     sync();
     try {
+      if (state.pages) {
+        state.pages.prepareReply(status, d, inviteID, draft, lang);
+        return;
+      }
       draft.sent = await api(`public/${slug}/rsvp`, {
         method: 'POST',
         auth: false,
@@ -165,7 +172,7 @@ function rsvp(root, slug, lang, draft) {
   };
 }
 async function dataURL(url) {
-  if (!url || url.startsWith('data:')) return url || '';
+  if (!url || url.startsWith('data:') || (state.pages && /^https:\/\//.test(url))) return url || '';
   const resp = await fetch(url, { credentials: 'omit' });
   if (!resp.ok) throw Error('Could not prepare the card image.');
   const blob = await resp.blob();
@@ -185,22 +192,23 @@ function book(d, opts) {
     .join('');
 }
 export async function keepsake(d, media = {}, slug = '', lang = d.language || 'hi') {
-  const [cover, photo, qr, css, albumEntries] = await Promise.all([
+  const [cover, photo, qr, css, albumEntries, video] = await Promise.all([
     dataURL(art(d.design)),
     dataURL(media.photo),
     slug ? dataURL(qrURL(slug)) : '',
-    fetch('/s/card.css').then((r) => {
+    fetch(asset('card.css')).then((r) => {
       if (!r.ok) throw Error('Could not prepare the card styles.');
       return r.text();
     }),
     Promise.all(
       (d.gallery || [])
-        .filter((m) => m.kind === 'photo')
+        .filter((m) => state.pages || m.kind === 'photo')
         .map(async (m) => [m.id, await dataURL(media.gallery?.[m.id])]),
     ),
+    state.pages ? dataURL(media.video) : '',
   ]);
   const card = book(d, {
-    media: { photo, gallery: Object.fromEntries(albumEntries) },
+    media: { photo, video, gallery: Object.fromEntries(albumEntries) },
     slug,
     lang,
     mode: 'offline',
@@ -284,14 +292,14 @@ function scratch(canvas, btn, label) {
 export function play(
   root,
   d,
-  { slug = '', photo = '', video = '', gallery = {}, close = null } = {},
+  { slug = '', inviteID = '', photo = '', video = '', gallery = {}, close = null } = {},
 ) {
   const e = eventOf(d.occasion),
     music = synth(d.music),
     media = { photo, video, gallery },
     reduced = matchMedia('(prefers-reduced-motion: reduce)').matches,
     draft = {
-      key: slug ? receipt(slug) : '',
+      key: slug ? (state.pages ? state.pages.guestKey(inviteID) : receipt(slug)) : '',
       name: '',
       attendance: 'yes',
       note: '',
@@ -306,7 +314,7 @@ export function play(
     tick,
     fxTimer;
   const t = (a, b) => choose(lang, a, b);
-  root.innerHTML = `<div class="theatre theatre-${editionOf(d)}" data-function="${h(d.occasion)}" style="${vars(d)}"><div class="theatre-tools"><span class="mini-brand"><img alt="" src="/s/assets/mark.svg">Celebration Studio</span><div class="reader-tools"></div></div><div class="guest-stage"></div><div class="theatre-end">✦ &nbsp; Celebration Studio</div></div>`;
+  root.innerHTML = `<div class="theatre theatre-${editionOf(d)}" data-function="${h(d.occasion)}" style="${vars(d)}"><div class="theatre-tools"><span class="mini-brand"><img alt="" src="${asset('assets/mark.svg')}">Celebration Studio</span><div class="reader-tools"></div></div><div class="guest-stage"></div><div class="theatre-end">✦ &nbsp; Celebration Studio</div></div>`;
   const stage = $('.guest-stage', root),
     theatre = $('.theatre', root);
   function tools() {
@@ -348,7 +356,7 @@ export function play(
       tick = setInterval(update, 1000);
     }
     const response = $('.response', stage);
-    if (response && slug) rsvp(response, slug, lang, draft);
+    if (response && slug) rsvp(response, slug, lang, draft, d, inviteID);
     $('[data-prev]', stage).onclick = () => flip(index - 1);
     $('[data-next]', stage).onclick = () => flip(index + 1);
     $('[data-contents]', stage).onchange = (ev) => flip(Number(ev.target.value));

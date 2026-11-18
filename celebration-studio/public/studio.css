@@ -2023,3 +2023,12 @@ dialog::backdrop {
     gap: 1px;
   }
 }
+
+/* Account-free Pages sharing: give dense QR modules room, including on phones. */
+.portable-qr { flex-direction: column; align-items: center; }
+.portable-qr img { width: min(100%, 300px); max-width: 100%; }
+.reply-handoff { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.reply-handoff:empty { display: none; }
+.reply-handoff .actions { justify-content: start; }
+[data-contact-fields] { border-left: 3px solid var(--line); padding-left: 12px; }
+.export-contact { overflow-wrap: anywhere; }

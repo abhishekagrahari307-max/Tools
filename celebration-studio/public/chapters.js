@@ -98,7 +98,7 @@ function album(d, media, lang, mode) {
           m.kind === 'photo' ? 'Photograph' : 'Short film',
           m.kind === 'photo' ? 'तस्वीर' : 'लघु फ़िल्म',
         );
-      return `<figure ${!staticMode && i ? 'hidden' : ''} data-slide="${i}">${m.kind === 'video' && staticMode ? `<p class="film-ticket">${ic('play', 18)} ${t('Film · watch in the online invitation', 'फ़िल्म · ऑनलाइन निमंत्रण में देखें')}</p>` : m.src ? (m.kind === 'photo' ? `<img src="${h(m.src)}" alt="${h(cap)}">` : `<video controls playsinline preload="metadata" src="${h(m.src)}" aria-label="${h(cap)}"></video>`) : `<p>${t('Preparing media…', 'फ़ाइल तैयार हो रही है…')}</p>`}<figcaption><b>${num(i + 1)}</b> ${h(cap)}</figcaption></figure>`;
+      return `<figure ${!staticMode && i ? 'hidden' : ''} data-slide="${i}">${m.kind === 'video' && staticMode && !(mode === 'offline' && state.pages && m.src) ? `<p class="film-ticket">${ic('play', 18)} ${t('Film · watch in the online invitation', 'फ़िल्म · ऑनलाइन निमंत्रण में देखें')}</p>` : m.src ? (m.kind === 'photo' ? `<img src="${h(m.src)}" alt="${h(cap)}">` : `<video controls playsinline preload="metadata" src="${h(m.src)}" aria-label="${h(cap)}"></video>`) : `<p>${t('Preparing media…', 'फ़ाइल तैयार हो रही है…')}</p>`}<figcaption><b>${num(i + 1)}</b> ${h(cap)}</figcaption></figure>`;
     })
     .join(
       '',
@@ -215,8 +215,9 @@ function body(d, p, lang, media, mode, slug, qr) {
           ),
           'preview-hint',
         );
+      if (staticMode && state.pages && d.rsvp) content += state.pages.exportContact(d, lang);
       if (staticMode && slug)
-        content += `<div class="printed-link">${qr ? `<img width="106" height="106" src="${h(qr)}" alt="QR">` : ''}<div><b>${t('Open the online invitation', 'ऑनलाइन निमंत्रण खोलें')}</b><p><a href="${h(publicURL(slug))}">${h(publicURL(slug))}</a></p></div></div>`;
+        content += `<div class="printed-link">${qr ? `<img width="106" height="106" src="${h(qr)}" alt="QR">` : ''}<div><b>${t('Open the online invitation', 'ऑनलाइन निमंत्रण खोलें')}</b><p><a href="${h(publicURL(slug))}">${state.pages ? t('View the shared edition online ↗', 'साझा निमंत्रण ऑनलाइन देखें ↗') : h(publicURL(slug))}</a></p></div></div>`;
     }
   }
   return content;
