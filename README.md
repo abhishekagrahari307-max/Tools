@@ -1,4 +1,8 @@
 # Tools
 
-- [Birthday Wish Studio](birthday-wishes/README.md) — existing static site and shareable birthday cards.
-- [Celebration Studio](celebration-studio/README.md) — separate full-stack invitation & RSVP preview; run with its application server. It does not replace the published Tools or birthday pages.
+**[Open the website](https://abhishekagrahari307-max.github.io/Tools/)**
+
+- **[Celebration Studio](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/)** — create a Hindi or English invitation, share the link or QR and receive RSVPs by WhatsApp or email. No login required. [How it works](celebration-studio/README.md).
+- **[Birthday Wish Studio](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/)** — the original birthday cards, including [Garima’s card](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/#/wish/garima). [Sharing guide](birthday-wishes/README.md).
+
+The existing GitHub Pages site serves the static files in the root of `main`. The optional [local Django preview](celebration-studio/SERVER.md) is separate; the public studios don’t depend on an application server.

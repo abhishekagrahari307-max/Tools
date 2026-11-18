@@ -1,65 +1,34 @@
-# Celebration Studio · working invitation platform preview
+# Celebration Studio · no-login edition
 
-**Create moments, share happiness.** A Hindi/English invitation editor with a real account → private draft → published invitation → guest RSVP → organizer dashboard workflow. This is a separate application on the working branch. It does **not** replace the Tools homepage, Birthday Wish Studio, Garima’s card, or previously shared wish fragments.
+**[Open Celebration Studio](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/)** · [Birthday invitations](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/#/studio/birthday) · [Wedding invitations](https://abhishekagrahari307-max.github.io/Tools/celebration-studio/#/studio/wedding)
 
-## Try the preview
+### Make and send an invitation
 
-1. Select an **occasion card** on the home page, e.g. Wedding. Its studio shows its six-chapter sequence and **three illustrated editions**. Choose one; no account is needed to try it. `#/studio/birthday` and `#/studio/wedding` open the respective collections directly.
-2. In **Six pages**, set Hindi or English, enter the cover name(s), and use **Chapter to edit** or **Next page** for the family introductions, story, ceremony notes, etc. The live proof follows the selected page. **Design & media** controls the opening, stationery, music and album; **When & where** sets the schedule and map. **Play invitation** privately rehearses the full guest experience.
-3. **Save draft → Create account** with a test email and a separate preview password (at least ten characters). Signed-in edits autosave to the database. **Publish invitation** gives a personal `/i/<slug>` link, WhatsApp sharing and a downloadable QR PNG. Only the published version and its selected media are public. Use a second browser/profile or phone that can access the running preview.
-4. The guest opens the invitation, turns the six pages and replies on the final page **without logging in**. Try **Yes** for **3** people. In the organizer’s browser, **My invitations → Replies** counts three people, not one form. Change the guest's response to **2** and refresh: one row, two attendees. The guest list also refreshes every 12 seconds.
-5. Editing a private draft does not change the published book. **Update live invitation** republishes at the same link/QR. **Unpublish** disables the guest link, QR image, RSVP and all published media. **Delete** also removes the replies and files. Already downloaded copies cannot be revoked.
+1. Choose one of **13 occasions**, then an illustrated, letterpress or night edition. Each has a six-chapter Hindi/English book. Edit names, messages, photos, films, schedule, venue and music. Use **Play invitation** to try the reveal.
+2. Your changes autosave under **My invitations** on this browser. To collect replies, turn on **Accept guest RSVPs** on page 06 and add your WhatsApp number (including country code) or email address. Only include contact details you want to share with guests.
+3. Select **Create guest link**. Copy the **entire** link into your chat or share the QR PNG. A guest can open it on another phone without your drafts, a login or a download. **Print / PDF** prints the six pages. **Card** downloads an HTML attachment you can send instead.
+4. Guests fill in their name, attendance, party size and optional note. **Prepare my reply → WhatsApp / Email → Send** delivers the message through their chosen app. Preparing a reply alone does **not** send it. The message also contains a reply link. Open it in the browser where you created the invitation and choose **Add to guest list**. A new reply from the same guest browser updates their entry; a party of three counts as three guests, not three replies. No guest list is published.
 
-## Run locally
+### What travels with a link?
 
-Python 3.11+; no Supabase project, credentials, external fonts, frontend build, or Node runtime needed to run the app.
+- The URL fragment contains a compressed, versioned snapshot, **not encrypted**. Anyone who has the whole link can read or forward the invitation, including its venue and enabled RSVP contact. Without the fragment the address just opens the studio. Editing the draft creates a new link when you share again; deleting the draft cannot revoke an old copy.
+- Add a cover photo, featured film and up to eight captioned album items. The HTML card embeds the original local files (JPG/PNG/WebP up to 4 MB; MP4/WebM up to 12 MB each). Guest links use small thumbnails of local photos. For a full-size photo or ordinary video in a guest link, choose **Design & media → Add a media link** and use a public **direct HTTPS file** that works without a sign-in. Those media load from their original host and need internet. The studio does not upload files to a third party.
+- Guest links are capped at 8,000 characters. QR is generated on-device for links within a single QR’s capacity (up to 2,953 ASCII bytes). If it won’t fit, the editor explains how to shorten it or send the complete Card instead; no film is silently dropped. On a printed/exported draft, the guest-link QR refers to the **last shared copy**, not unsent edits.
+- Drafts, original files and imported replies live in **IndexedDB in the creator’s browser**. This is not a cloud account or an automatic inbox. Anyone using that browser profile has access; clearing site data also clears this workspace. Guests’ actual replies remain in the receiving chat or mailbox. Receipt IDs distinguish browser profiles, not verified people.
 
-```sh
-cd celebration-studio
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-./run-preview.sh
-```
+### Hosting and checks
 
-Visit `http://localhost:8000/`. The single origin serves the frontend, API, `/i/<personal-slug>` guest pages and `/admin/`. All browser API paths are relative. To share, use the address of the accessible preview/host rather than your computer’s loopback address. On Arena the preview can be access-controlled and is temporary, not a permanent public deployment.
-
-## Included
-
-- **13 separate studios, three named editions each.** Illustrated signature plate, letterpress folio and night edition use different frames, compositions and page treatments. The six earlier general designs remain readable via old editor links and stored snapshots; no old invitation is rewritten. Administrators can list and unlist designs per occasion.
-- **Six chapters per function, not one generic form.** Birthday has a wish wall, party, childhood album and a cake-cutting surprise; Wedding has both families, their story/album, four ceremony cards and venue; Engagement has a two-part introduction and a ring promise. Anniversary has a journey timeline. Diwali has lamps and a festive menu; Holi a colour program; Raksha Bandhan a sibling letter; Baby Shower a mother-to-be portrait, blessings and godh bharai ceremony; Housewarming a new-home tour and directions with RSVP; Festival Party a set list and guest pass. Karwa Chauth, New Year and Christmas each have their own program too. `studio/programs.py` defines the sequences, bilingual editorial copy and validated fields; `public/chapters.js` renders the same pages in the editor, player and exports.
-- **Language and navigation:** Hindi or English default; guests can switch before opening or mid-book. Titles, guidance, ceremony labels, suggested messages and RSVP controls follow the selected language. Hosts may add an alternate-language invitation message. Personal writing, names, captions and venue text are not machine-translated. Previous/Next, contents picker and keyboard arrows turn the pages. Eight opening scenes, a tap/keyboard alternative to scratch, optional music on interaction and reduced-motion support are included.
-- **Media and event details:** a cover photo and featured film plus up to **8 additional captioned photos or videos** per album, with ordering and removal. Each photo ≤4 MB (JPG/PNG/WebP); each clip ≤12 MB (MP4/WebM); 80 MB preview storage per account. Date/time and countdown use **IST (UTC+05:30)**. Use a Google Maps link or let the venue address generate directions.
-- **Share and export:** copy the online link, share on WhatsApp, scan/download a locally generated QR, or print/save the complete six-chapter book as PDF through the browser. The standalone HTML card embeds its illustrations and photos and supports chapter anchors, even offline. The final page of a published export includes its online link and QR. Videos and RSVP are online features; no guest list or receipt is embedded.
-- Account-owned drafts, version conflict checks, stable personalized slugs, public snapshots, real guest counts and optional notes. A random RSVP receipt in the guest browser allows updates, not identity verification. Clearing browser data or using a different device creates a different receipt.
-
-## Administration
-
-There is **no shared admin password** and registration never grants admin access. A server operator can run `python manage.py createsuperuser` locally in the app environment. Use an email address as the username to also sign in through the studio. Never put the password in the repository or chat.
-
-- `/admin/` (open in a top-level tab) uses Django’s CSRF-protected admin login and permissions. Manage users and templates, ordering, availability, invitations and responses. New collections can use the bundled artwork and palettes. Unlisting a template does not break existing published snapshots.
-- A superuser signing into the studio also has **Admin** → the all-invitations register with edit, publish/unpublish, guest responses and delete controls. Normal organizers can only access their own invitations and replies; public responses never disclose the guest list.
-
-## Data and deployment boundaries
-
-This preview uses **Django + SQLite**, not localStorage as a database and not a connected Supabase service. Migrations install the schema, the six legacy templates and 39 occasion editions, but no fake accounts, guests or invitations. By default the database (including uploaded media) and generated server secret are in ignored `celebration-studio/.local/`. They survive process restarts in the same workspace; Arena may reset them when the workspace ends. Use sample data for acceptance testing.
-
-- `STUDIO_DATA_DIR`: private persistent directory for the database and secret. `STUDIO_SECRET_KEY`: optional server-managed Django secret. `PORT`, `STUDIO_HOSTS` and `STUDIO_ORIGINS`: listener/additional allowed hosts/trusted HTTPS origins. `STUDIO_HTTPS=1`: secure cookies for the separate admin interface. `STUDIO_PUBLIC_ORIGIN`: optional canonical origin for guest links/QR behind a proxy; the preview script sets the HTTPS Arena address automatically.
-- Passwords use Django’s salted password hashing. Studio API sessions are random, revocable, expiring bearer tokens (only digests stored server-side, token in tab session storage to support embedded previews). Cookie credentials are not used by the studio API. Admin sessions remain server-managed and CSRF-protected.
-- Media is private until it is referenced by a published snapshot. Photos are validated and re-encoded; short MP4/WebM clips are type/size checked and support range playback. Guest names/notes are only sent to authorized organizers/admins. There are preview rate, size and account quota limits. No service-role keys or configuration entry boxes are exposed to users.
-- **Before a production launch:** deploy the application server behind trusted HTTPS with a durable database/backups and private object storage. GitHub Pages alone cannot run this server. A managed PostgreSQL/Supabase deployment is a separate integration, not provisioned here. Add email verification/recovery, production abuse controls, malware scanning for public uploads, monitoring, privacy/retention policy and operator review. The development server and single-process rate limiter are intended for acceptance testing.
-
-## Checks
+Pages serves `index.html`, the shared editor/renderer in `public/`, and the account-free bootstrap in `public/pages/`. There is no API, third-party QR service, signup, deployment secret or runtime build. All assets resolve relative to the project, and guest and reply URLs use `#/i/…` and `#/reply/…` so refresh works on static hosting. The [optional server preview](SERVER.md) retains its original account-based workflows; it is **not** used by the public site. The [original Birthday Wish Studio](../birthday-wishes/README.md) is unchanged.
 
 ```sh
-# from celebration-studio, in the Python environment above
-python manage.py test studio
-python manage.py check
-# optional two-browser test (separate temporary Django test database)
-# Install puppeteer-core and jsqr for Node and supply a local Chromium binary.
-STUDIO_BROWSER_CHECK=1 CHROME_BIN=/path/to/chromium python manage.py test studio.browsercheck
-# from repository root, verify the unchanged Birthday Wish Studio codec
-node --test tests/wish-links.test.cjs
+# From the repository root, browse http://localhost:8000/celebration-studio/
+python3 -m http.server 8000
+# No external packages required for the link tests (Node 22+)
+node --test tests/*.test.*
+# Browser check: install puppeteer-core + jsqr, and supply Chrome/Chromium.
+CHROME_BIN=/path/to/chromium node celebration-studio/checks/pages.cjs
 ```
 
-Fonts and selected embedded birthday stationery artwork come from the supplied studio. Font licenses are in `public/assets/FONT-LICENSES.txt`. The new atelier and diya photos are generated editorial assets; the classic post illustration and app mark are SVG. The illustrated occasion motifs, alternate night scenes and letterpress plates are locally rendered vector artwork (`public/plates.js`); QR generation does not contact a third-party service.
+The browser check serves static files under `/Tools/` and uses two isolated profiles. It decodes the real PNG QR, exercises media, PDF and HTML, verifies the addressed WhatsApp and mailto **without sending messages**, and opens the return slip in the organizer profile. To check deployed assets, set `STUDIO_PAGES_SITE` to the absolute Studio directory URL ending in `/`.
+
+`checks/export_pages_catalog.py --check` (with the [server requirements](requirements.txt) installed) compares `public/pages/catalog-v1.json` with a freshly migrated **temporary** database. No personal data is exported. Keep the v1 defaults and decoder for links already sent; introduce a new format version for incompatible changes. The two bundled MIT libraries are documented in [vendor/README.md](public/pages/vendor/README.md). Fonts and artwork credits are in [SERVER.md](SERVER.md#checks) and `public/assets/FONT-LICENSES.txt`.

@@ -39,7 +39,8 @@ export const icons = {
 export function ic(name, size = 16) {
   return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icons[name] || icons.sparkle}"/></svg>`;
 }
-export const state = { catalog: null, user: null, token: '' };
+export const asset = (name) => new URL(name, import.meta.url).href;
+export const state = { catalog: null, user: null, token: '', pages: null };
 try {
   state.token = sessionStorage.getItem('celebration.session') || '';
 } catch {}
@@ -82,16 +83,20 @@ export const local = (pair, lang) => choose(lang, pair[0], pair[1]);
 export const art = (t) => {
   const e = state.catalog.occasions.find((e) => e.id === t?.art);
   if (e) return plate(e.id, t.edition || 'signature', e.colors);
-  return (
-    '/s/assets/' +
-    (t?.art === 'classic'
-      ? 'classic.svg'
-      : (['royal', 'floral', 'festive', 'midnight', 'playful'].includes(t?.art) ? t.art : 'royal') +
-        '.webp')
+  return asset(
+    'assets/' +
+      (t?.art === 'classic'
+        ? 'classic.svg'
+        : (['royal', 'floral', 'festive', 'midnight', 'playful'].includes(t?.art)
+            ? t.art
+            : 'royal') + '.webp'),
   );
 };
 export const publicURL = (slug) =>
-  new URL('/i/' + encodeURIComponent(slug), state.catalog?.publicOrigin || location.origin).href;
+  state.pages
+    ? state.pages.publicURL(slug)
+    : new URL('/i/' + encodeURIComponent(slug), state.catalog?.publicOrigin || location.origin)
+        .href;
 export function initial(t, e) {
   return {
     occasion: e.id,
@@ -185,8 +190,10 @@ export function modal(title, content) {
   el.querySelector('[data-close]').onclick = () => el.close();
   return el;
 }
-export const qrURL = (slug) => '/api/public/' + encodeURIComponent(slug) + '/qr.png';
+export const qrURL = (slug) =>
+  state.pages ? state.pages.qrURL(slug) : '/api/public/' + encodeURIComponent(slug) + '/qr.png';
 export function showLink(record, lang = 'en') {
+  if (state.pages) return state.pages.showLink(record, lang);
   const t = (en, hi) => choose(lang, en, hi),
     url = publicURL(record.slug),
     qr = qrURL(record.slug),
