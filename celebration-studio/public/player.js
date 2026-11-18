@@ -255,7 +255,16 @@ function countdown(d, lang) {
 }
 function scratch(canvas, btn, label) {
   if (!canvas) return;
-  const c = canvas.getContext('2d');
+  let c;
+  try {
+    c = canvas.getContext('2d');
+  } catch {
+    /* Use the accessible reveal button instead. */
+  }
+  if (!c) {
+    canvas.remove();
+    return;
+  }
   c.fillStyle = '#bb9f75';
   c.fillRect(0, 0, 140, 100);
   c.fillStyle = '#fff7dd';
@@ -276,7 +285,13 @@ function scratch(canvas, btn, label) {
       Math.PI * 2,
     );
     c.fill();
-    const pixels = c.getImageData(0, 0, 140, 100).data;
+    let pixels;
+    try {
+      pixels = c.getImageData(0, 0, 140, 100).data;
+    } catch {
+      canvas.remove();
+      return;
+    }
     let blank = 0;
     for (let i = 3; i < pixels.length; i += 16) if (pixels[i] < 32) blank++;
     if (blank > 1350) btn.click();

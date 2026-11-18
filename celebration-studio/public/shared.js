@@ -124,6 +124,9 @@ export function initial(t, e) {
     video: '',
   };
 }
+// Some mobile time pickers return HH:mm:00 (or .000) even for a minute-only control.
+export const minuteTime = (v) =>
+  typeof v === 'string' ? v.replace(/^(\d\d:\d\d):00(?:\.0+)?$/, '$1') : v;
 export function dateText(d, lang = 'en') {
   if (!d) return '';
   return new Intl.DateTimeFormat(lang === 'hi' ? 'hi-IN' : 'en-IN', {
@@ -166,7 +169,7 @@ export async function copy(text, field) {
   try {
     await navigator.clipboard.writeText(text);
     toast('Link copied · चैट में पेस्ट करें');
-    return;
+    return true;
   } catch {}
   const f = field || document.createElement('textarea');
   if (!field) {
@@ -175,6 +178,7 @@ export async function copy(text, field) {
   }
   f.focus();
   f.select();
+  f.setSelectionRange?.(0, f.value.length);
   let ok = false;
   try {
     ok = document.execCommand('copy');
@@ -182,11 +186,34 @@ export async function copy(text, field) {
   if (!field) f.remove();
   if (!ok && !field) window.prompt('Copy the full invitation link:', text);
   else toast(ok ? 'Link copied.' : 'Select and copy the full link.');
+  return ok;
 }
 export function modal(title, content) {
   const el = $('#modal');
   el.innerHTML = `<div class="modal-body"><button class="circle x" data-close aria-label="Close">${ic('close')}</button><span class="eyeline">CELEBRATION STUDIO</span><h2 id="modal-title">${h(title)}</h2>${content}</div>`;
-  if (!el.open) el.showModal();
+  if (!el.hasAttribute('open')) {
+    // Embedded/older mobile browsers can render the studio but lack native dialogs.
+    try {
+      el.showModal();
+    } catch {
+      const trigger = document.activeElement;
+      el.classList.add('fallback-dialog');
+      el.setAttribute('open', '');
+      if (!('open' in el))
+        Object.defineProperty(el, 'open', { get: () => el.hasAttribute('open') });
+      el.close = () => {
+        el.removeAttribute('open');
+        el.classList.remove('fallback-dialog');
+        el.onkeydown = null;
+        delete el.close;
+        trigger?.focus();
+      };
+      el.onkeydown = (e) => {
+        if (e.key === 'Escape') el.close();
+      };
+      el.querySelector('[data-close]').focus();
+    }
+  }
   el.querySelector('[data-close]').onclick = () => el.close();
   return el;
 }

@@ -66,6 +66,7 @@ const route = async (p, hash, s) => {
   await p.waitForSelector(s);
 };
 async function decodeQR(p) {
+  await p.waitForSelector('.share-qr img');
   const { w, data } = await p.$eval('.share-qr img', async (im) => {
     await im.decode();
     const cv = document.createElement('canvas');
@@ -272,13 +273,24 @@ async function download(page, context, dir, selector) {
     await host.waitForSelector('#modal[open] #share-url', { visible: true });
     const url = await host.$eval('#share-url', (el) => el.value);
     assert(url.startsWith(base + '#/i/v1.'));
+    await hostContext.overridePermissions(new URL(base).origin, [
+      'clipboard-read',
+      'clipboard-write',
+      'clipboard-sanitized-write',
+    ]);
+    await host.bringToFront();
+    await click(host, '#copy-url');
+    await host.waitForFunction(() =>
+      document.querySelector('[data-copy-status]').textContent.includes('पेस्ट'),
+    );
+    assert.equal(await host.evaluate(() => navigator.clipboard.readText()), url);
     const scanned = await decodeQR(host);
     assert.equal(scanned, url);
     assert.equal(
       await host.$eval('#modal a[href^="https://wa.me/"]', (a) =>
         new URL(a.href).searchParams.get('text'),
       ),
-      'You’re invited! ' + url,
+      'आप सादर आमंत्रित हैं! ' + url,
     );
     await guest.goto(scanned);
     await guest.waitForSelector('.ticket-face');
@@ -350,10 +362,10 @@ async function download(page, context, dir, selector) {
     await (await host.$('[data-file="video"]')).uploadFile(video);
     await host.waitForSelector('[data-remove="video"]', { visible: true });
     await click(host, '[data-do="publish"]');
-    await host.waitForFunction(() =>
-      document.querySelector('.save-error').textContent.includes('film is too large'),
-    );
-    const file = await download(host, hostContext, path.join(tmp, 'download'), '[data-do="card"]');
+    await host.waitForSelector('#modal[open] [data-accept-compact]');
+    assert.match(await get(host, '#modal ul'), /Featured film/);
+    assert.equal(await host.$('#modal #share-url'), null); // Not silently shared without the film.
+    const file = await download(host, hostContext, path.join(tmp, 'download'), '[data-full-card]');
     const html = await fs.readFile(file, 'utf8');
     assert(
       html.includes('id="leaf-6"') &&
@@ -363,6 +375,12 @@ async function download(page, context, dir, selector) {
         !html.includes('blob:') &&
         html.includes('mailto:organizer@example.test'),
     );
+    await click(host, '[data-do="publish"]');
+    await click(host, '[data-accept-compact]');
+    await host.waitForSelector('#modal[open] #share-url');
+    // Only the oversized local clip is omitted. All content from the earlier share (including the remote film) remains.
+    assert.equal(await host.$eval('#share-url', (el) => el.value), url);
+    await click(host, '#modal [data-close]');
     await click(host, '[data-remove="video"]');
     await (
       await host.$('[data-file="photo"]')
@@ -397,6 +415,7 @@ async function download(page, context, dir, selector) {
     await guest.goto(base + '#/i/v1.bad');
     await guest.waitForSelector('.gate h1');
     assert.equal(await get(guest, '.gate h1'), 'Invitation unavailable');
+    await require('./share-recovery.cjs')({ browser, guest, base, png, click, set });
     assert.deepEqual(errors, []);
     console.log(
       'PASS: /Tools/ homepage + original Garima route; 13 studios / 39 plates / 78 proofs; login-free device draft, reload, photo and film → decoded QR → independent mobile guest, album, language, Maps, 6-page PDF → addressed WhatsApp & email handoff → returned reply imported by host, 3→2 without duplicates; full HTML with local video; old link survives edits/deletion. No API requests.',

@@ -18,6 +18,7 @@ import { publicURL, qrURL, startCard, contacts, unpack, readInvite, readReply } 
 import * as desk from './store.js';
 import {
   contactFields,
+  offerCompact,
   mediaControls,
   promptMedia,
   showLink,
@@ -34,7 +35,14 @@ state.pages = {
   guestKey,
   prepareReply,
   exportContact,
-  workspace: { ...desk, contactFields, mediaControls, promptMedia, contacts },
+  workspace: (record) => ({
+    ...desk.openDraft(record),
+    contactFields,
+    mediaControls,
+    promptMedia,
+    contacts,
+    offerCompact,
+  }),
 };
 const root = $('#app'),
   brand = `<img class="brand-flower" src="${asset('assets/mark.svg')}" alt=""><span>Celebration<span class="brand-sub">S T U D I O</span></span>`;
@@ -163,7 +171,12 @@ async function route() {
               ? { id: null, version: 0, published: false, slug: '', data: startCard(t) }
               : null;
         if (!alive()) return;
-        if (!r) throw Error('This edition or device draft was not found.');
+        if (!r)
+          throw Error(
+            page === 'edit'
+              ? 'This device draft is not in this browser. An editor address is not a guest link. Open the original draft on its device and choose Create guest link.'
+              : 'This edition was not found. Choose a listed design.',
+          );
         const active = new Editor(r, (fn) =>
           Promise.resolve()
             .then(fn)

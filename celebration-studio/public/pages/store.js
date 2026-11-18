@@ -1,5 +1,6 @@
 // Device-only organizer workspace. The public reader never looks up a local draft.
-import { newID, makeInvite, httpsMedia } from './links.js';
+import { newID, httpsMedia } from './links.js';
+import { prepareLink } from './portable.js';
 
 const drafts = 'drafts',
   media = 'media',
@@ -9,6 +10,21 @@ function db() {
   if (!opening)
     opening = new Promise((resolve, reject) => {
       const req = indexedDB.open('celebration.pages.v1', 1);
+      let abandoned = false;
+      const fail = (text) => {
+        abandoned = true;
+        clearTimeout(timer);
+        reject(Error(text));
+      };
+      // Some WebViews leave open() pending instead of reporting a storage error.
+      const timer = setTimeout(
+        () => fail('Device storage did not open. Keep this tab open and try Save draft again.'),
+        8000,
+      );
+      req.onblocked = () =>
+        fail(
+          'Device storage is busy in another tab. Close the other studio tab and try Save draft again.',
+        );
       req.onupgradeneeded = () => {
         const d = req.result;
         d.createObjectStore(drafts, { keyPath: 'id' });
@@ -16,6 +32,11 @@ function db() {
         d.createObjectStore(replies, { keyPath: ['invite', 'key'] });
       };
       req.onsuccess = () => {
+        clearTimeout(timer);
+        if (abandoned) {
+          req.result.close();
+          return;
+        }
         req.result.onversionchange = () => {
           req.result.close();
           opening = null;
@@ -23,9 +44,7 @@ function db() {
         resolve(req.result);
       };
       req.onerror = () =>
-        reject(
-          Error('Cannot open device storage. Allow site storage to save drafts in this browser.'),
-        );
+        fail('Cannot open device storage. Allow site storage to save drafts in this browser.');
     }).catch((e) => {
       opening = null;
       throw e;
@@ -73,16 +92,24 @@ export const listDrafts = () =>
   transaction([drafts], 'readonly', (s) => read(s(drafts).getAll())).then((list) =>
     list.sort((a, b) => b.updated - a.updated),
   );
-export async function save(id, { data, version }) {
+// Commit the draft, its *new* attachments, and its last accepted link together.
+// Reuse the session ID on retry; never overwrite a newer or deleted draft.
+async function persist(id, { data, version }, slug, attachments) {
   return transaction([drafts, media], 'readwrite', async (s) => {
-    const row = id
-      ? await read(s(drafts).get(id))
-      : { id: newID(), version: 0, slug: '', published: false };
+    const old = await read(s(drafts).get(id));
+    const row = !old && version === 0 ? { id, version: 0 } : old;
     checkVersion(row, version);
     const live = new Set(refs(data));
-    for (const key of row.data ? refs(row.data) : [])
-      if (!live.has(key)) s(media).delete([row.id, key]);
-    Object.assign(row, { data, updated: Date.now(), version: version + 1 });
+    for (const key of old ? refs(old.data) : []) if (!live.has(key)) s(media).delete([id, key]);
+    for (const [key, value] of attachments)
+      if (live.has(key)) s(media).put({ invite: id, id: key, value });
+    Object.assign(row, {
+      data,
+      slug,
+      published: !!slug,
+      updated: Date.now(),
+      version: version + 1,
+    });
     s(drafts).put(row);
     return row;
   });
@@ -105,84 +132,46 @@ const types = {
   photo: ['image/jpeg', 'image/png', 'image/webp'],
   video: ['video/mp4', 'video/webm'],
 };
-export async function addMedia(invite, kind, value) {
-  if (typeof value === 'string') value = httpsMedia(value.trim());
-  else if (
-    !(value instanceof Blob) ||
-    !types[kind]?.includes(value.type) ||
-    !value.size ||
-    value.size > (kind === 'photo' ? 4 : 12) * 1024 ** 2
-  )
-    throw Error('Choose JPG, PNG or WebP (up to 4 MB) or MP4 or WebM (up to 12 MB).');
-  const id = newID();
-  await transaction([media, drafts], 'readwrite', async (s) => {
-    if (!(await read(s(drafts).get(invite)))) throw Error('Save this draft first.');
-    s(media).put({ invite, id, value });
-  });
-  return { id, kind };
-}
-export async function getMedia(id, key) {
-  const item = await get(media, [id, key]);
-  if (!item) throw Error('A local file is missing. Add it again or remove it from the draft.');
-  return item.value;
-}
-function dataURL(file) {
-  return new Promise((ok, no) => {
-    const r = new FileReader();
-    r.onload = () => ok(r.result);
-    r.onerror = () => no(r.error);
-    r.readAsDataURL(file);
-  });
-}
-async function linkPhoto(file, budget) {
-  if (file.size <= budget) return dataURL(file);
-  const url = URL.createObjectURL(file),
-    img = new Image();
-  try {
-    img.src = url;
-    await img.decode();
-    const c = document.createElement('canvas');
-    for (const edge of [160, 120, 96, 72, 48, 32, 24, 16]) {
-      const factor = Math.min(1, edge / Math.max(img.naturalHeight, img.naturalWidth));
-      c.width = Math.max(1, Math.round(img.naturalWidth * factor));
-      c.height = Math.max(1, Math.round(img.naturalHeight * factor));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      const thumb = c.toDataURL('image/webp', 0.63);
-      if (thumb.length < (4 * budget) / 3 + 23) return thumb;
+// The editing session owns its media even before the first successful save. An
+// IndexedDB write (including one stuck behind another tab) never gates sharing.
+export function openDraft(record) {
+  const id = record.id || newID(),
+    originals = new Map(),
+    pending = new Map();
+  async function getMedia(key) {
+    if (!originals.has(key)) {
+      const item = await get(media, [id, key]);
+      if (!item) throw Error('A local file is missing. Add it again or remove it from the draft.');
+      originals.set(key, item.value);
     }
-    throw Error(
-      'The photo will not fit in a guest link. Use a public HTTPS photo or send the full Card.',
-    );
-  } finally {
-    URL.revokeObjectURL(url);
+    return originals.get(key);
   }
-}
-export async function publish(record) {
-  const d = record.data,
-    pics = d.gallery.filter((m) => m.kind === 'photo').length + Number(!!d.photo),
-    budget = Math.min(1300, Math.floor(3600 / Math.max(1, pics)));
-  async function forLink(id, kind) {
-    if (!id) return '';
-    const v = await getMedia(record.id, id);
-    if (typeof v === 'string') return v;
-    if (kind === 'photo') return linkPhoto(v, budget);
-    if (v.size <= 3500) return dataURL(v);
-    throw Error(
-      'This film is too large for a guest link. Use “Add a media link” to replace it with a direct HTTPS video URL, or use Card to send the full file.',
-    );
-  }
-  const media = {
-    photo: await forLink(d.photo, 'photo'),
-    video: await forLink(d.video, 'video'),
-    gallery: {},
+  return {
+    getMedia,
+    prepareLink: (data) => prepareLink(id, data, getMedia),
+    addMedia(kind, value) {
+      if (typeof value === 'string') value = httpsMedia(value.trim());
+      else if (
+        !(value instanceof Blob) ||
+        !types[kind]?.includes(value.type) ||
+        !value.size ||
+        value.size > (kind === 'photo' ? 4 : 12) * 1024 ** 2
+      )
+        throw Error('Choose JPG, PNG or WebP (up to 4 MB) or MP4 or WebM (up to 12 MB).');
+      const key = newID();
+      originals.set(key, value);
+      pending.set(key, value);
+      return { id: key, kind };
+    },
+    forget(key) {
+      originals.delete(key);
+      pending.delete(key);
+    },
+    async save(body, slug) {
+      const batch = new Map(pending);
+      const row = await persist(id, body, slug, batch);
+      for (const key of batch.keys()) pending.delete(key);
+      return row;
+    },
   };
-  for (const m of d.gallery) media.gallery[m.id] = await forLink(m.id, m.kind);
-  const slug = makeInvite(record.id, d, media);
-  return transaction([drafts], 'readwrite', async (s) => {
-    const row = await read(s(drafts).get(record.id));
-    checkVersion(row, record.version);
-    Object.assign(row, { slug, published: true, version: row.version + 1, updated: Date.now() });
-    s(drafts).put(row);
-    return row;
-  });
 }
