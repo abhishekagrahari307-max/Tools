@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#4f46e5" />
     <meta
       name="description"
-      content="Free browser tools to convert and resize images, merge or shrink PDFs and turn a PDF into an editable Word document. Files never leave your device."
+      content="20 working browser tools: merge, split, compress, rotate, number and watermark PDFs; convert, resize, crop, compress and sign images. Files never leave your device."
     />
-    <title>File tools — convert, resize, merge, compress, PDF to Word</title>
+    <title>All tools — merge, split, compress and convert PDFs and images</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M20 24h24v18H20z' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M20 30h24' stroke='white' stroke-width='4'/%3E%3C/svg%3E"
@@ -602,6 +602,81 @@
           transition: none;
         }
       }
+      .group {
+        margin: 0 0 18px;
+      }
+      .group-h {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #4b5872;
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        scroll-margin-top: 86px;
+      }
+      .group-h span {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: #8b95a7;
+      }
+      .group-sub {
+        font-size: 13px;
+        color: #6b7788;
+        margin: 4px 0 0;
+      }
+      .group .titles {
+        padding-bottom: 4px;
+      }
+      .tiles {
+        padding-top: 10px;
+      }
+      .opt input[type="text"] {
+        padding: 9px 11px;
+        border: 1px solid #cfd8e6;
+        border-radius: 8px;
+        background: #fff;
+        min-height: 42px;
+        font-size: 14px;
+        min-width: 190px;
+      }
+      .panel-foot code {
+        background: #eef1f7;
+        border-radius: 5px;
+        padding: 1px 5px;
+        font-size: 12px;
+      }
+      @media (max-width: 560px) {
+        .group .tiles {
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .tile {
+          padding: 11px;
+          gap: 8px;
+        }
+        .tile b {
+          font-size: 13px;
+        }
+        .tile small {
+          font-size: 11px;
+          line-height: 1.35;
+        }
+        .tile .ic {
+          width: 30px;
+          height: 30px;
+        }
+        .tile .ic svg {
+          width: 16px;
+          height: 16px;
+        }
+        .group-h {
+          font-size: 12px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -611,8 +686,8 @@
         <a class="brand" href="./"><span class="mark" aria-hidden="true">✳</span>ToolKit Pro</a>
         <nav aria-label="Site">
           <a href="./">Home</a>
-          <a href="#convert">Image tools</a>
-          <a href="#merge">PDF tools</a>
+          <a href="#image-tools">Image tools</a>
+          <a href="#pdf-tools">PDF tools</a>
           <a href="./celebration-studio/">Studios</a>
         </nav>
       </div>
@@ -620,12 +695,13 @@
 
     <main id="main" class="shell">
       <section class="intro">
-        <p class="eyebrow">Working file tools · no sign-up</p>
-        <h1>Convert, resize, merge and shrink — right in this tab.</h1>
+        <p class="eyebrow">20 working tools · no sign-up, no upload</p>
+        <h1>Every PDF and image job, right in this tab.</h1>
         <p>
-          Every tool below runs inside your browser. Nothing is uploaded, no account is needed, and
-          each result is a normal file you can download and share. PDF tools load their library only
-          when you use them, so the page stays light.
+          <b>PDF tools:</b> merge, split, compress to a size, rotate, renumber, watermark, PDF to
+          Word, PDF to JPG and images to PDF. <b>Image tools:</b> convert, resize, crop, compress to
+          an exact KB, rotate, watermark, white background, passport sizes and photo + signature.
+          Everything runs on your device — no upload, no account, no watermark on your files.
         </p>
         <ul class="promise">
           <li>Files never leave your device</li>
@@ -634,234 +710,343 @@
         </ul>
       </section>
 
-      <nav class="tiles" aria-label="Choose a tool">
-        <a class="tile" href="#convert" data-tab="convert">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M4 8h13l-3-3" />
-              <path d="M20 16H7l3 3" /></svg
-          ></span>
-          <span><b>Image converter</b><small>JPG, PNG and WebP in/out</small></span>
-        </a>
-        <a class="tile" href="#resize" data-tab="resize">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M9 4H4v5" />
-              <path d="M15 4h5v5" />
-              <path d="M9 20H4v-5" />
-              <path d="M15 20h5v-5" /></svg
-          ></span>
-          <span><b>Image resizer</b><small>Fit, exact size or percent</small></span>
-        </a>
-        <a class="tile" href="#merge" data-tab="merge">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M4 4h10v10H4z" />
-              <path d="M10 10h10v10H10z" /></svg
-          ></span>
-          <span><b>PDF merger</b><small>Join several PDFs in order</small></span>
-        </a>
-        <a class="tile" href="#compress" data-tab="compress">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M7 3h7l4 4v14H7z" />
-              <path d="M14 3v5h5" />
-              <path d="M12 12v5" />
-              <path d="M9.5 14.5L12 17l2.5-2.5" /></svg
-          ></span>
-          <span><b>PDF compressor</b><small>Clean structure or shrink pages</small></span>
-        </a>
-        <a class="tile" href="#word" data-tab="word">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M7 3h7l4 4v14H7z" />
-              <path d="M14 3v5h5" />
-              <path d="M10 13h5" />
-              <path d="M10 17h5" /></svg
-          ></span>
-          <span><b>PDF to Word</b><small>Editable text document</small></span>
-        </a>
-        <a class="tile" href="./img-compress.html">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M8 3v5H3" />
-              <path d="M16 21v-5h5" />
-              <path d="M21 8h-5V3" />
-              <path d="M3 16h5v5" /></svg
-          ></span>
-          <span><b>Image compressor</b><small>Quality and format control</small></span>
-        </a>
-        <a class="tile" href="./pho-en.html">
-          <span class="ic"
-            ><svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /></svg
-          ></span>
-          <span><b>Image enhancer</b><small>Brighten and optimise</small></span>
-        </a>
-      </nav>
-
-      <!-- IMAGE CONVERTER -->
-      <section class="panel" id="convert" aria-labelledby="convert-h">
-        <h2 id="convert-h">Image converter</h2>
-        <p class="lede">
-          Pick images and choose the format you need. PNG keeps sharp edges and transparency; JPG
-          and WebP give much smaller files for photographs.
-        </p>
-        <label class="drop" data-drop="convert">
-          <span class="big">Choose images or drop them here</span>
-          <span class="sub">JPG, PNG, WebP or GIF · up to 20 files · 60 MB each</span>
-          <input type="file" accept="image/*" multiple data-input="convert" />
-        </label>
-        <ul class="files" data-files="convert" aria-live="polite"></ul>
-        <div class="opts">
-          <span class="opt">
-            <label for="convert-format">Convert to</label>
-            <select id="convert-format" data-opt="convert-format">
-              <option value="image/jpeg">JPG</option>
-              <option value="image/png">PNG</option>
-              <option value="image/webp">WebP</option>
-            </select>
-          </span>
-          <span class="opt">
-            <span class="lab">Quality</span>
-            <span class="slider">
-              <input type="range" id="convert-quality" min="40" max="100" value="88" />
-              <output id="convert-quality-out" for="convert-quality">88%</output>
-            </span>
-          </span>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" id="convert-run" disabled>Convert images</button>
-          <button class="btn ghost" type="button" id="convert-clear" disabled>Clear</button>
-        </div>
-        <div class="progress" id="convert-progress" hidden><i></i></div>
-        <p class="msg" id="convert-msg" role="status"></p>
-        <div class="out" id="convert-out"></div>
-        <p class="panel-foot">
-          Tips: use PNG for logos and screenshots, JPG for photos, WebP when the recipient opens
-          files in a modern browser. Compress first with the
-          <a href="./img-compress.html">image compressor</a> if you need a smaller file at the same
-          format.
-        </p>
+      <section class="group" aria-labelledby="pdf-tools">
+        <h2 class="group-h" id="pdf-tools">PDF tools <span>11 tools</span></h2>
+        <p class="group-sub">Merge, split, shrink, convert and stamp — 11 tools</p>
+        <nav class="tiles" aria-label="PDF tools">
+          <a class="tile" href="#merge" data-tab="merge">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5" />
+                <path d="M10 12h5M10 16h5" /></svg
+            ></span>
+            <span><b>Merge PDF</b><small>Join several PDFs in order</small></span>
+          </a>
+          <a class="tile" href="#split" data-tab="split">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5" />
+                <path d="M3 13h6M6 10l-3 3 3 3" /></svg
+            ></span>
+            <span><b>Split PDF</b><small>Pages or ranges as new files</small></span>
+          </a>
+          <a class="tile" href="#pdftojpg" data-tab="pdftojpg">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 2h8l4 4v10H6z" />
+                <path d="M14 2v5h5" />
+                <path d="M3 18h12v4H3z" /></svg
+            ></span>
+            <span><b>PDF to JPG</b><small>Every page as an image</small></span>
+          </a>
+          <a class="tile" href="#imgtopdf" data-tab="imgtopdf">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 4h8v8H3z" />
+                <path d="M15 12h6v7h-6z" />
+                <path d="M11 8h4v4" /></svg
+            ></span>
+            <span><b>Images to PDF</b><small>JPG, PNG, WebP into one PDF</small></span>
+          </a>
+          <a class="tile" href="#compress" data-tab="compress">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M8 3v5H3M16 21v-5h5M21 8h-5V3M3 16h5v5" /></svg
+            ></span>
+            <span><b>Compress PDF</b><small>Clean up or shrink to a size</small></span>
+          </a>
+          <a class="tile" href="#word" data-tab="word">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 3h7l4 4v14H7z" />
+                <path d="M14 3v5h5" />
+                <path d="M10 13l1 4 1.5-3 1.5 3 1-4" /></svg
+            ></span>
+            <span><b>PDF to Word</b><small>Editable .docx with page breaks</small></span>
+          </a>
+          <a class="tile" href="#pdftext" data-tab="pdftext">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 6h14M5 11h10M5 16h7" /></svg
+            ></span>
+            <span><b>PDF to text</b><small>Copy or download the words</small></span>
+          </a>
+          <a class="tile" href="#organize" data-tab="organize">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 7h9M4 12h13M4 17h6" />
+                <path d="M18 5l2 2-2 2" /></svg
+            ></span>
+            <span><b>Organise pages</b><small>Reorder or delete pages</small></span>
+          </a>
+          <a class="tile" href="#rotate" data-tab="rotate">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 8a8 8 0 1 0 1 7" />
+                <path d="M20 3v5h-5" /></svg
+            ></span>
+            <span><b>Rotate PDF</b><small>Turn pages the right way up</small></span>
+          </a>
+          <a class="tile" href="#pagenum" data-tab="pagenum">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 4l3-2v16" />
+                <path d="M14 6a3 3 0 1 1 4 3l-4 3h5" /></svg
+            ></span>
+            <span><b>Page numbers</b><small>Number any PDF</small></span>
+          </a>
+          <a class="tile" href="#watermark" data-tab="watermark">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3s5 6 5 9a5 5 0 1 1-10 0c0-3 5-9 5-9z" /></svg
+            ></span>
+            <span><b>Watermark PDF</b><small>Stamp text across pages</small></span>
+          </a>
+        </nav>
+      </section>
+      <section class="group" aria-labelledby="image-tools">
+        <h2 class="group-h" id="image-tools">Image tools <span>9 tools</span></h2>
+        <p class="group-sub">Convert, resize, crop, compress and sign — 9 tools</p>
+        <nav class="tiles" aria-label="Image tools">
+          <a class="tile" href="#convert" data-tab="convert">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 5h16v14H4z" />
+                <circle cx="9" cy="10" r="1.6" />
+                <path d="M4 17l5-5 4 4 3-3 4 4" /></svg
+            ></span>
+            <span><b>Convert image</b><small>JPG, PNG and WebP in/out</small></span>
+          </a>
+          <a class="tile" href="#resize" data-tab="resize">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3v18" />
+                <path d="M9 6L4 12l5 6z" />
+                <path d="M15 6l5 6-5 6z" /></svg
+            ></span>
+            <span><b>Resize image</b><small>Fit, exact size or percent</small></span>
+          </a>
+          <a class="tile" href="#imgcompress" data-tab="imgcompress">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M8 3v5H3M16 21v-5h5M21 8h-5V3M3 16h5v5" /></svg
+            ></span>
+            <span><b>Compress image</b><small>Hit an exact KB target</small></span>
+          </a>
+          <a class="tile" href="#crop" data-tab="crop">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 2v16h16" />
+                <path d="M2 6h16v16" /></svg
+            ></span>
+            <span><b>Crop image</b><small>Trim to exact pixels</small></span>
+          </a>
+          <a class="tile" href="#rotateflip" data-tab="rotateflip">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 8a8 8 0 1 0 1 7" />
+                <path d="M20 3v5h-5" /></svg
+            ></span>
+            <span><b>Rotate &amp; flip</b><small>Turn or mirror a photo</small></span>
+          </a>
+          <a class="tile" href="#imgwatermark" data-tab="imgwatermark">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="9" r="4" />
+                <path d="M9 20h6M10 13v4h4v-4" /></svg
+            ></span>
+            <span><b>Watermark image</b><small>Add a name or copyright</small></span>
+          </a>
+          <a class="tile" href="#whitebg" data-tab="whitebg">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 18h18" />
+                <path d="M12 3v9M8 8l4 4 4-4" /></svg
+            ></span>
+            <span><b>Background colour</b><small>Flatten to white or any colour</small></span>
+          </a>
+          <a class="tile" href="#photosign" data-tab="photosign">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 18c4-1 5-9 7-9s0 6 3 6 2-4 6-3" /></svg
+            ></span>
+            <span><b>Photo + signature</b><small>Stack them into one file</small></span>
+          </a>
+          <a class="tile" href="#passport" data-tab="passport">
+            <span class="ic"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 3h12v18H6z" />
+                <circle cx="12" cy="10" r="3" />
+                <path d="M9 16h6" /></svg
+            ></span>
+            <span><b>Passport photo</b><small>35 × 45 mm and other sizes</small></span>
+          </a>
+        </nav>
       </section>
 
-      <!-- IMAGE RESIZER -->
-      <section class="panel" id="resize" aria-labelledby="resize-h">
-        <h2 id="resize-h">Image resizer</h2>
-        <p class="lede">
-          Shrink photos for a form, a website or a chat. “Fit inside” keeps the aspect ratio, “Exact
-          size” stretches to the numbers you type, and “Percent” scales the original.
-        </p>
-        <label class="drop" data-drop="resize">
-          <span class="big">Choose images or drop them here</span>
-          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
-          <input type="file" accept="image/*" multiple data-input="resize" />
-        </label>
-        <ul class="files" data-files="resize" aria-live="polite"></ul>
-        <div class="opts">
-          <span class="opt">
-            <label for="resize-mode">How to resize</label>
-            <select id="resize-mode">
-              <option value="fit">Fit inside a box</option>
-              <option value="exact">Exact width × height</option>
-              <option value="percent">Scale by percent</option>
-            </select>
-          </span>
-          <span class="opt" data-when="fit exact">
-            <label for="resize-w">Width (px)</label>
-            <input id="resize-w" type="number" min="16" max="12000" step="1" value="1600" />
-          </span>
-          <span class="opt" data-when="fit exact">
-            <label for="resize-h">Height (px)</label>
-            <input id="resize-h" type="number" min="16" max="12000" step="1" value="1600" />
-          </span>
-          <span class="opt" data-when="percent" hidden>
-            <label for="resize-pct">Percent (%)</label>
-            <input id="resize-pct" type="number" min="5" max="400" step="5" value="50" />
-          </span>
-          <span class="opt">
-            <label for="resize-format">Output format</label>
-            <select id="resize-format">
-              <option value="keep">Keep the original</option>
-              <option value="image/jpeg">JPG</option>
-              <option value="image/png">PNG</option>
-              <option value="image/webp">WebP</option>
-            </select>
-          </span>
-          <span class="opt">
-            <span class="lab">JPEG / WebP quality</span>
-            <span class="slider">
-              <input type="range" id="resize-quality" min="40" max="100" value="90" />
-              <output id="resize-quality-out" for="resize-quality">90%</output>
-            </span>
-          </span>
-        </div>
-        <div class="actions">
-          <button class="btn" type="button" id="resize-run" disabled>Resize images</button>
-          <button class="btn ghost" type="button" id="resize-clear" disabled>Clear</button>
-        </div>
-        <div class="progress" id="resize-progress" hidden><i></i></div>
-        <p class="msg" id="resize-msg" role="status"></p>
-        <div class="out" id="resize-out"></div>
-      </section>
-
-      <!-- PDF MERGER -->
+      <!-- PDF merger -->
       <section class="panel" id="merge" aria-labelledby="merge-h">
         <h2 id="merge-h">PDF merger</h2>
         <p class="lede">
@@ -871,7 +1056,7 @@
         <label class="drop" data-drop="merge">
           <span class="big">Choose PDFs or drop them here</span>
           <span class="sub">Up to 20 files · 60 MB each · password-free PDFs only</span>
-          <input type="file" accept="application/pdf,.pdf" multiple data-input="merge" />
+          <input type="file" accept="application/pdf,.pdf" data-input="merge" multiple />
         </label>
         <ul class="files" data-files="merge" aria-live="polite"></ul>
         <div class="actions">
@@ -881,45 +1066,176 @@
         <div class="progress" id="merge-progress" hidden><i></i></div>
         <p class="msg" id="merge-msg" role="status"></p>
         <div class="out" id="merge-out"></div>
+        <p class="panel-foot">
+          Need to drop pages instead? Use <a href="#organize">organise pages</a> after merging.
+        </p>
       </section>
-
-      <!-- PDF COMPRESSOR -->
+      <!-- Split PDF -->
+      <section class="panel" id="split" aria-labelledby="split-h">
+        <h2 id="split-h">Split PDF</h2>
+        <p class="lede">
+          Pull pages out of a PDF. Keep several ranges at once, or make one file per page — handy
+          for forms, invoices and answer sheets.
+        </p>
+        <label class="drop" data-drop="split">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB · password-free</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="split" />
+        </label>
+        <ul class="files" data-files="split" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="split-mode">Split by</label
+            ><select id="split-mode">
+              <option value="ranges" selected>Page ranges</option>
+              <option value="each">One file per page</option>
+            </select></span
+          ><span class="opt"
+            ><label for="split-ranges">Pages to keep</label
+            ><input
+              type="text"
+              id="split-ranges"
+              value="1-3"
+              placeholder="1-3, 5, 8-10"
+              autocomplete="off"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="split-run" disabled>Split PDF</button>
+          <button class="btn ghost" type="button" id="split-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="split-progress" hidden><i></i></div>
+        <p class="msg" id="split-msg" role="status"></p>
+        <div class="out" id="split-out"></div>
+        <p class="panel-foot">The original file is untouched — you only download the new PDFs.</p>
+      </section>
+      <!-- PDF to JPG -->
+      <section class="panel" id="pdftojpg" aria-labelledby="pdftojpg-h">
+        <h2 id="pdftojpg-h">PDF to JPG</h2>
+        <p class="lede">
+          Turn each PDF page into a picture you can post, print or paste into a document. Choose JPG
+          for photos or PNG for crisp text.
+        </p>
+        <label class="drop" data-drop="pdftojpg">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="pdftojpg" />
+        </label>
+        <ul class="files" data-files="pdftojpg" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="pdftojpg-format">Format</label
+            ><select id="pdftojpg-format">
+              <option value="image/jpeg" selected>JPG — smaller</option>
+              <option value="image/png">PNG — sharper text</option>
+            </select></span
+          ><span class="opt"
+            ><span class="lab">Quality</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="pdftojpg-quality"
+                min="40"
+                max="100"
+                value="88"
+                data-suffix="%"
+              /><output id="pdftojpg-quality-out" for="pdftojpg-quality">88%</output></span
+            ></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="pdftojpg-run" disabled>Make images</button>
+          <button class="btn ghost" type="button" id="pdftojpg-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="pdftojpg-progress" hidden><i></i></div>
+        <p class="msg" id="pdftojpg-msg" role="status"></p>
+        <div class="out" id="pdftojpg-out"></div>
+        <p class="panel-foot">
+          Need editable text instead? Try <a href="#word">PDF to Word</a> or
+          <a href="#pdftext">PDF to text</a>.
+        </p>
+      </section>
+      <!-- Images to PDF -->
+      <section class="panel" id="imgtopdf" aria-labelledby="imgtopdf-h">
+        <h2 id="imgtopdf-h">Images to PDF</h2>
+        <p class="lede">
+          Drop photos or scans and get one tidy PDF. Fit-to-page keeps the original picture size; A4
+          gives every image a full page.
+        </p>
+        <label class="drop" data-drop="imgtopdf">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">Up to 20 images · JPG, PNG, WebP or GIF · 60 MB each</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="imgtopdf"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="imgtopdf" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="imgtopdf-size">Page size</label
+            ><select id="imgtopdf-size">
+              <option value="fit" selected>Fit the picture</option>
+              <option value="a4">A4 — full page</option>
+            </select></span
+          ><span class="opt"
+            ><label for="imgtopdf-margin">Margin (mm)</label
+            ><input
+              type="number"
+              id="imgtopdf-margin"
+              value="12"
+              min="0"
+              max="40"
+              step="1"
+              inputmode="numeric"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="imgtopdf-run" disabled>Make PDF</button>
+          <button class="btn ghost" type="button" id="imgtopdf-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="imgtopdf-progress" hidden><i></i></div>
+        <p class="msg" id="imgtopdf-msg" role="status"></p>
+        <div class="out" id="imgtopdf-out"></div>
+        <p class="panel-foot">
+          Have a PDF already? <a href="#compress">Compress it</a> or
+          <a href="#merge">merge it</a> with others.
+        </p>
+      </section>
+      <!-- PDF compressor -->
       <section class="panel" id="compress" aria-labelledby="compress-h">
         <h2 id="compress-h">PDF compressor</h2>
         <p class="lede">
           Two honest options. <b>Clean up</b> rewrites the file without unused objects — good for
-          exported documents, harmless to text. <b>Shrink pages</b> turns each page into a picture,
-          which can cut scans sharply but removes selectable text.
+          exported documents, harmless to text. <b>Shrink to a size</b> turns each page into a
+          picture and searches for the sharpest settings that fit your limit.
         </p>
         <label class="drop" data-drop="compress">
           <span class="big">Choose a PDF or drop it here</span>
-          <span class="sub">One PDF · up to 60 MB</span>
+          <span class="sub">One PDF · up to 60 MB · under 40 pages for size targets</span>
           <input type="file" accept="application/pdf,.pdf" data-input="compress" />
         </label>
         <ul class="files" data-files="compress" aria-live="polite"></ul>
         <div class="opts">
-          <span class="opt">
-            <label for="compress-mode">Method</label>
-            <select id="compress-mode">
-              <option value="clean">Clean up the structure (keeps text)</option>
-              <option value="raster">Shrink pages as images</option>
-            </select>
-          </span>
-          <span class="opt" data-when="raster" hidden>
-            <label for="compress-scale">Page sharpness</label>
-            <select id="compress-scale">
-              <option value="0.75">Smaller files (0.75×)</option>
-              <option value="1" selected>Normal (1×)</option>
-              <option value="1.5">Sharper (1.5×)</option>
-            </select>
-          </span>
-          <span class="opt" data-when="raster" hidden>
-            <span class="lab">Picture quality</span>
-            <span class="slider">
-              <input type="range" id="compress-quality" min="35" max="90" value="62" />
-              <output id="compress-quality-out" for="compress-quality">62%</output>
-            </span>
-          </span>
+          <span class="opt"
+            ><label for="compress-mode">Method</label
+            ><select id="compress-mode">
+              <option value="clean" selected>Clean up the structure (keeps text)</option>
+              <option value="raster">Shrink to a size (images)</option>
+            </select></span
+          ><span class="opt"
+            ><label for="compress-target">Target size (KB)</label
+            ><input
+              type="number"
+              id="compress-target"
+              value="200"
+              min="20"
+              max="5000"
+              step="10"
+              inputmode="numeric"
+          /></span>
         </div>
         <div class="actions">
           <button class="btn" type="button" id="compress-run" disabled>Compress PDF</button>
@@ -928,19 +1244,18 @@
         <div class="progress" id="compress-progress" hidden><i></i></div>
         <p class="msg" id="compress-msg" role="status"></p>
         <div class="out" id="compress-out"></div>
-        <p class="note" id="compress-note" hidden>
-          If the result is not smaller, keep your original. PDFs that are already optimised or
-          contain a single compressed photo often cannot shrink much.
+        <p class="panel-foot">
+          If the result is not smaller, keep your original — the tool always tells you the real
+          before/after size.
         </p>
       </section>
-
-      <!-- PDF TO WORD -->
+      <!-- PDF to Word -->
       <section class="panel" id="word" aria-labelledby="word-h">
         <h2 id="word-h">PDF to Word</h2>
         <p class="lede">
           Reads the text of each page and writes a real <b>.docx</b> you can open in Word, Google
           Docs or LibreOffice. Page breaks are kept. Scanned PDFs without a text layer cannot be
-          converted here — there is no text to lift out.
+          converted here.
         </p>
         <label class="drop" data-drop="word">
           <span class="big">Choose a PDF or drop it here</span>
@@ -949,13 +1264,13 @@
         </label>
         <ul class="files" data-files="word" aria-live="polite"></ul>
         <div class="opts">
-          <span class="opt">
-            <label for="word-detail">What to write</label>
-            <select id="word-detail">
-              <option value="text">Text only</option>
+          <span class="opt"
+            ><label for="word-detail">What to write</label
+            ><select id="word-detail">
+              <option value="text" selected>Text only</option>
               <option value="headed">Text with a page heading</option>
-            </select>
-          </span>
+            </select></span
+          >
         </div>
         <div class="actions">
           <button class="btn" type="button" id="word-run" disabled>Make the Word file</button>
@@ -965,8 +1280,774 @@
         <p class="msg" id="word-msg" role="status"></p>
         <div class="out" id="word-out"></div>
         <p class="panel-foot">
-          Need the pages as pictures or a merged file instead? Use the
-          <a href="#compress">PDF compressor</a> or <a href="#merge">PDF merger</a> above.
+          Need the words as plain text? <a href="#pdftext">PDF to text</a> gives you a .txt file.
+        </p>
+      </section>
+      <!-- PDF to text -->
+      <section class="panel" id="pdftext" aria-labelledby="pdftext-h">
+        <h2 id="pdftext-h">PDF to text</h2>
+        <p class="lede">
+          Pulls the selectable text out of a PDF into a .txt file, page by page. Scans without a
+          text layer need OCR, which this offline page cannot do.
+        </p>
+        <label class="drop" data-drop="pdftext">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="pdftext" />
+        </label>
+        <ul class="files" data-files="pdftext" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="pdftext-labels">Page markers</label
+            ><select id="pdftext-labels">
+              <option value="plain" selected>No markers</option>
+              <option value="labels">Add “--- Page n ---”</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="pdftext-run" disabled>Extract text</button>
+          <button class="btn ghost" type="button" id="pdftext-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="pdftext-progress" hidden><i></i></div>
+        <p class="msg" id="pdftext-msg" role="status"></p>
+        <div class="out" id="pdftext-out"></div>
+        <p class="panel-foot">Want a Word file instead? Use <a href="#word">PDF to Word</a>.</p>
+      </section>
+      <!-- Organise pages -->
+      <section class="panel" id="organize" aria-labelledby="organize-h">
+        <h2 id="organize-h">Organise pages</h2>
+        <p class="lede">
+          Type the pages in the order you want them. Leave a page out and it is deleted. The rest
+          keep their original quality.
+        </p>
+        <label class="drop" data-drop="organize">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="organize" />
+        </label>
+        <ul class="files" data-files="organize" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="organize-order">New page order</label
+            ><input
+              type="text"
+              id="organize-order"
+              value=""
+              placeholder="3, 1, 2 — omit a page to delete it"
+              autocomplete="off"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="organize-run" disabled>Save reordered PDF</button>
+          <button class="btn ghost" type="button" id="organize-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="organize-progress" hidden><i></i></div>
+        <p class="msg" id="organize-msg" role="status"></p>
+        <div class="out" id="organize-out"></div>
+        <p class="panel-foot">Leave the box empty to keep every page in its current order.</p>
+      </section>
+      <!-- Rotate PDF -->
+      <section class="panel" id="rotate" aria-labelledby="rotate-h">
+        <h2 id="rotate-h">Rotate PDF</h2>
+        <p class="lede">
+          Turn the whole document or only some pages. Rotation is stored in the file, so the page
+          stays sharp and searchable.
+        </p>
+        <label class="drop" data-drop="rotate">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="rotate" />
+        </label>
+        <ul class="files" data-files="rotate" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="rotate-angle">Turn by</label
+            ><select id="rotate-angle">
+              <option value="90" selected>90° clockwise</option>
+              <option value="180">180°</option>
+              <option value="270">90° anticlockwise</option>
+            </select></span
+          ><span class="opt"
+            ><label for="rotate-pages">Pages</label
+            ><input
+              type="text"
+              id="rotate-pages"
+              value=""
+              placeholder="empty = every page, e.g. 1, 3-5"
+              autocomplete="off"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="rotate-run" disabled>Rotate pages</button>
+          <button class="btn ghost" type="button" id="rotate-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="rotate-progress" hidden><i></i></div>
+        <p class="msg" id="rotate-msg" role="status"></p>
+        <div class="out" id="rotate-out"></div>
+        <p class="panel-foot">
+          Reordering as well? <a href="#organize">Organise pages</a> changes the order.
+        </p>
+      </section>
+      <!-- Add page numbers -->
+      <section class="panel" id="pagenum" aria-labelledby="pagenum-h">
+        <h2 id="pagenum-h">Add page numbers</h2>
+        <p class="lede">
+          Stamp page numbers where you want them — bottom centre by default, or a corner. Choose
+          plain numbers, “3 / 12” or “Page 3”.
+        </p>
+        <label class="drop" data-drop="pagenum">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="pagenum" />
+        </label>
+        <ul class="files" data-files="pagenum" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="pagenum-position">Position</label
+            ><select id="pagenum-position">
+              <option value="bottom-center" selected>Bottom centre</option>
+              <option value="bottom-right">Bottom right</option>
+              <option value="top-center">Top centre</option>
+              <option value="top-right">Top right</option>
+            </select></span
+          ><span class="opt"
+            ><label for="pagenum-start">Start at</label
+            ><input
+              type="number"
+              id="pagenum-start"
+              value="1"
+              min="1"
+              max="9999"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="pagenum-format">Style</label
+            ><select id="pagenum-format">
+              <option value="plain" selected>3</option>
+              <option value="of">3 / 12</option>
+              <option value="page">Page 3</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="pagenum-run" disabled>Add page numbers</button>
+          <button class="btn ghost" type="button" id="pagenum-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="pagenum-progress" hidden><i></i></div>
+        <p class="msg" id="pagenum-msg" role="status"></p>
+        <div class="out" id="pagenum-out"></div>
+        <p class="panel-foot">
+          For a name or logo across the page, use <a href="#watermark">Watermark PDF</a>.
+        </p>
+      </section>
+      <!-- Watermark PDF -->
+      <section class="panel" id="watermark" aria-labelledby="watermark-h">
+        <h2 id="watermark-h">Watermark PDF</h2>
+        <p class="lede">
+          Write a word or a name and it is drawn across every page at the angle and strength you
+          pick. Useful for drafts, samples and internal copies.
+        </p>
+        <label class="drop" data-drop="watermark">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="watermark" />
+        </label>
+        <ul class="files" data-files="watermark" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="watermark-text">Text</label
+            ><input
+              type="text"
+              id="watermark-text"
+              value="CONFIDENTIAL"
+              placeholder="DRAFT"
+              autocomplete="off" /></span
+          ><span class="opt"
+            ><span class="lab">Strength</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="watermark-opacity"
+                min="5"
+                max="60"
+                value="18"
+                data-suffix="%"
+              /><output id="watermark-opacity-out" for="watermark-opacity">18%</output></span
+            ></span
+          ><span class="opt"
+            ><label for="watermark-size">Size</label
+            ><input
+              type="number"
+              id="watermark-size"
+              value="100"
+              min="40"
+              max="160"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="watermark-angle">Angle</label
+            ><select id="watermark-angle">
+              <option value="diagonal" selected>Diagonal</option>
+              <option value="flat">Straight across</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="watermark-run" disabled>Add watermark</button>
+          <button class="btn ghost" type="button" id="watermark-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="watermark-progress" hidden><i></i></div>
+        <p class="msg" id="watermark-msg" role="status"></p>
+        <div class="out" id="watermark-out"></div>
+        <p class="panel-foot">
+          Watermarks use Latin letters — for Hindi text, flatten the page first with
+          <a href="#pdftojpg">PDF to JPG</a>.
+        </p>
+      </section>
+      <!-- Image converter -->
+      <section class="panel" id="convert" aria-labelledby="convert-h">
+        <h2 id="convert-h">Image converter</h2>
+        <p class="lede">
+          Pick images and choose the format you need. PNG keeps sharp edges and transparency; JPG
+          and WebP give much smaller files for photographs.
+        </p>
+        <label class="drop" data-drop="convert">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG, WebP or GIF · up to 20 files · 60 MB each</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="convert"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="convert" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="convert-format">Convert to</label
+            ><select id="convert-format">
+              <option value="image/webp" selected>WebP — smallest</option>
+              <option value="image/jpeg">JPG</option>
+              <option value="image/png">PNG — sharp edges</option>
+            </select></span
+          ><span class="opt"
+            ><span class="lab">Quality</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="convert-quality"
+                min="40"
+                max="100"
+                value="88"
+                data-suffix="%"
+              /><output id="convert-quality-out" for="convert-quality">88%</output></span
+            ></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="convert-run" disabled>Convert images</button>
+          <button class="btn ghost" type="button" id="convert-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="convert-progress" hidden><i></i></div>
+        <p class="msg" id="convert-msg" role="status"></p>
+        <div class="out" id="convert-out"></div>
+        <p class="panel-foot">
+          Want a specific file size? <a href="#imgcompress">Compress to a size</a> hits an exact KB
+          target.
+        </p>
+      </section>
+      <!-- Image resizer -->
+      <section class="panel" id="resize" aria-labelledby="resize-h">
+        <h2 id="resize-h">Image resizer</h2>
+        <p class="lede">
+          Shrink photos for a form, a website or a chat. “Fit inside” keeps the aspect ratio, “Exact
+          size” stretches to the numbers you type, and “Percent” scales the original.
+        </p>
+        <label class="drop" data-drop="resize">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="resize"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="resize" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="resize-mode">How to resize</label
+            ><select id="resize-mode">
+              <option value="fit" selected>Fit inside a box</option>
+              <option value="exact">Exact width × height</option>
+              <option value="percent">Scale by percent</option>
+            </select></span
+          ><span class="opt" data-when="fit exact"
+            ><label for="resize-w">Width (px)</label
+            ><input
+              type="number"
+              id="resize-w"
+              value="800"
+              min="1"
+              max="12000"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt" data-when="fit exact"
+            ><label for="resize-h">Height (px)</label
+            ><input
+              type="number"
+              id="resize-h"
+              value="800"
+              min="1"
+              max="12000"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt" data-when="percent"
+            ><label for="resize-pct">Percent (%)</label
+            ><input
+              type="number"
+              id="resize-pct"
+              value="50"
+              min="1"
+              max="400"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="resize-format">Output format</label
+            ><select id="resize-format">
+              <option value="keep" selected>Keep the original</option>
+              <option value="image/jpeg">JPG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select></span
+          ><span class="opt"
+            ><span class="lab">Quality</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="resize-quality"
+                min="40"
+                max="100"
+                value="90"
+                data-suffix="%"
+              /><output id="resize-quality-out" for="resize-quality">90%</output></span
+            ></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="resize-run" disabled>Resize images</button>
+          <button class="btn ghost" type="button" id="resize-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="resize-progress" hidden><i></i></div>
+        <p class="msg" id="resize-msg" role="status"></p>
+        <div class="out" id="resize-out"></div>
+        <p class="panel-foot">
+          Need a passport photo size? <a href="#passport">Passport photo</a> has the standard sizes
+          built in.
+        </p>
+      </section>
+      <!-- Compress to a size -->
+      <section class="panel" id="imgcompress" aria-labelledby="imgcompress-h">
+        <h2 id="imgcompress-h">Compress to a size</h2>
+        <p class="lede">
+          Forms often ask for “under 50 KB”. Type the limit and the tool searches quality and
+          dimensions until the file fits — and still opens normally.
+        </p>
+        <label class="drop" data-drop="imgcompress">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="imgcompress"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="imgcompress" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="imgcompress-target">Target size (KB)</label
+            ><input
+              type="number"
+              id="imgcompress-target"
+              value="100"
+              min="10"
+              max="20000"
+              step="5"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="imgcompress-maxwidth">Max width (px, 0 = keep)</label
+            ><input
+              type="number"
+              id="imgcompress-maxwidth"
+              value="0"
+              min="0"
+              max="12000"
+              step="50"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="imgcompress-format">Format</label
+            ><select id="imgcompress-format">
+              <option value="image/jpeg" selected>JPG — smallest</option>
+              <option value="image/png">PNG — no compression loss</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="imgcompress-run" disabled>Compress images</button>
+          <button class="btn ghost" type="button" id="imgcompress-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="imgcompress-progress" hidden><i></i></div>
+        <p class="msg" id="imgcompress-msg" role="status"></p>
+        <div class="out" id="imgcompress-out"></div>
+        <p class="panel-foot">
+          For quality only, the smaller <a href="./img-compress.html">image compressor</a> is
+          quicker.
+        </p>
+      </section>
+      <!-- Crop image -->
+      <section class="panel" id="crop" aria-labelledby="crop-h">
+        <h2 id="crop-h">Crop image</h2>
+        <p class="lede">
+          Cut a picture down to the numbers you type. Coordinates start at the top-left corner;
+          anything outside the picture is clamped so you always get a valid file.
+        </p>
+        <label class="drop" data-drop="crop">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="crop"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="crop" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="crop-x">Left (px)</label
+            ><input
+              type="number"
+              id="crop-x"
+              value="0"
+              min="0"
+              max="20000"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="crop-y">Top (px)</label
+            ><input
+              type="number"
+              id="crop-y"
+              value="0"
+              min="0"
+              max="20000"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="crop-w">Width (px)</label
+            ><input
+              type="number"
+              id="crop-w"
+              value="600"
+              min="1"
+              max="20000"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="crop-h">Height (px)</label
+            ><input
+              type="number"
+              id="crop-h"
+              value="600"
+              min="1"
+              max="20000"
+              step="1"
+              inputmode="numeric"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="crop-run" disabled>Crop images</button>
+          <button class="btn ghost" type="button" id="crop-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="crop-progress" hidden><i></i></div>
+        <p class="msg" id="crop-msg" role="status"></p>
+        <div class="out" id="crop-out"></div>
+        <p class="panel-foot">
+          Passport sizes are already cropped for you — try <a href="#passport">Passport photo</a>.
+        </p>
+      </section>
+      <!-- Rotate &amp; flip -->
+      <section class="panel" id="rotateflip" aria-labelledby="rotateflip-h">
+        <h2 id="rotateflip-h">Rotate &amp; flip</h2>
+        <p class="lede">
+          Turn a sideways phone photo the right way up, or mirror a scan. The picture is redrawn at
+          full size, never stretched.
+        </p>
+        <label class="drop" data-drop="rotateflip">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="rotateflip"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="rotateflip" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="rotateflip-angle">Turn</label
+            ><select id="rotateflip-angle">
+              <option value="90" selected>90° clockwise</option>
+              <option value="180">180°</option>
+              <option value="270">90° anticlockwise</option>
+              <option value="0">Do not turn</option>
+            </select></span
+          ><span class="opt"
+            ><label for="rotateflip-flip">Mirror</label
+            ><select id="rotateflip-flip">
+              <option value="none" selected>No mirror</option>
+              <option value="h">Horizontal</option>
+              <option value="v">Vertical</option>
+              <option value="both">Both</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="rotateflip-run" disabled>Rotate &amp; flip</button>
+          <button class="btn ghost" type="button" id="rotateflip-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="rotateflip-progress" hidden><i></i></div>
+        <p class="msg" id="rotateflip-msg" role="status"></p>
+        <div class="out" id="rotateflip-out"></div>
+        <p class="panel-foot">Output is PNG so nothing is blurred by extra JPG encoding.</p>
+      </section>
+      <!-- Watermark image -->
+      <section class="panel" id="imgwatermark" aria-labelledby="imgwatermark-h">
+        <h2 id="imgwatermark-h">Watermark image</h2>
+        <p class="lede">
+          Put your name, shop or “©” line onto photos before you share them. Text is outlined so it
+          stays readable on light and dark pictures.
+        </p>
+        <label class="drop" data-drop="imgwatermark">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="imgwatermark"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="imgwatermark" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="imgwatermark-text">Text</label
+            ><input
+              type="text"
+              id="imgwatermark-text"
+              value="© your name"
+              placeholder="© Studio"
+              autocomplete="off" /></span
+          ><span class="opt"
+            ><label for="imgwatermark-position">Position</label
+            ><select id="imgwatermark-position">
+              <option value="bottom-right" selected>Bottom right</option>
+              <option value="bottom-center">Bottom centre</option>
+              <option value="center">Centre</option>
+              <option value="top-left">Top left</option>
+            </select></span
+          ><span class="opt"
+            ><span class="lab">Strength</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="imgwatermark-opacity"
+                min="10"
+                max="100"
+                value="55"
+                data-suffix="%"
+              /><output id="imgwatermark-opacity-out" for="imgwatermark-opacity">55%</output></span
+            ></span
+          ><span class="opt"
+            ><label for="imgwatermark-size">Size</label
+            ><input
+              type="number"
+              id="imgwatermark-size"
+              value="100"
+              min="30"
+              max="200"
+              step="1"
+              inputmode="numeric"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="imgwatermark-run" disabled>Add watermark</button>
+          <button class="btn ghost" type="button" id="imgwatermark-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="imgwatermark-progress" hidden><i></i></div>
+        <p class="msg" id="imgwatermark-msg" role="status"></p>
+        <div class="out" id="imgwatermark-out"></div>
+        <p class="panel-foot">
+          Signing a document? <a href="#photosign">Photo + signature</a> stacks them into one image.
+        </p>
+      </section>
+      <!-- Background colour -->
+      <section class="panel" id="whitebg" aria-labelledby="whitebg-h">
+        <h2 id="whitebg-h">Background colour</h2>
+        <p class="lede">
+          Photos with transparency often look black in forms and apps. This flattens them onto white
+          — or any colour you type — without touching the picture.
+        </p>
+        <label class="drop" data-drop="whitebg">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">PNG with transparency works best · up to 20 files</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="whitebg"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="whitebg" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="whitebg-colour">Background</label
+            ><input
+              type="text"
+              id="whitebg-colour"
+              value="#ffffff"
+              placeholder="#ffffff"
+              autocomplete="off" /></span
+          ><span class="opt"
+            ><label for="whitebg-format">Output</label
+            ><select id="whitebg-format">
+              <option value="image/jpeg" selected>JPG</option>
+              <option value="image/png">PNG</option>
+            </select></span
+          ><span class="opt"
+            ><span class="lab">Quality</span
+            ><span class="slider"
+              ><input
+                type="range"
+                id="whitebg-quality"
+                min="60"
+                max="100"
+                value="92"
+                data-suffix="%"
+              /><output id="whitebg-quality-out" for="whitebg-quality">92%</output></span
+            ></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="whitebg-run" disabled>Flatten background</button>
+          <button class="btn ghost" type="button" id="whitebg-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="whitebg-progress" hidden><i></i></div>
+        <p class="msg" id="whitebg-msg" role="status"></p>
+        <div class="out" id="whitebg-out"></div>
+        <p class="panel-foot">
+          Use a hex colour such as <code>#ffffff</code>, <code>#f7f3ff</code> or
+          <code>#e8f1ff</code>.
+        </p>
+      </section>
+      <!-- Photo + signature -->
+      <section class="panel" id="photosign" aria-labelledby="photosign-h">
+        <h2 id="photosign-h">Photo + signature</h2>
+        <p class="lede">
+          Many forms want the photo and the signature in a single image. Drop the photo first, then
+          the signature, and they are stacked with a clean white gap.
+        </p>
+        <label class="drop" data-drop="photosign">
+          <span class="big">Choose two images or drop them here</span>
+          <span class="sub">Photo first, then the signature · up to 2 images</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="photosign"
+            multiple
+          />
+        </label>
+        <ul class="files" data-files="photosign" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="photosign-gap">Gap (px)</label
+            ><input
+              type="number"
+              id="photosign-gap"
+              value="28"
+              min="0"
+              max="400"
+              step="1"
+              inputmode="numeric" /></span
+          ><span class="opt"
+            ><label for="photosign-sigwidth">Signature width (%)</label
+            ><input
+              type="number"
+              id="photosign-sigwidth"
+              value="45"
+              min="10"
+              max="100"
+              step="1"
+              inputmode="numeric"
+          /></span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="photosign-run" disabled>Combine images</button>
+          <button class="btn ghost" type="button" id="photosign-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="photosign-progress" hidden><i></i></div>
+        <p class="msg" id="photosign-msg" role="status"></p>
+        <div class="out" id="photosign-out"></div>
+        <p class="panel-foot">Output is one PNG with a white background, ready to upload.</p>
+      </section>
+      <!-- Passport photo -->
+      <section class="panel" id="passport" aria-labelledby="passport-h">
+        <h2 id="passport-h">Passport photo</h2>
+        <p class="lede">
+          Crop any picture to a standard passport or visa size at print resolution (300 dpi by
+          default) and download a JPG that photo shops accept.
+        </p>
+        <label class="drop" data-drop="passport">
+          <span class="big">Choose a photo or drop it here</span>
+          <span class="sub">One photo · JPG, PNG or WebP · best with a plain background</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+            data-input="passport"
+          />
+        </label>
+        <ul class="files" data-files="passport" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt"
+            ><label for="passport-size">Size</label
+            ><select id="passport-size">
+              <option value="in35x45" selected>35 × 45 mm</option>
+              <option value="in35x35">35 × 35 mm</option>
+              <option value="in2x2">2 × 2 in (US)</option>
+              <option value="in50x70">50 × 70 mm</option>
+            </select></span
+          ><span class="opt"
+            ><label for="passport-dpi">Resolution</label
+            ><select id="passport-dpi">
+              <option value="300" selected>300 dpi — print</option>
+              <option value="600">600 dpi — extra sharp</option>
+              <option value="150">150 dpi — small file</option>
+            </select></span
+          >
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="passport-run" disabled>Make passport photo</button>
+          <button class="btn ghost" type="button" id="passport-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="passport-progress" hidden><i></i></div>
+        <p class="msg" id="passport-msg" role="status"></p>
+        <div class="out" id="passport-out"></div>
+        <p class="panel-foot">
+          The crop keeps the middle of the picture and leans towards the top, where faces usually
+          are.
         </p>
       </section>
     </main>

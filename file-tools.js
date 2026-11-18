@@ -1,14 +1,17 @@
-// Working browser-only file tools. Images use canvas; PDFs load pdf-lib and
-// pdf.js on demand from the local vendor folder, so nothing is uploaded.
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+// Working browser-only file tools. Images run through canvas, PDFs through
+// pdf-lib and pdf.js loaded on demand from ./vendor, so nothing is uploaded.
+// Every tool on file-tools.html is wired from the list at the bottom of this file.
+
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 const MB = 1024 * 1024;
 const MAX_FILE = 60 * MB;
-const MAX_IMAGES = 20;
-const MAX_PDFS = 20;
+const MAX_FILES = 20;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const state = { convert: [], resize: [], merge: [], compress: [], word: [] };
-const busy = {};
+
+const isImage = (file) =>
+  IMAGE_TYPES.includes(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+const isPdf = (file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
 const sizeText = (n) =>
   n < 1024
@@ -17,7 +20,10 @@ const sizeText = (n) =>
       ? (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB'
       : (n / MB).toFixed(2) + ' MB';
 const stem = (name) =>
-  (name.replace(/\.[^.]+$/, '') || 'file').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+  (name.replace(/\.[^.]+$/, '') || 'file').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 70);
+const extOf = (type) =>
+  ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[type] ||
+  'img';
 function uniqueNamer() {
   const used = new Map();
   return (name) => {
@@ -30,10 +36,10 @@ function uniqueNamer() {
       : name + '-' + (seen + 1);
   };
 }
-const extOf = (type) =>
-  ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[type] ||
-  'img';
-const same = (a, b) => a && b && a.toLowerCase() === b.toLowerCase();
+
+const state = {};
+const busy = {};
+const TOOLS = {};
 
 function say(id, text, kind = '') {
   const el = $('#' + id + '-msg');
@@ -47,17 +53,6 @@ function bar(id, ratio) {
   wrap.hidden = ratio == null;
   wrap.querySelector('i').style.width =
     ratio == null ? '0%' : Math.round(Math.min(1, Math.max(0, ratio)) * 100) + '%';
-}
-function save(blob, name) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.rel = 'noopener';
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 function addOutput(container, name, blob, note) {
   const row = document.createElement('div');
@@ -77,16 +72,39 @@ function addOutput(container, name, blob, note) {
   container.append(row);
   return link;
 }
-const list = (tool) => $('[data-files="' + tool + '"]');
+function downloadAllButton(container, links) {
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'btn ghost';
+  all.textContent = 'Download all ' + links.length;
+  all.addEventListener('click', async () => {
+    for (const link of links) {
+      link.click();
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+  });
+  container.append(all);
+  return all;
+}
+
+const filesOf = (tool) => (state[tool] ||= []);
 function clearOut(tool) {
   $('#' + tool + '-out').replaceChildren();
   say(tool, '');
   bar(tool, null);
 }
-function renderFiles(tool, { reorder = false } = {}) {
-  const ul = list(tool);
+function syncButtons(tool) {
+  const ok = filesOf(tool).length > 0;
+  const run = $('#' + tool + '-run');
+  const clear = $('#' + tool + '-clear');
+  if (run) run.disabled = !ok || !!busy[tool];
+  if (clear) clear.disabled = !ok || !!busy[tool];
+}
+function renderFiles(tool, reorder = false) {
+  const ul = $('[data-files="' + tool + '"]');
+  if (!ul) return;
   ul.replaceChildren();
-  state[tool].forEach((file, index) => {
+  filesOf(tool).forEach((file, index) => {
     const li = document.createElement('li');
     const nm = document.createElement('span');
     nm.className = 'nm';
@@ -96,29 +114,22 @@ function renderFiles(tool, { reorder = false } = {}) {
     sz.textContent = sizeText(file.size);
     li.append(nm, sz);
     if (reorder) {
-      const up = document.createElement('button');
-      up.type = 'button';
-      up.className = 'mini';
-      up.textContent = '↑';
-      up.title = 'Move up';
-      up.setAttribute('aria-label', 'Move ' + file.name + ' up');
-      up.disabled = index === 0;
-      up.addEventListener('click', () => {
-        [state[tool][index - 1], state[tool][index]] = [state[tool][index], state[tool][index - 1]];
-        renderFiles(tool, { reorder: true });
-      });
-      const down = document.createElement('button');
-      down.type = 'button';
-      down.className = 'mini';
-      down.textContent = '↓';
-      down.title = 'Move down';
-      down.setAttribute('aria-label', 'Move ' + file.name + ' down');
-      down.disabled = index === state[tool].length - 1;
-      down.addEventListener('click', () => {
-        [state[tool][index + 1], state[tool][index]] = [state[tool][index], state[tool][index + 1]];
-        renderFiles(tool, { reorder: true });
-      });
-      li.append(up, down);
+      const move = (delta, label, glyph) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mini';
+        button.textContent = glyph;
+        button.title = label;
+        button.setAttribute('aria-label', label + ' ' + file.name);
+        button.disabled = index + delta < 0 || index + delta >= filesOf(tool).length;
+        button.addEventListener('click', () => {
+          const list = filesOf(tool);
+          [list[index + delta], list[index]] = [list[index], list[index + delta]];
+          renderFiles(tool, true);
+        });
+        return button;
+      };
+      li.append(move(-1, 'Move up', '↑'), move(1, 'Move down', '↓'));
     }
     const remove = document.createElement('button');
     remove.type = 'button';
@@ -127,8 +138,8 @@ function renderFiles(tool, { reorder = false } = {}) {
     remove.title = 'Remove';
     remove.setAttribute('aria-label', 'Remove ' + file.name);
     remove.addEventListener('click', () => {
-      state[tool].splice(index, 1);
-      renderFiles(tool, { reorder });
+      filesOf(tool).splice(index, 1);
+      renderFiles(tool, reorder);
       syncButtons(tool);
     });
     li.append(remove);
@@ -136,47 +147,50 @@ function renderFiles(tool, { reorder = false } = {}) {
   });
   syncButtons(tool);
 }
-function syncButtons(tool) {
-  const ok = state[tool].length > 0;
-  const run = $('#' + tool + '-run');
-  const clear = $('#' + tool + '-clear');
-  if (run) run.disabled = !ok || !!busy[tool];
-  if (clear) clear.disabled = !ok || !!busy[tool];
-}
-function acceptFiles(tool, incoming, limit, filter) {
-  const files = Array.from(incoming);
-  const tooBig = files.filter((f) => f.size > MAX_FILE);
-  const wrong = files.filter((f) => !filter(f));
-  const usable = files.filter((f) => filter(f) && f.size <= MAX_FILE);
-  if (tool === 'compress' || tool === 'word') state[tool] = usable.slice(0, 1);
+
+function acceptFiles(tool, incoming) {
+  const config = TOOLS[tool];
+  const list = filesOf(tool);
+  const incomingFiles = Array.from(incoming);
+  const accepted = incomingFiles.filter((file) => config.accept(file) && file.size <= MAX_FILE);
+  const tooBig = incomingFiles.filter((file) => file.size > MAX_FILE);
+  const wrong = incomingFiles.filter((file) => !config.accept(file));
+  const limit = config.limit || MAX_FILES;
+  if (!config.multiple) list.splice(0, list.length, ...accepted.slice(0, 1));
   else {
-    const room = limit - state[tool].length;
-    const unique = usable.filter(
-      (f) =>
-        !state[tool].some(
-          (x) => x.name === f.name && x.size === f.size && x.lastModified === f.lastModified,
+    const fresh = accepted.filter(
+      (file) =>
+        !list.some(
+          (old) =>
+            old.name === file.name &&
+            old.size === file.size &&
+            old.lastModified === file.lastModified,
         ),
     );
-    state[tool].push(...unique.slice(0, Math.max(0, room)));
-    if (unique.length > Math.max(0, room))
-      say(tool, 'Only the first ' + limit + ' files were kept.', 'warn');
+    const room = Math.max(0, limit - list.length);
+    list.push(...fresh.slice(0, room));
+    if (fresh.length > room) say(tool, 'Only the first ' + limit + ' files were kept.', 'warn');
   }
   const notes = [];
-  if (tooBig.length) notes.push(tooBig.length + ' file(s) were over 60 MB and were skipped.');
+  if (tooBig.length) notes.push(tooBig.length + ' file(s) over 60 MB were skipped.');
   if (wrong.length)
     notes.push(
-      'Only ' +
-        (tool === 'merge' || tool === 'compress' || tool === 'word' ? 'PDF' : 'image') +
-        ' files are supported here.',
+      'This tool takes ' +
+        (config.accept === isPdf ? 'PDF' : 'image') +
+        ' files only — ' +
+        wrong.length +
+        ' file(s) were skipped.',
     );
   if (notes.length) say(tool, notes.join(' '), 'bad');
-  renderFiles(tool, { reorder: tool === 'merge' });
+  renderFiles(tool, !!config.reorder);
 }
-function wireDrop(tool, { limit = MAX_IMAGES, filter }) {
+
+function wireDrop(tool) {
   const drop = $('[data-drop="' + tool + '"]');
   const input = $('[data-input="' + tool + '"]');
+  if (!drop || !input) return;
   input.addEventListener('change', () => {
-    acceptFiles(tool, input.files || [], limit, filter);
+    acceptFiles(tool, input.files || []);
     input.value = '';
   });
   ['dragenter', 'dragover'].forEach((type) =>
@@ -193,39 +207,40 @@ function wireDrop(tool, { limit = MAX_IMAGES, filter }) {
     }),
   );
   drop.addEventListener('drop', (event) => {
-    if (event.dataTransfer?.files?.length)
-      acceptFiles(tool, event.dataTransfer.files, limit, filter);
+    event.preventDefault();
+    if (event.dataTransfer?.files?.length) acceptFiles(tool, event.dataTransfer.files);
   });
-  $('#' + tool + '-clear').addEventListener('click', () => {
-    state[tool] = [];
-    renderFiles(tool, { reorder: tool === 'merge' });
+  $('#' + tool + '-clear')?.addEventListener('click', () => {
+    filesOf(tool).length = 0;
+    renderFiles(tool, !!TOOLS[tool].reorder);
     clearOut(tool);
   });
 }
-const isImage = (file) =>
-  IMAGE_TYPES.includes(file.type) || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
-const isPdf = (file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 
+/* --------------------------------------------------------------- image plumbing */
 async function bitmapOf(file) {
   if ('createImageBitmap' in window) {
     try {
       return await createImageBitmap(file);
     } catch {
-      /* fall through to the <img> path */
+      /* fall back to an <img> below */
     }
   }
   const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((resolve, reject) => {
-      const node = new Image();
-      node.onload = () => resolve(node);
-      node.onerror = () => reject(Error('This image could not be opened. Try JPG, PNG or WebP.'));
-      node.src = url;
-    });
-    return { width: img.naturalWidth, height: img.naturalHeight, node, close() {}, isNode: true };
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
+  const img = await new Promise((resolve, reject) => {
+    const node = new Image();
+    node.onload = () => resolve(node);
+    node.onerror = () => reject(Error('This image could not be opened. Try JPG, PNG or WebP.'));
+    node.src = url;
+  });
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return {
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+    node: img,
+    close() {},
+    isNode: true,
+  };
 }
 function paint(source, width, height, background) {
   const canvas = document.createElement('canvas');
@@ -239,19 +254,29 @@ function paint(source, width, height, background) {
   }
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(source.isNode ? source.node : source, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    source.isNode ? source.node : source,
+    0,
+    0,
+    source.width,
+    source.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height,
+  );
   return canvas;
 }
 function toBlob(canvas, type, quality) {
   return new Promise((resolve, reject) =>
     canvas.toBlob(
       (blob) =>
-        blob && blob.type === type
+        blob && (!type || blob.type === type)
           ? resolve(blob)
           : reject(
               Error(
                 'This browser cannot write ' +
-                  extOf(type).toUpperCase() +
+                  (extOf(type) || type).toUpperCase() +
                   ' files. Choose another format.',
               ),
             ),
@@ -261,6 +286,7 @@ function toBlob(canvas, type, quality) {
   );
 }
 
+/* ----------------------------------------------------------------- pdf plumbing */
 async function getPdfLib() {
   if (window.PDFLib) return window.PDFLib;
   if (!getPdfLib.promise) {
@@ -299,331 +325,96 @@ function pdfError(error) {
     return 'That file does not look like a complete PDF.';
   return 'The PDF could not be read. ' + (text.length < 120 ? text : '');
 }
-async function bytesOf(file) {
-  return new Uint8Array(await file.arrayBuffer());
+const bytesOf = async (file) => new Uint8Array(await file.arrayBuffer());
+async function openPdf(file) {
+  const pdfjs = await getPdfjs();
+  const bytes = await bytesOf(file);
+  try {
+    return {
+      pdf: await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise,
+      bytes,
+    };
+  } catch (error) {
+    throw Error(pdfError(error));
+  }
 }
-
-/* ---------------------------------------------------------------- converter */
-$('#convert-quality').addEventListener('input', (event) => {
-  $('#convert-quality-out').textContent = event.target.value + '%';
-});
-wireDrop('convert', { filter: isImage });
-$('#convert-run').addEventListener('click', async () => {
-  if (busy.convert || !state.convert.length) return;
-  busy.convert = true;
-  syncButtons('convert');
-  const out = $('#convert-out');
-  out.replaceChildren();
-  const type = $('#convert-format').value;
-  const quality = Number($('#convert-quality').value) / 100;
-  const nameFor = uniqueNamer();
-  let done = 0;
-  const links = [];
+async function pagedLib(file) {
+  const PDFLib = await getPdfLib();
   try {
-    for (const file of state.convert) {
-      say('convert', 'Converting ' + file.name + '…');
-      const source = await bitmapOf(file);
-      const canvas = paint(
-        source,
-        source.width,
-        source.height,
-        type === 'image/jpeg' ? '#ffffff' : null,
-      );
-      const blob = await toBlob(canvas, type, quality);
-      links.push(
-        addOutput(
-          out,
-          nameFor(stem(file.name) + '.' + extOf(type)),
-          blob,
-          source.width + '×' + source.height,
-        ),
-      );
-      source.close?.();
-      bar('convert', ++done / state.convert.length);
-    }
-    say(
-      'convert',
-      'Finished ' + done + ' image' + (done === 1 ? '' : 's') + '. Download them below.',
-      'ok',
-    );
-    if (links.length > 1) {
-      const all = document.createElement('button');
-      all.type = 'button';
-      all.className = 'btn ghost';
-      all.textContent = 'Download all ' + links.length;
-      all.addEventListener('click', async () => {
-        for (const link of links) {
-          link.click();
-          await new Promise((resolve) => setTimeout(resolve, 350));
-        }
-      });
-      out.append(all);
-    }
+    return { PDFLib, doc: await PDFLib.PDFDocument.load(await bytesOf(file)) };
   } catch (error) {
-    say('convert', error.message, 'bad');
-  } finally {
-    busy.convert = false;
-    syncButtons('convert');
-    bar('convert', null);
+    throw Error(pdfError(error));
   }
-});
-
-/* ------------------------------------------------------------------- resizer */
-const refreshResizeMode = () => {
-  const mode = $('#resize-mode').value;
-  $$('[data-when]').forEach((node) => {
-    node.hidden = !node.dataset.when.split(' ').includes(mode);
-  });
-};
-$('#resize-mode').addEventListener('change', refreshResizeMode);
-refreshResizeMode();
-$('#resize-quality').addEventListener('input', (event) => {
-  $('#resize-quality-out').textContent = event.target.value + '%';
-});
-wireDrop('resize', { filter: isImage });
-$('#resize-run').addEventListener('click', async () => {
-  if (busy.resize || !state.resize.length) return;
-  busy.resize = true;
-  syncButtons('resize');
-  const out = $('#resize-out');
-  out.replaceChildren();
-  const mode = $('#resize-mode').value;
-  const boxW = Math.max(1, Math.min(12000, Number($('#resize-w').value) || 1));
-  const boxH = Math.max(1, Math.min(12000, Number($('#resize-h').value) || 1));
-  const percent = Math.max(1, Math.min(400, Number($('#resize-pct').value) || 100)) / 100;
-  const wanted = $('#resize-format').value;
-  const quality = Number($('#resize-quality').value) / 100;
-  const nameFor = uniqueNamer();
-  let done = 0;
-  try {
-    for (const file of state.resize) {
-      say('resize', 'Resizing ' + file.name + '…');
-      const source = await bitmapOf(file);
-      let width = source.width;
-      let height = source.height;
-      if (mode === 'fit') {
-        const scale = Math.min(boxW / source.width, boxH / source.height);
-        width = Math.max(1, Math.round(source.width * scale));
-        height = Math.max(1, Math.round(source.height * scale));
-      } else if (mode === 'exact') {
-        width = boxW;
-        height = boxH;
-      } else {
-        width = Math.max(1, Math.round(source.width * percent));
-        height = Math.max(1, Math.round(source.height * percent));
-      }
-      const type =
-        wanted === 'keep'
-          ? IMAGE_TYPES.includes(file.type) && file.type !== 'image/gif'
-            ? file.type
-            : 'image/jpeg'
-          : wanted;
-      const canvas = paint(source, width, height, type === 'image/jpeg' ? '#ffffff' : null);
-      const blob = await toBlob(canvas, type, quality);
-      addOutput(
-        out,
-        nameFor(stem(file.name) + '-' + width + 'x' + height + '.' + extOf(type)),
-        blob,
-        source.width + '×' + source.height + ' → ' + width + '×' + height,
-      );
-      source.close?.();
-      bar('resize', ++done / state.resize.length);
-    }
-    say('resize', 'Resized ' + done + ' image' + (done === 1 ? '' : 's') + '.', 'ok');
-  } catch (error) {
-    say('resize', error.message, 'bad');
-  } finally {
-    busy.resize = false;
-    syncButtons('resize');
-    bar('resize', null);
-  }
-});
-
-/* -------------------------------------------------------------------- merger */
-wireDrop('merge', { limit: MAX_PDFS, filter: isPdf });
-$('#merge-run').addEventListener('click', async () => {
-  if (busy.merge || !state.merge.length) return;
-  busy.merge = true;
-  syncButtons('merge');
-  const out = $('#merge-out');
-  out.replaceChildren();
-  try {
-    say('merge', 'Preparing the PDF engine…');
-    const { PDFDocument } = await getPdfLib();
-    const merged = await PDFDocument.create();
-    merged.setProducer('ToolKit Pro · browser');
-    merged.setCreationDate(new Date());
-    let pages = 0;
-    for (const [index, file] of state.merge.entries()) {
-      say('merge', 'Adding ' + file.name + '…');
-      let source;
-      try {
-        source = await PDFDocument.load(await bytesOf(file), { updateMetadata: false });
-      } catch (error) {
-        throw Error(file.name + ': ' + pdfError(error));
-      }
-      const copied = await merged.copyPages(source, source.getPageIndices());
-      copied.forEach((page) => merged.addPage(page));
-      pages += copied.length;
-      bar('merge', (index + 1) / state.merge.length);
-    }
-    if (!pages) throw Error('Those PDFs have no pages.');
-    const bytes = await merged.save({ useObjectStreams: true });
-    const blob = new Blob([bytes], { type: 'application/pdf' });
-    addOutput(
-      out,
-      'merged-' + new Date().toISOString().slice(0, 10) + '.pdf',
-      blob,
-      pages + ' pages',
-    );
-    say('merge', 'Merged ' + state.merge.length + ' files into ' + pages + ' pages.', 'ok');
-  } catch (error) {
-    say('merge', error.message, 'bad');
-  } finally {
-    busy.merge = false;
-    syncButtons('merge');
-    bar('merge', null);
-  }
-});
-
-/* ------------------------------------------------------------------ compressor */
-const refreshCompressMode = () => {
-  const mode = $('#compress-mode').value;
-  $$('#compress [data-when]').forEach((node) => {
-    node.hidden = !node.dataset.when.split(' ').includes(mode);
-  });
-  $('#compress-note').hidden = false;
-};
-$('#compress-mode').addEventListener('change', refreshCompressMode);
-$('#compress-quality').addEventListener('input', (event) => {
-  $('#compress-quality-out').textContent = event.target.value + '%';
-});
-wireDrop('compress', { limit: 1, filter: isPdf });
-$('#compress-run').addEventListener('click', async () => {
-  if (busy.compress || !state.compress.length) return;
-  busy.compress = true;
-  syncButtons('compress');
-  const out = $('#compress-out');
-  out.replaceChildren();
-  const file = state.compress[0];
-  const mode = $('#compress-mode').value;
-  try {
-    say('compress', 'Loading ' + file.name + '…');
-    const original = await bytesOf(file);
-    let result;
-    if (mode === 'raster') {
-      const [pdfjs, { PDFDocument }] = await Promise.all([getPdfjs(), getPdfLib()]);
-      say('compress', 'Drawing the pages…');
-      let source;
-      try {
-        source = await pdfjs.getDocument({ data: original.slice(), isEvalSupported: false })
-          .promise;
-      } catch (error) {
-        throw Error(pdfError(error));
-      }
-      if (source.numPages > 80)
-        throw Error(
-          'This PDF has ' + source.numPages + ' pages. Split it first, then compress the parts.',
-        );
-      const scale = Number($('#compress-scale').value);
-      const quality = Number($('#compress-quality').value) / 100;
-      const target = await PDFDocument.create();
-      target.setProducer('ToolKit Pro · browser');
-      for (let index = 1; index <= source.numPages; index++) {
-        const page = await source.getPage(index);
-        const view = page.getViewport({ scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.ceil(view.width);
-        canvas.height = Math.ceil(view.height);
-        const ctx = canvas.getContext('2d', { alpha: false });
-        if (!ctx) throw Error('This browser cannot draw PDF pages. Try Chrome, Edge or Firefox.');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        await page.render({ canvasContext: ctx, viewport: view }).promise;
-        const jpeg = await toBlob(canvas, 'image/jpeg', quality);
-        page.cleanup?.();
-        const picture = await target.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
-        const natural = page.getViewport({ scale: 1 });
-        const added = target.addPage([natural.width, natural.height]);
-        added.drawImage(picture, { x: 0, y: 0, width: natural.width, height: natural.height });
-        bar('compress', index / source.numPages);
-      }
-      result = new Uint8Array(await target.save({ useObjectStreams: true }));
-    } else {
-      const { PDFDocument } = await getPdfLib();
-      let source;
-      try {
-        source = await PDFDocument.load(original.slice(), { updateMetadata: false });
-      } catch (error) {
-        throw Error(pdfError(error));
-      }
-      say('compress', 'Rewriting the file…');
-      result = await source.save({ useObjectStreams: true, addDefaultPage: false });
-    }
-    const blob = new Blob([result], { type: 'application/pdf' });
-    const saved = original.length - blob.size;
-    if (saved > 0) {
-      addOutput(
-        out,
-        stem(file.name) + '-small.pdf',
-        blob,
-        Math.round((saved / original.length) * 100) + '% smaller',
-      );
-      say(
-        'compress',
-        'Done: ' + sizeText(original.length) + ' → ' + sizeText(blob.size) + '.',
-        'ok',
-      );
-    } else {
-      addOutput(out, stem(file.name) + '-copy.pdf', blob, 'about the same size');
-      say(
-        'compress',
-        'This PDF is already compact — the rewrite is ' +
-          sizeText(blob.size) +
-          ', no smaller than the original. Keep the original.',
-        'warn',
-      );
-    }
-  } catch (error) {
-    say('compress', error.message, 'bad');
-  } finally {
-    busy.compress = false;
-    syncButtons('compress');
-    bar('compress', null);
-  }
-});
-refreshCompressMode();
-
-/* ----------------------------------------------------------------- PDF to Word */
-wireDrop('word', { limit: 1, filter: isPdf });
-async function pageText(pdf, number) {
+}
+async function renderPage(pdf, number, scale = 1.4) {
+  const page = await pdf.getPage(number);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(viewport.width));
+  canvas.height = Math.max(1, Math.ceil(viewport.height));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw Error('This browser cannot draw PDF pages.');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  page.cleanup?.();
+  return canvas;
+}
+async function pageLines(pdf, number) {
   const page = await pdf.getPage(number);
   const content = await page.getTextContent();
-  const lines = [];
-  let current = null;
+  const rows = new Map();
   for (const item of content.items) {
-    if (!item || typeof item.str !== 'string' || !item.str.trim()) continue;
-    const y = item.transform[5];
-    const x = item.transform[4];
-    if (!current || Math.abs(current.y - y) > 3) {
-      current = { y, parts: [] };
-      lines.push(current);
-    }
-    current.parts.push({ x, text: item.str });
+    if (!item || typeof item.str !== 'string' || !item.str) continue;
+    const key = Math.round(item.transform[5] / 2) * 2;
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push({ x: item.transform[4], text: item.str });
   }
-  page.cleanup?.();
-  return lines
-    .sort((a, b) => b.y - a.y)
-    .map((line) =>
-      line.parts
+  const lines = [...rows.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([, cells]) =>
+      cells
         .sort((a, b) => a.x - b.x)
-        .map((part) => part.text)
+        .map((cell) => cell.text)
         .join('')
         .replace(/\s+/g, ' ')
         .trim(),
     )
     .filter(Boolean);
+  page.cleanup?.();
+  return lines;
 }
+async function pdfText(file, onPage) {
+  const { pdf } = await openPdf(file);
+  const pages = [];
+  for (let number = 1; number <= pdf.numPages; number++) {
+    pages.push(await pageLines(pdf, number));
+    onPage?.(number, pdf.numPages);
+  }
+  return pages;
+}
+function parsePages(input, total) {
+  const text = String(input || '').trim();
+  if (!text) return Array.from({ length: total }, (_, index) => index + 1);
+  const picked = [];
+  for (const chunk of text.split(/[,;\s]+/).filter(Boolean)) {
+    const range = chunk.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (range) {
+      let from = Math.max(1, Number(range[1]));
+      let to = Math.min(total, Number(range[2]));
+      if (from > to) [from, to] = [to, from];
+      for (let page = from; page <= to; page++) if (!picked.includes(page)) picked.push(page);
+    } else if (/^\d+$/.test(chunk)) {
+      const page = Number(chunk);
+      if (page >= 1 && page <= total && !picked.includes(page)) picked.push(page);
+    }
+  }
+  if (!picked.length)
+    throw Error('No valid page numbers. Use something like 1-3, 5 (this PDF has ' + total + ').');
+  return picked;
+}
+
+/* ------------------------------------------------------------------- docx writer */
 const xmlEscape = (text) =>
   text
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
@@ -632,9 +423,6 @@ const xmlEscape = (text) =>
       (character) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character],
     );
-
-/* A tiny, dependency-free ZIP writer (stored entries) so the result is a real
-   .docx Word can open without the “format and extension don’t match” warning. */
 const crcTable = (() => {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -666,21 +454,18 @@ function zipStored(files) {
     local.setUint32(0, 0x04034b50, true);
     local.setUint16(4, 20, true);
     local.setUint16(6, 0x0800, true);
-    local.setUint16(8, 0, true);
     local.setUint16(10, time, true);
     local.setUint16(12, date, true);
     local.setUint32(14, crc, true);
     local.setUint32(18, data.length, true);
     local.setUint32(22, data.length, true);
     local.setUint16(26, name.length, true);
-    local.setUint16(28, 0, true);
     chunks.push(new Uint8Array(local.buffer), name, data);
     const head = new DataView(new ArrayBuffer(46));
     head.setUint32(0, 0x02014b50, true);
     head.setUint16(4, 20, true);
     head.setUint16(6, 20, true);
     head.setUint16(8, 0x0800, true);
-    head.setUint16(10, 0, true);
     head.setUint16(12, time, true);
     head.setUint16(14, date, true);
     head.setUint32(16, crc, true);
@@ -770,66 +555,900 @@ function wordFile(title, pages, headed) {
   ];
   return zipStored(files);
 }
-$('#word-run').addEventListener('click', async () => {
-  if (busy.word || !state.word.length) return;
-  busy.word = true;
-  syncButtons('word');
-  const out = $('#word-out');
+
+/* --------------------------------------------------------------- tool framework */
+const option = (id, key) => {
+  const el = $('#' + id + '-' + key);
+  if (!el) return undefined;
+  if (el.type === 'checkbox') return el.checked;
+  return el.value;
+};
+const number = (id, key, fallback = 0, min = -1e9, max = 1e9) => {
+  const value = Number(option(id, key));
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+};
+
+function setup(id, config) {
+  TOOLS[id] = {
+    accept: config.accept === 'pdf' ? isPdf : config.accept === 'any' ? () => true : isImage,
+    multiple: !!config.multiple,
+    limit: config.limit || MAX_FILES,
+    reorder: !!config.reorder,
+    run: config.run,
+  };
+  state[id] = [];
+  wireDrop(id);
+  $$('input[type=range]', $('#' + id)).forEach((input) => {
+    const out = $('#' + id + '-' + input.id.slice(id.length + 1) + '-out');
+    if (!out) return;
+    const update = () => {
+      out.textContent = input.value + (input.dataset.suffix || '');
+    };
+    input.addEventListener('input', update);
+    update();
+  });
+  $('#' + id + '-run')?.addEventListener('click', () => runTool(id));
+  syncButtons(id);
+}
+
+async function runTool(id) {
+  const config = TOOLS[id];
+  if (!config || busy[id] || !filesOf(id).length) return;
+  busy[id] = true;
+  syncButtons(id);
+  const out = $('#' + id + '-out');
   out.replaceChildren();
-  const file = state.word[0];
+  say(id, '');
+  const links = [];
+  const context = {
+    id,
+    files: filesOf(id).slice(),
+    out,
+    links,
+    names: uniqueNamer(),
+    opt: (key) => option(id, key),
+    num: (key, fallback, min, max) => number(id, key, fallback, min, max),
+    // handlers may call say('text', 'ok') or the older say(id, 'text', 'ok')
+    say: (first, second, third) => (first === id ? say(id, second, third) : say(id, first, second)),
+    bar: (first, second) => bar(id, first === id ? second : first),
+    add: (name, blob, note) => {
+      const link = addOutput(out, name, blob, note);
+      links.push(link);
+      return link;
+    },
+    downloadAll: () => {
+      if (links.length > 1) downloadAllButton(out, links);
+    },
+  };
   try {
-    say('word', 'Reading ' + file.name + '…');
-    const pdfjs = await getPdfjs();
-    let pdf;
-    try {
-      pdf = await pdfjs.getDocument({ data: (await bytesOf(file)).slice(), isEvalSupported: false })
-        .promise;
-    } catch (error) {
-      throw Error(pdfError(error));
+    await config.run(context);
+  } catch (error) {
+    say(id, error?.message || String(error), 'bad');
+  } finally {
+    busy[id] = false;
+    syncButtons(id);
+    bar(id, null);
+  }
+}
+
+/* ------------------------------------------------------------------ PDF: merge */
+setup('merge', {
+  accept: 'pdf',
+  multiple: true,
+  reorder: true,
+  run: async ({ files, add, say, bar }) => {
+    const { PDFLib, doc } = await pagedLib(files[0]);
+    for (const file of files.slice(1)) {
+      const source = await pagedLib(file);
+      const pages = await doc.copyPages(source.doc, source.doc.getPageIndices());
+      pages.forEach((page) => doc.addPage(page));
+      void PDFLib;
     }
-    const pages = [];
-    let words = 0;
-    for (let number = 1; number <= pdf.numPages; number++) {
-      say('word', 'Reading page ' + number + ' of ' + pdf.numPages + '…');
-      const lines = await pageText(pdf, number);
-      words += lines.join(' ').split(/\s+/).filter(Boolean).length;
-      pages.push(lines);
-      bar('word', number / pdf.numPages);
+    const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+    add('merged.pdf', blob, doc.getPageCount() + ' pages');
+    say('merge', 'Merged ' + files.length + ' files into ' + doc.getPageCount() + ' pages.', 'ok');
+    bar('merge', 1);
+  },
+});
+
+/* ------------------------------------------------------------------ PDF: split */
+setup('split', {
+  accept: 'pdf',
+  run: async ({ files, opt, add, say, names, downloadAll }) => {
+    const file = files[0];
+    const { PDFLib, doc } = await pagedLib(file);
+    const total = doc.getPageCount();
+    const mode = opt('mode');
+    const groups = [];
+    if (mode === 'each') {
+      for (let page = 0; page < total; page++)
+        groups.push({ label: String(page + 1), pages: [page] });
+    } else {
+      for (const chunk of String(opt('ranges') || '')
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)) {
+        const pages = parsePages(chunk, total).map((page) => page - 1);
+        groups.push({ label: chunk.replace(/\s+/g, ''), pages });
+      }
+      if (!groups.length) throw Error('Type the pages to keep, for example 1-3, 5.');
     }
-    const blob = wordFile(stem(file.name), pages, $('#word-detail').value === 'headed');
-    addOutput(out, stem(file.name) + '.docx', blob, pdf.numPages + ' pages · ' + words + ' words');
+    for (const group of groups) {
+      const outDoc = await PDFLib.PDFDocument.create();
+      const copied = await outDoc.copyPages(doc, group.pages);
+      copied.forEach((page) => outDoc.addPage(page));
+      add(
+        names(stem(file.name) + '-p' + group.label + '.pdf'),
+        new Blob([await outDoc.save()], { type: 'application/pdf' }),
+        group.pages.length + ' page' + (group.pages.length === 1 ? '' : 's'),
+      );
+    }
+    say('split', 'Split into ' + groups.length + ' PDF file(s).', 'ok');
+    downloadAll();
+  },
+});
+
+/* ------------------------------------------------------------- PDF: pages→JPG */
+setup('pdftojpg', {
+  accept: 'pdf',
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const { pdf } = await openPdf(files[0]);
+    const type = opt('format') === 'image/png' ? 'image/png' : 'image/jpeg';
+    const quality = num('quality', 88, 30, 100) / 100;
+    for (let page = 1; page <= pdf.numPages; page++) {
+      say('pdftojpg', 'Drawing page ' + page + ' of ' + pdf.numPages + '…');
+      const canvas = await renderPage(pdf, page, 1.6);
+      const blob = await toBlob(canvas, type, quality);
+      add(
+        names(stem(files[0].name) + '-page-' + String(page).padStart(2, '0') + '.' + extOf(type)),
+        blob,
+        canvas.width + '×' + canvas.height,
+      );
+      bar('pdftojpg', page / pdf.numPages);
+    }
+    say('pdftojpg', 'Made ' + pdf.numPages + ' image(s) from the PDF.', 'ok');
+    downloadAll();
+  },
+});
+
+/* ------------------------------------------------------------ PDF: images→PDF */
+setup('imgtopdf', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar }) => {
+    const PDFLib = await getPdfLib();
+    const doc = await PDFLib.PDFDocument.create();
+    const margin = (num('margin', 12, 0, 40) / 25.4) * 72;
+    const pageMode = opt('size');
+    for (const [index, file] of files.entries()) {
+      say('imgtopdf', 'Adding ' + file.name + '…');
+      let bytes = await bytesOf(file);
+      let type = file.type || 'image/jpeg';
+      if (!/jpeg|png/.test(type)) {
+        const bitmap = await bitmapOf(file);
+        const canvas = paint(bitmap, bitmap.width, bitmap.height, '#ffffff');
+        bytes = new Uint8Array(await (await toBlob(canvas, 'image/jpeg', 0.92)).arrayBuffer());
+        type = 'image/jpeg';
+        bitmap.close?.();
+      }
+      const image = /png/i.test(type) ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+      let pageWidth = (image.width * 72) / 96 + margin * 2;
+      let pageHeight = (image.height * 72) / 96 + margin * 2;
+      if (pageMode === 'a4') {
+        pageWidth = 595.28;
+        pageHeight = 841.89;
+      }
+      const page = doc.addPage([pageWidth, pageHeight]);
+      const box = { width: pageWidth - margin * 2, height: pageHeight - margin * 2 };
+      const scale = Math.min(box.width / image.width, box.height / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      page.drawImage(image, {
+        x: (pageWidth - width) / 2,
+        y: (pageHeight - height) / 2,
+        width,
+        height,
+      });
+      bar('imgtopdf', (index + 1) / files.length);
+    }
+    add(
+      'images.pdf',
+      new Blob([await doc.save()], { type: 'application/pdf' }),
+      doc.getPageCount() + ' pages',
+    );
+    say('imgtopdf', 'Combined ' + files.length + ' image(s) into one PDF.', 'ok');
+  },
+});
+
+/* ------------------------------------------------------------ PDF: compress */
+async function rasterPdf(pdf, scale, quality) {
+  const PDFLib = await getPdfLib();
+  const doc = await PDFLib.PDFDocument.create();
+  for (let page = 1; page <= pdf.numPages; page++) {
+    const canvas = await renderPage(pdf, page, scale);
+    const jpeg = await toBlob(canvas, 'image/jpeg', quality);
+    const image = await doc.embedJpg(new Uint8Array(await jpeg.arrayBuffer()));
+    const sheet = doc.addPage([canvas.width * 0.75, canvas.height * 0.75]);
+    sheet.drawImage(image, {
+      x: 0,
+      y: 0,
+      width: canvas.width * 0.75,
+      height: canvas.height * 0.75,
+    });
+  }
+  return new Blob([await doc.save()], { type: 'application/pdf' });
+}
+
+setup('compress', {
+  accept: 'pdf',
+  run: async ({ files, opt, num, add, say, bar }) => {
+    const file = files[0];
+    const mode = opt('mode');
+    const targetKb = num('target', 200, 10, 5000);
+    const target = targetKb * 1024;
+    if (mode === 'clean' || file.size <= target) {
+      const { doc } = await pagedLib(file);
+      const blob = new Blob([await doc.save({ useObjectStreams: true })], {
+        type: 'application/pdf',
+      });
+      bar('compress', 1);
+      if (blob.size < file.size) {
+        add(stem(file.name) + '-clean.pdf', blob, 'structure rewritten');
+        say(
+          'compress',
+          'Cleaned up: ' + sizeText(file.size) + ' → ' + sizeText(blob.size) + '.',
+          'ok',
+        );
+      } else if (file.size <= target) {
+        say(
+          'compress',
+          'This PDF is already ' +
+            sizeText(file.size) +
+            ' — under your ' +
+            targetKb +
+            ' KB target, so there is nothing worth shrinking.',
+          'ok',
+        );
+      } else {
+        say(
+          'compress',
+          'This PDF is already compact — the rewrite is ' +
+            sizeText(blob.size) +
+            ', no smaller than the original. Keep the original.',
+          'warn',
+        );
+      }
+      return;
+    }
+    const { pdf } = await openPdf(file);
+    if (pdf.numPages > 40)
+      throw Error('This PDF has ' + pdf.numPages + ' pages. Shrinking works best under 40 pages.');
+    const attempts = [
+      [1.4, 0.85],
+      [1.2, 0.7],
+      [1, 0.6],
+      [0.85, 0.5],
+      [0.7, 0.45],
+      [0.55, 0.4],
+    ];
+    let best = null;
+    for (const [index, [scale, quality]] of attempts.entries()) {
+      say(
+        'compress',
+        'Trying page size ' +
+          Math.round(scale * 100) +
+          '% at ' +
+          Math.round(quality * 100) +
+          '% quality (attempt ' +
+          (index + 1) +
+          ' of ' +
+          attempts.length +
+          ')…',
+      );
+      const blob = await rasterPdf(pdf, scale, quality);
+      bar('compress', (index + 1) / attempts.length);
+      if (blob.size >= file.size) continue; // never hand back a bigger file
+      if (!best || blob.size < best.size) best = blob;
+      if (blob.size <= target) break;
+    }
+    if (!best) {
+      say(
+        'compress',
+        'This PDF is already smaller than any picture-based rewrite (' +
+          sizeText(file.size) +
+          '). Keep the original.',
+        'warn',
+      );
+      return;
+    }
+    add(stem(file.name) + '-small.pdf', best, 'target ' + targetKb + ' KB');
+    say(
+      'compress',
+      best.size <= target
+        ? 'Done: ' +
+            sizeText(file.size) +
+            ' → ' +
+            sizeText(best.size) +
+            ' (under ' +
+            targetKb +
+            ' KB).'
+        : 'I got it down to ' +
+            sizeText(best.size) +
+            ' — close to your ' +
+            targetKb +
+            ' KB target but not under it. The download is the smallest version.',
+      best.size <= target ? 'ok' : 'warn',
+    );
+  },
+});
+
+/* ---------------------------------------------------------- PDF: PDF→Word */
+setup('word', {
+  accept: 'pdf',
+  run: async ({ files, opt, add, say, bar }) => {
+    const pages = await pdfText(files[0], (page, total) => {
+      say('word', 'Reading page ' + page + ' of ' + total + '…');
+      bar('word', page / total);
+    });
+    const words = pages.reduce(
+      (total, lines) => total + lines.join(' ').split(/\s+/).filter(Boolean).length,
+      0,
+    );
+    const blob = wordFile(stem(files[0].name), pages, opt('detail') === 'headed');
+    add(stem(files[0].name) + '.docx', blob, pages.length + ' pages · ' + words + ' words');
     say(
       'word',
       words
         ? 'Text lifted from ' +
             pages.filter((lines) => lines.length).length +
             ' of ' +
-            pdf.numPages +
+            pages.length +
             ' pages. Download the Word file below.'
-        : 'No text layer was found — this looks like a scanned PDF. Try the “Shrink pages as images” option in the PDF compressor instead.',
+        : 'No text layer was found — this looks like a scanned PDF. Try PDF → JPG to get images instead.',
       words ? 'ok' : 'warn',
     );
-  } catch (error) {
-    say('word', error.message, 'bad');
-  } finally {
-    busy.word = false;
-    syncButtons('word');
-    bar('word', null);
-  }
+  },
 });
 
-/* Keep the tool links honest: mark the tile of the section in view. */
-const tiles = $$('.tile[data-tab]');
-const panels = tiles.map((tile) => document.getElementById(tile.dataset.tab)).filter(Boolean);
-if ('IntersectionObserver' in window && panels.length) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const tile = tiles.find((node) => node.dataset.tab === entry.target.id);
-        if (tile) tile.setAttribute('aria-current', entry.isIntersecting ? 'true' : 'false');
+/* ---------------------------------------------------------- PDF: PDF→text */
+setup('pdftext', {
+  accept: 'pdf',
+  run: async ({ files, opt, add, say, bar }) => {
+    const pages = await pdfText(files[0], (page, total) => {
+      say('pdftext', 'Reading page ' + page + ' of ' + total + '…');
+      bar('pdftext', page / total);
+    });
+    const text = pages
+      .map(
+        (lines, index) =>
+          (opt('labels') === 'labels' ? '--- Page ' + (index + 1) + ' ---\n' : '') +
+          lines.join('\n'),
+      )
+      .join('\n\n');
+    const count = text.split(/\s+/).filter(Boolean).length;
+    if (!count) throw Error('No text layer found — this PDF is probably a scan.');
+    add(stem(files[0].name) + '.txt', new Blob([text], { type: 'text/plain' }), count + ' words');
+    say('pdftext', 'Extracted ' + count + ' words from ' + pages.length + ' pages.', 'ok');
+  },
+});
+
+/* -------------------------------------------------------- PDF: organize pages */
+setup('organize', {
+  accept: 'pdf',
+  run: async ({ files, opt, add, say }) => {
+    const file = files[0];
+    const { PDFLib, doc } = await pagedLib(file);
+    const total = doc.getPageCount();
+    const order = parsePages(opt('order'), total);
+    if (order.length === total && order.every((page, index) => page === index + 1)) {
+      say(
+        'organize',
+        'That is the current order — change the list to reorder or remove pages.',
+        'warn',
+      );
+      return;
+    }
+    const outDoc = await PDFLib.PDFDocument.create();
+    const copied = await outDoc.copyPages(
+      doc,
+      order.map((page) => page - 1),
+    );
+    copied.forEach((page) => outDoc.addPage(page));
+    add(
+      stem(file.name) + '-reordered.pdf',
+      new Blob([await outDoc.save()], { type: 'application/pdf' }),
+      order.length + ' of ' + total + ' pages',
+    );
+    say(
+      'organize',
+      'Saved ' +
+        order.length +
+        ' page(s) in the new order' +
+        (order.length < total ? ', ' + (total - order.length) + ' removed.' : '.'),
+      'ok',
+    );
+  },
+});
+
+/* ------------------------------------------------------------ PDF: rotate */
+setup('rotate', {
+  accept: 'pdf',
+  run: async ({ files, opt, add, say }) => {
+    const file = files[0];
+    const { PDFLib, doc } = await pagedLib(file);
+    const angle = Number(opt('angle')) || 90;
+    const pages = parsePages(opt('pages'), doc.getPageCount());
+    for (const number of pages) {
+      const page = doc.getPage(number - 1);
+      page.setRotation(PDFLib.degrees((page.getRotation().angle + angle) % 360));
+    }
+    add(
+      stem(file.name) + '-rotated.pdf',
+      new Blob([await doc.save()], { type: 'application/pdf' }),
+      pages.length + ' pages turned ' + angle + '°',
+    );
+    say('rotate', 'Rotated ' + pages.length + ' page(s) by ' + angle + '°.', 'ok');
+  },
+});
+
+/* ------------------------------------------------------- PDF: page numbers */
+setup('pagenum', {
+  accept: 'pdf',
+  run: async ({ files, opt, num, add, say }) => {
+    const file = files[0];
+    const { PDFLib, doc } = await pagedLib(file);
+    const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const start = num('start', 1, 1, 9999);
+    const format = opt('format');
+    const position = opt('position');
+    const total = doc.getPageCount();
+    doc.getPages().forEach((page, index) => {
+      const current = start + index;
+      const label =
+        format === 'of'
+          ? current + ' / ' + (start + total - 1)
+          : format === 'page'
+            ? 'Page ' + current
+            : String(current);
+      const size = 11;
+      const width = font.widthOfTextAtSize(label, size);
+      const { width: pageWidth, height: pageHeight } = page.getSize();
+      const margin = 28;
+      const x =
+        position === 'bottom-right' || position === 'top-right'
+          ? pageWidth - width - margin
+          : (pageWidth - width) / 2;
+      const y = position.startsWith('top') ? pageHeight - margin : margin - 4;
+      page.drawText(label, { x, y, size, font, color: PDFLib.rgb(0.25, 0.25, 0.25) });
+    });
+    add(
+      stem(file.name) + '-numbered.pdf',
+      new Blob([await doc.save()], { type: 'application/pdf' }),
+      total + ' pages numbered',
+    );
+    say('pagenum', 'Numbered ' + total + ' pages, starting at ' + start + '.', 'ok');
+  },
+});
+
+/* --------------------------------------------------------- PDF: watermark */
+setup('watermark', {
+  accept: 'pdf',
+  run: async ({ files, opt, num, add, say }) => {
+    const file = files[0];
+    const text = String(opt('text') || '').trim();
+    if (!text) throw Error('Type the watermark text first.');
+    if (!/^[\x20-\x7e’‘“”–—°€£•]+$/.test(text))
+      throw Error('Watermarks use Latin letters for now. Try an English word or your name.');
+    const { PDFLib, doc } = await pagedLib(file);
+    const font = await doc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    const opacity = num('opacity', 18, 5, 60) / 100;
+    const scale = num('size', 100, 40, 160) / 100;
+    const diagonal = opt('angle') !== 'flat';
+    doc.getPages().forEach((page) => {
+      const { width, height } = page.getSize();
+      const size = (Math.min(width, height) / (text.length > 12 ? 12 : 8)) * scale;
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const x = diagonal ? (width - textWidth * 0.7071) / 2 : (width - textWidth) / 2;
+      const y = diagonal ? (height - textWidth * 0.7071) / 2 : height / 2 - size / 3;
+      page.drawText(text, {
+        x: Math.max(12, x),
+        y: Math.max(12, y),
+        size,
+        font,
+        color: PDFLib.rgb(0.45, 0.45, 0.45),
+        opacity,
+        rotate: PDFLib.degrees(diagonal ? 45 : 0),
       });
-    },
-    { rootMargin: '-45% 0px -50% 0px' },
-  );
-  panels.forEach((panel) => observer.observe(panel));
-}
+    });
+    add(
+      stem(file.name) + '-watermarked.pdf',
+      new Blob([await doc.save()], { type: 'application/pdf' }),
+      doc.getPageCount() + ' pages stamped',
+    );
+    say('watermark', 'Added “' + text + '” to ' + doc.getPageCount() + ' pages.', 'ok');
+  },
+});
+
+/* -------------------------------------------------------- IMAGE: convert */
+setup('convert', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const type = opt('format') || 'image/webp';
+    const quality = num('quality', 88, 40, 100) / 100;
+    for (const [index, file] of files.entries()) {
+      say('convert', 'Converting ' + file.name + '…');
+      const source = await bitmapOf(file);
+      const canvas = paint(
+        source,
+        source.width,
+        source.height,
+        type === 'image/jpeg' ? '#ffffff' : null,
+      );
+      const blob = await toBlob(canvas, type, quality);
+      add(names(stem(file.name) + '.' + extOf(type)), blob, source.width + '×' + source.height);
+      source.close?.();
+      bar('convert', (index + 1) / files.length);
+    }
+    say(
+      'convert',
+      'Finished ' + files.length + ' image' + (files.length === 1 ? '' : 's') + '.',
+      'ok',
+    );
+    downloadAll();
+  },
+});
+
+/* --------------------------------------------------------- IMAGE: resize */
+const refreshResizeMode = () => {
+  const mode = $('#resize-mode').value;
+  $$('[data-when]').forEach((node) => {
+    node.hidden = !node.dataset.when.split(' ').includes(mode);
+  });
+};
+setup('resize', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const mode = opt('mode');
+    const boxW = num('w', 800, 1, 12000);
+    const boxH = num('h', 800, 1, 12000);
+    const percent = num('pct', 100, 1, 400) / 100;
+    const wanted = opt('format');
+    const quality = num('quality', 90, 40, 100) / 100;
+    for (const [index, file] of files.entries()) {
+      say('resize', 'Resizing ' + file.name + '…');
+      const source = await bitmapOf(file);
+      let width = source.width;
+      let height = source.height;
+      if (mode === 'fit') {
+        const scale = Math.min(boxW / source.width, boxH / source.height);
+        width = Math.max(1, Math.round(source.width * scale));
+        height = Math.max(1, Math.round(source.height * scale));
+      } else if (mode === 'exact') {
+        width = boxW;
+        height = boxH;
+      } else {
+        width = Math.max(1, Math.round(source.width * percent));
+        height = Math.max(1, Math.round(source.height * percent));
+      }
+      const type =
+        wanted === 'keep'
+          ? IMAGE_TYPES.includes(file.type) && file.type !== 'image/gif'
+            ? file.type
+            : 'image/jpeg'
+          : wanted;
+      const canvas = paint(source, width, height, type === 'image/jpeg' ? '#ffffff' : null);
+      const blob = await toBlob(canvas, type, quality);
+      add(
+        names(stem(file.name) + '-' + width + 'x' + height + '.' + extOf(type)),
+        blob,
+        sizeText(blob.size),
+      );
+      source.close?.();
+      bar('resize', (index + 1) / files.length);
+    }
+    say('resize', 'Resized ' + files.length + ' image(s).', 'ok');
+    downloadAll();
+  },
+});
+$('#resize-mode')?.addEventListener('change', refreshResizeMode);
+refreshResizeMode();
+
+/* -------------------------------------------------- IMAGE: compress to size */
+setup('imgcompress', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const targetKb = num('target', 200, 10, 20000);
+    const target = targetKb * 1024;
+    const maxWidth = num('maxwidth', 0, 0, 12000);
+    const type = opt('format') === 'image/png' ? 'image/png' : 'image/jpeg';
+    for (const [index, file] of files.entries()) {
+      say('imgcompress', 'Compressing ' + file.name + '…');
+      const source = await bitmapOf(file);
+      let width = maxWidth ? Math.min(source.width, maxWidth) : source.width;
+      let height = Math.round((source.height * width) / source.width);
+      let best = null;
+      for (let round = 0; round < 6; round++) {
+        for (const quality of [0.9, 0.75, 0.6, 0.45]) {
+          const canvas = paint(source, width, height, type === 'image/jpeg' ? '#ffffff' : null);
+          const blob = await toBlob(canvas, type, quality);
+          if (!best || blob.size < best.size) best = blob;
+          if (blob.size <= target) {
+            best = blob;
+            break;
+          }
+        }
+        if (best.size <= target || width < 320) break;
+        width = Math.round(width * 0.8);
+        height = Math.round((source.height * width) / source.width);
+      }
+      add(
+        names(stem(file.name) + '-small.' + extOf(type)),
+        best,
+        best.size <= target ? 'under ' + targetKb + ' KB' : 'closest possible',
+      );
+      say(
+        'imgcompress',
+        best.size <= target
+          ? 'Done: ' +
+              sizeText(file.size) +
+              ' → ' +
+              sizeText(best.size) +
+              ' (under ' +
+              targetKb +
+              ' KB).'
+          : 'Best result is ' + sizeText(best.size) + ' — the target was ' + targetKb + ' KB.',
+        best.size <= target ? 'ok' : 'warn',
+      );
+      source.close?.();
+      bar('imgcompress', (index + 1) / files.length);
+    }
+    downloadAll();
+  },
+});
+
+/* ----------------------------------------------------------- IMAGE: crop */
+setup('crop', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, num, add, say, bar, names, downloadAll }) => {
+    const x = num('x', 0, 0, 20000);
+    const y = num('y', 0, 0, 20000);
+    const wantedW = num('w', 600, 1, 20000);
+    const wantedH = num('h', 600, 1, 20000);
+    for (const [index, file] of files.entries()) {
+      const source = await bitmapOf(file);
+      const left = Math.min(x, source.width - 1);
+      const top = Math.min(y, source.height - 1);
+      const width = Math.max(1, Math.min(wantedW, source.width - left));
+      const height = Math.max(1, Math.min(wantedH, source.height - top));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(
+        source.isNode ? source.node : source,
+        left,
+        top,
+        width,
+        height,
+        0,
+        0,
+        width,
+        height,
+      );
+      const blob = await toBlob(canvas, 'image/png');
+      add(names(stem(file.name) + '-crop.png'), blob, width + '×' + height);
+      source.close?.();
+      say('crop', 'Cropped ' + index + 1 + ' of ' + files.length + '…');
+      bar('crop', (index + 1) / files.length);
+    }
+    say('crop', 'Cropped ' + files.length + ' image(s).', 'ok');
+    downloadAll();
+  },
+});
+
+/* ------------------------------------------------- IMAGE: rotate and flip */
+setup('rotateflip', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, add, say, bar, names, downloadAll }) => {
+    const angle = Number(opt('angle')) || 0;
+    const flip = opt('flip');
+    const radians = (angle * Math.PI) / 180;
+    for (const [index, file] of files.entries()) {
+      const source = await bitmapOf(file);
+      const swap = angle === 90 || angle === 270;
+      const width = swap ? source.height : source.width;
+      const height = swap ? source.width : source.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(radians);
+      if (flip === 'h' || flip === 'both') ctx.scale(-1, 1);
+      if (flip === 'v' || flip === 'both') ctx.scale(1, -1);
+      ctx.drawImage(
+        source.isNode ? source.node : source,
+        -source.width / 2,
+        -source.height / 2,
+        source.width,
+        source.height,
+      );
+      const blob = await toBlob(canvas, 'image/png');
+      add(names(stem(file.name) + '-turned.png'), blob, width + '×' + height);
+      source.close?.();
+      bar('rotateflip', (index + 1) / files.length);
+    }
+    say('rotateflip', 'Turned ' + files.length + ' image(s).', 'ok');
+    downloadAll();
+  },
+});
+
+/* ------------------------------------------------------ IMAGE: watermark */
+setup('imgwatermark', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const text = String(opt('text') || '').trim();
+    if (!text) throw Error('Type the watermark text first.');
+    const opacity = num('opacity', 55, 5, 100) / 100;
+    const scale = num('size', 100, 30, 200) / 100;
+    const where = opt('position');
+    for (const [index, file] of files.entries()) {
+      const source = await bitmapOf(file);
+      const canvas = paint(source, source.width, source.height, null);
+      const ctx = canvas.getContext('2d');
+      const size = Math.max(
+        14,
+        Math.round((canvas.width / Math.max(10, text.length * 0.9)) * scale),
+      );
+      ctx.font = '700 ' + size + 'px system-ui, Arial, sans-serif';
+      ctx.globalAlpha = opacity;
+      ctx.textBaseline = 'alphabetic';
+      const metrics = ctx.measureText(text);
+      const pad = Math.round(size * 0.6);
+      const x =
+        where === 'bottom-right'
+          ? canvas.width - metrics.width - pad
+          : where === 'top-left'
+            ? pad
+            : (canvas.width - metrics.width) / 2;
+      const y =
+        where === 'top-left'
+          ? pad + size
+          : where === 'center'
+            ? canvas.height / 2 + size / 2
+            : canvas.height - pad;
+      ctx.lineWidth = Math.max(2, size / 12);
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeText(text, x, y);
+      ctx.fillText(text, x, y);
+      const blob = await toBlob(canvas, 'image/png');
+      add(names(stem(file.name) + '-marked.png'), blob, canvas.width + '×' + canvas.height);
+      source.close?.();
+      bar('imgwatermark', (index + 1) / files.length);
+    }
+    say('imgwatermark', 'Added “' + text + '” to ' + files.length + ' image(s).', 'ok');
+    downloadAll();
+  },
+});
+
+/* ------------------------------------------------------- IMAGE: white background */
+setup('whitebg', {
+  accept: 'image',
+  multiple: true,
+  run: async ({ files, opt, num, add, say, bar, names, downloadAll }) => {
+    const colour = /^#[0-9a-f]{6}$/i.test(String(opt('colour') || '')) ? opt('colour') : '#ffffff';
+    const quality = num('quality', 92, 60, 100) / 100;
+    const type = opt('format') === 'image/png' ? 'image/png' : 'image/jpeg';
+    for (const [index, file] of files.entries()) {
+      const source = await bitmapOf(file);
+      const canvas = paint(source, source.width, source.height, colour);
+      const blob = await toBlob(canvas, type, quality);
+      add(
+        names(stem(file.name) + '-flat.' + extOf(type)),
+        blob,
+        canvas.width + '×' + canvas.height,
+      );
+      source.close?.();
+      bar('whitebg', (index + 1) / files.length);
+    }
+    say('whitebg', 'Flattened ' + files.length + ' image(s) onto ' + colour + '.', 'ok');
+    downloadAll();
+  },
+});
+
+/* -------------------------------------------------- IMAGE: photo + signature */
+setup('photosign', {
+  accept: 'image',
+  multiple: true,
+  limit: 2,
+  run: async ({ files, num, add, say }) => {
+    if (files.length < 2)
+      throw Error('Add two images: the photo first, then the signature (or the other way round).');
+    const photos = [];
+    for (const file of files.slice(0, 2)) photos.push(await bitmapOf(file));
+    const gap = num('gap', 28, 0, 400);
+    const width = Math.max(photos[0].width, photos[1].width);
+    const firstHeight = Math.round((photos[0].height * width) / photos[0].width);
+    const signatureWidth = Math.round(width * (num('sigwidth', 45, 10, 100) / 100));
+    const secondHeight = Math.round((photos[1].height * signatureWidth) / photos[1].width);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = firstHeight + gap + secondHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(photos[0].isNode ? photos[0].node : photos[0], 0, 0, width, firstHeight);
+    ctx.drawImage(
+      photos[1].isNode ? photos[1].node : photos[1],
+      Math.round((width - signatureWidth) / 2),
+      firstHeight + gap,
+      signatureWidth,
+      secondHeight,
+    );
+    add(
+      'photo-with-signature.png',
+      await toBlob(canvas, 'image/png'),
+      canvas.width + '×' + canvas.height,
+    );
+    say('photosign', 'Stacked the photo and signature into one image.', 'ok');
+    photos.forEach((photo) => photo.close?.());
+  },
+});
+
+/* ----------------------------------------------------- IMAGE: passport photo */
+setup('passport', {
+  accept: 'image',
+  limit: 1,
+  run: async ({ files, opt, num, add, say }) => {
+    const presets = {
+      in35x45: { width: 35, height: 45, label: '35 × 45 mm' },
+      in2x2: { width: 51, height: 51, label: '2 × 2 in (US)' },
+      in35x35: { width: 35, height: 35, label: '35 × 35 mm' },
+      in50x70: { width: 50, height: 70, label: '50 × 70 mm' },
+    };
+    const preset = presets[opt('size')] || presets.in35x45;
+    const dpi = num('dpi', 300, 150, 600);
+    const targetW = Math.round((preset.width / 25.4) * dpi);
+    const targetH = Math.round((preset.height / 25.4) * dpi);
+    const source = await bitmapOf(files[0]);
+    // cover-crop from the centre, keeping the head near the top third
+    const scale = Math.max(targetW / source.width, targetH / source.height);
+    const drawW = source.width * scale;
+    const drawH = source.height * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      source.isNode ? source.node : source,
+      (targetW - drawW) / 2,
+      Math.min(0, (targetH - drawH) / 3),
+      drawW,
+      drawH,
+    );
+    add(
+      'passport-' + preset.width + 'x' + preset.height + 'mm.jpg',
+      await toBlob(canvas, 'image/jpeg', 0.95),
+      preset.label + ' at ' + dpi + ' dpi',
+    );
+    say(
+      'passport',
+      'Made a ' + preset.label + ' photo (' + targetW + '×' + targetH + ' px).',
+      'ok',
+    );
+    source.close?.();
+  },
+});
