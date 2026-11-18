@@ -1,0 +1,7 @@
+line-length = 100
+target-version = "py311"
+
+[lint.per-file-ignores]
+# Django expects class-level metadata on models and migrations.
+"studio/models.py" = ["RUF012"]
+"studio/migrations/*.py" = ["RUF012"]

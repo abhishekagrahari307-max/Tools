@@ -1,0 +1,447 @@
+.paper-card,
+.paper-card *,
+.theatre,
+.theatre *,
+.itinerary,
+.itinerary * {
+  box-sizing: border-box;
+}
+.paper-card {
+  position: relative;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 22%, #fff);
+  background: var(--card-paper, #fcf3e8);
+  color: var(--card-ink, #723449);
+  text-align: center;
+  box-shadow: 0 8px 27px #4b362a12;
+}
+.paper-art {
+  position: relative;
+  aspect-ratio: 2.8;
+  overflow: hidden;
+}
+.paper-art > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 55% 48%;
+}
+.paper-art > span,
+.ticket-art > span {
+  position: absolute;
+  bottom: 9px;
+  left: 13px;
+  color: #fff;
+  font:
+    650 8px/1.3 'DM Sans',
+    sans-serif;
+  letter-spacing: 0.14em;
+  background: #38252884;
+  padding: 4px 7px;
+  border-radius: 3px;
+}
+.paper-body {
+  position: relative;
+  padding: 24px clamp(18px, 4vw, 47px) 15px;
+  overflow-wrap: anywhere;
+}
+.paper-body:before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 23%, transparent);
+  pointer-events: none;
+}
+.paper-orn,
+.paper-coda {
+  opacity: 0.65;
+  font-family: Georgia, serif;
+}
+.paper-orn {
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.paper-body small,
+.ticket-face small,
+.itinerary > small {
+  font:
+    660 9px/1.5 'DM Sans',
+    'Hindi',
+    sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.paper-body h2,
+.ticket-face h1 {
+  font: 470 clamp(32px, 5vw, 57px) / 1.22 var(--card-font, Georgia, serif);
+  letter-spacing: -0.045em;
+  margin: 5px 0 12px;
+  overflow-wrap: anywhere;
+}
+.paper-body .letter-msg {
+  white-space: pre-line;
+  font:
+    400 15px/1.8 'DM Sans',
+    'Hindi',
+    sans-serif;
+  max-width: 53ch;
+  margin: 10px auto 13px;
+}
+.portrait {
+  display: block;
+  max-width: 170px;
+  max-height: 170px;
+  border-radius: 7px;
+  margin: 10px auto;
+  object-fit: contain;
+  border: 5px solid #fffaf2;
+  box-shadow: 0 3px 10px #31232217;
+}
+.sign {
+  font-size: 13px;
+}
+.sign b {
+  font-weight: 600;
+}
+.paper-meta {
+  border-top: 1px solid color-mix(in srgb, var(--card-ink) 23%, transparent);
+  padding-top: 11px;
+  margin-top: 16px;
+  font:
+    550 12px/1.6 'DM Sans',
+    'Hindi',
+    sans-serif;
+}
+.paper-coda {
+  font-size: 22px;
+  margin-top: 8px;
+}
+.theatre {
+  min-height: 100dvh;
+  color: var(--card-ink);
+  background: radial-gradient(ellipse at 15% 0, #ffffffb3, transparent 47%), var(--card-paper);
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.theatre-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px clamp(15px, 4vw, 60px);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-ink) 12%, transparent);
+}
+.theatre-tools > div {
+  display: flex;
+  gap: 6px;
+}
+.mini-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 500 21px/1 var(--serif, Georgia);
+  letter-spacing: -0.045em;
+}
+.mini-brand img {
+  width: 28px;
+}
+.guest-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 18px;
+}
+.ticket {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  max-width: 860px;
+  width: 100%;
+  min-height: 405px;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 26%, transparent);
+  border-radius: 15px;
+  overflow: hidden;
+  background: var(--card-paper);
+  box-shadow: 0 20px 65px #5439271c;
+  animation: arrive 0.45s ease-out;
+}
+.ticket-art {
+  position: relative;
+}
+.ticket-art > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 60% center;
+}
+.ticket-art:after {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 1px solid #fffbdf80;
+  border-radius: 5px;
+}
+.ticket-art > span {
+  z-index: 1;
+  bottom: 22px;
+  left: 22px;
+}
+.ticket-face {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+}
+.ticket-face h1 {
+  margin: 0;
+}
+.ticket-face > p {
+  font-size: 13px;
+  margin: 8px 0 17px;
+}
+.open-card {
+  background: var(--card-ink);
+  color: white;
+  border-radius: 100px !important;
+}
+.scene-icon {
+  position: relative;
+  width: 105px;
+  height: 105px;
+  display: grid;
+  place-items: center;
+  margin: 9px 0;
+  perspective: 340px;
+}
+.scene-icon svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 4px #512e2017);
+}
+.scene-icon .flame {
+  animation: flame 0.85s ease-in-out alternate infinite;
+  transform-origin: 70px 73px;
+}
+.scene-icon .float,
+.scene-icon.balloon svg {
+  animation: float 3s ease-in-out infinite;
+}
+.lift,
+.burst,
+.float {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.unseal .lift {
+  animation: lift 0.47s ease forwards;
+}
+.unseal .burst,
+.unseal .float,
+.unseal .flame {
+  animation: bloom 0.47s ease forwards;
+}
+.unseal .scene-icon.scratch {
+  opacity: 0;
+  transition: opacity 0.44s;
+}
+.scene-icon canvas {
+  position: absolute;
+  width: 83%;
+  height: 60%;
+  border-radius: 5px;
+  touch-action: none;
+  cursor: crosshair;
+}
+.guest-letter {
+  width: min(590px, 100%);
+  animation: arrive 0.4s ease-out;
+}
+.itinerary {
+  margin: 16px 0;
+  border: 1px solid #ddcfc2;
+  border-radius: 11px;
+  overflow-wrap: anywhere;
+  padding: 21px;
+  background: #fffdf8;
+  color: #493c36;
+}
+.itinerary > small {
+  color: #987650;
+}
+.itinerary h3 {
+  font:
+    500 26px/1.2 'Fraunces',
+    'Hindi',
+    Georgia,
+    serif;
+  letter-spacing: -0.04em;
+  margin: 5px 0 10px;
+}
+.itinerary h4 {
+  font-size: 13px;
+  margin: 17px 0 4px;
+}
+.itinerary > p {
+  margin: 5px 0;
+  color: #70655e;
+  font-size: 14px;
+}
+.itinerary ul {
+  padding-left: 19px;
+  line-height: 1.8;
+}
+.itinerary video {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  margin: 9px 0 0;
+  border-radius: 7px;
+}
+.countdown {
+  text-align: center;
+  font:
+    650 13px/1.6 'DM Sans',
+    'Hindi',
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  padding: 13px;
+  background: #fff9ed;
+  border: 1px solid #d8c9b8;
+  border-radius: 7px;
+  margin-top: 15px;
+}
+.guest-actions {
+  justify-content: center;
+  margin-top: 15px;
+}
+.theatre-end {
+  text-align: center;
+  font-size: 9px;
+  padding: 14px;
+  color: inherit;
+  opacity: 0.7;
+}
+.preview-hint,
+.reply-status {
+  font-size: 12px;
+  margin: 13px 0;
+}
+.reply-status:empty {
+  display: none;
+}
+.confetti-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  overflow: hidden;
+  pointer-events: none;
+}
+.confetti-fx i {
+  position: absolute;
+  top: -17px;
+  width: 6px;
+  height: 11px;
+  border-radius: 2px;
+  animation: fall 3s linear both;
+}
+.guest-letter .rsvp-form {
+  margin-top: 13px;
+}
+.rsvp-form .btn {
+  margin-top: 4px;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes lift {
+  to {
+    transform: translateY(-19px) rotateX(65deg);
+    opacity: 0.25;
+  }
+}
+@keyframes bloom {
+  to {
+    transform: scale(1.65) rotate(-9deg);
+    opacity: 0;
+  }
+}
+@keyframes flame {
+  to {
+    transform: scale(0.92, 1.08);
+  }
+}
+@keyframes float {
+  50% {
+    transform: translateY(-5px) rotate(3deg);
+  }
+}
+@keyframes fall {
+  to {
+    transform: translate(var(--drift), 105vh) rotate(450deg);
+  }
+}
+@media (max-width: 620px) {
+  .ticket {
+    max-width: 410px;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+  .ticket-art {
+    height: clamp(145px, 24vh, 200px);
+  }
+  .ticket-art > img {
+    object-position: 50% 50%;
+  }
+  .ticket-face {
+    padding: 20px 16px 25px;
+  }
+  .scene-icon {
+    width: 76px;
+    height: 76px;
+  }
+  .mini-brand {
+    font-size: 17px;
+  }
+  .mini-brand img {
+    width: 23px;
+  }
+  .theatre-tools {
+    padding: 12px;
+  }
+  .theatre-tools .btn {
+    font-size: 10px;
+  }
+  .guest-stage {
+    padding: 18px 14px;
+  }
+  .paper-body {
+    padding: 18px 20px 12px;
+  }
+  .paper-body .letter-msg {
+    font-size: 14px;
+  }
+  .itinerary {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theatre *,
+  .scene-icon * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .confetti-fx {
+    display: none;
+  }
+}
