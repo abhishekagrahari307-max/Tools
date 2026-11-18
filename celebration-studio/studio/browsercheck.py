@@ -5,9 +5,10 @@ import subprocess
 import unittest
 
 from django.conf import settings
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
 
 
+@override_settings(STUDIO_PUBLIC_ORIGIN="")
 @unittest.skipUnless(
     os.getenv("STUDIO_BROWSER_CHECK"), "Set STUDIO_BROWSER_CHECK=1 and install Puppeteer/Chromium"
 )

@@ -1,3 +1,4 @@
+import { plate } from './plates.js';
 export const $ = (s, root = document) => root.querySelector(s);
 export const h = (v) =>
   String(v ?? '').replace(
@@ -75,13 +76,22 @@ export async function api(path, { method = 'GET', body, blob = false, auth = tru
 export const eventOf = (id) =>
   state.catalog.occasions.find((e) => e.id === id) || state.catalog.occasions[0];
 export const designOf = (id) => state.catalog.templates.find((t) => t.code === id);
-export const art = (t) =>
-  '/s/assets/' +
-  (t?.art === 'classic'
-    ? 'classic.svg'
-    : (['royal', 'floral', 'festive', 'midnight', 'playful'].includes(t?.art) ? t.art : 'royal') +
-      '.webp');
-export const publicURL = (slug) => new URL('/i/' + encodeURIComponent(slug), location.origin).href;
+export const designsFor = (id) => state.catalog.templates.filter((t) => t.occasion === id);
+export const choose = (lang, en, hi) => (lang === 'hi' ? hi : en);
+export const local = (pair, lang) => choose(lang, pair[0], pair[1]);
+export const art = (t) => {
+  const e = state.catalog.occasions.find((e) => e.id === t?.art);
+  if (e) return plate(e.id, t.edition || 'signature', e.colors);
+  return (
+    '/s/assets/' +
+    (t?.art === 'classic'
+      ? 'classic.svg'
+      : (['royal', 'floral', 'festive', 'midnight', 'playful'].includes(t?.art) ? t.art : 'royal') +
+        '.webp')
+  );
+};
+export const publicURL = (slug) =>
+  new URL('/i/' + encodeURIComponent(slug), state.catalog?.publicOrigin || location.origin).href;
 export function initial(t, e) {
   return {
     occasion: e.id,
@@ -90,6 +100,10 @@ export function initial(t, e) {
     person: '',
     host: '',
     message: e.message,
+    messageAlt: '',
+    language: 'hi',
+    fields: {},
+    gallery: [],
     date: '',
     time: '',
     venue: '',
@@ -97,7 +111,7 @@ export function initial(t, e) {
     schedule: '',
     font: 'serif',
     palette: t.palette,
-    opening: e.opening || t.opening,
+    opening: t.occasion ? t.opening : e.opening || t.opening,
     music: 'chimes',
     rsvp: true,
     countdown: true,
@@ -105,11 +119,12 @@ export function initial(t, e) {
     video: '',
   };
 }
-export function dateText(d) {
+export function dateText(d, lang = 'en') {
   if (!d) return '';
-  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'long', timeZone: 'Asia/Kolkata' }).format(
-    new Date(d + 'T12:00:00+05:30'),
-  );
+  return new Intl.DateTimeFormat(lang === 'hi' ? 'hi-IN' : 'en-IN', {
+    dateStyle: 'long',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date(d + 'T12:00:00+05:30'));
 }
 export function mapLink(d) {
   if (d.map) {
@@ -170,11 +185,14 @@ export function modal(title, content) {
   el.querySelector('[data-close]').onclick = () => el.close();
   return el;
 }
-export function showLink(record) {
-  const url = publicURL(record.slug),
+export const qrURL = (slug) => '/api/public/' + encodeURIComponent(slug) + '/qr.png';
+export function showLink(record, lang = 'en') {
+  const t = (en, hi) => choose(lang, en, hi),
+    url = publicURL(record.slug),
+    qr = qrURL(record.slug),
     m = modal(
-      'Your invitation is live.',
-      `<p>इस लिंक को भेजें। मेहमान बिना अकाउंट के निमंत्रण खोलकर RSVP कर सकते हैं।</p><label class="field">Personal invitation link<input id="share-url" readonly value="${h(url)}"></label><div class="actions"><button class="btn primary" id="copy-url">${ic('copy')} Copy link</button><a class="btn plain" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent('You’re invited! ' + url)}">WhatsApp ${ic('up', 13)}</a></div><a class="text-link" href="${h(url)}" target="_blank" rel="noopener noreferrer">Open guest view ${ic('up', 13)}</a><p class="fine">Anyone with this link can view the invitation. The guest list stays private. On this branch preview, links need access to this running preview.</p>`,
+      t('Your invitation is live.', 'आपका निमंत्रण प्रकाशित है।'),
+      `<p>${t('Send this link or share the QR. Guests can open all six pages and reply without an account.', 'यह लिंक या QR भेजें। मेहमान बिना खाते के छहों पन्ने खोलकर जवाब दे सकते हैं।')}</p><label class="field">${t('Personal invitation link', 'आपका निमंत्रण लिंक')}<input id="share-url" readonly value="${h(url)}"></label><div class="actions"><button class="btn primary" id="copy-url">${ic('copy')} ${t('Copy link', 'लिंक कॉपी करें')}</button><a class="btn plain" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent(t('You’re invited! ', 'आप सादर आमंत्रित हैं! ') + url)}">WhatsApp ${ic('up', 13)}</a></div><div class="share-qr"><img width="112" height="112" src="${h(qr)}" alt="${t('Scan to open the guest invitation', 'निमंत्रण खोलने के लिए स्कैन करें')}"><div><b>${t('Scan to open', 'स्कैन करके खोलें')}</b><p>${t('For a printed card or a second phone.', 'छपे कार्ड या दूसरे फ़ोन के लिए।')}</p><a class="text-link" href="${h(qr)}" download="${h(record.slug)}-qr.png">${ic('download', 13)} ${t('Download QR (PNG)', 'QR डाउनलोड करें (PNG)')}</a></div></div><a class="text-link" href="${h(url)}" target="_blank" rel="noopener noreferrer">${t('Open guest view', 'मेहमान का निमंत्रण खोलें')} ${ic('up', 13)}</a><p class="fine">${t('Anyone with the link can see the invitation, not the guest list. Preview links require access to this running server.', 'लिंक वाला कोई भी व्यक्ति निमंत्रण देख सकता है, मेहमानों की सूची नहीं। यह लिंक प्रीव्यू सर्वर चलने तक उपलब्ध है।')}</p>`,
     );
   $('#copy-url', m).onclick = () => copy(url, $('#share-url', m));
 }

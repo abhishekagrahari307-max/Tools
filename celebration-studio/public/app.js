@@ -7,30 +7,32 @@ import {
   identity,
   eventOf,
   designOf,
-  art,
   initial,
-  publicURL,
   modal,
   toast,
   showLink,
   message,
   errorBox,
 } from './shared.js';
+import { home, studio } from './library.js';
 import { Editor } from './editor.js';
 import { play } from './player.js';
 const root = $('#app');
+$('.skip').onclick = (ev) => {
+  ev.preventDefault();
+  root.focus();
+};
 let editor = null,
   cleanup = null,
   refreshTimer,
-  nav = 0,
-  group = 'All designs';
+  nav = 0;
 const brand = `<img class="brand-flower" src="/s/assets/mark.svg" alt=""><span>Celebration<span class="brand-sub">S T U D I O</span></span>`;
 function header() {
   const dash = location.hash.startsWith('#/dashboard') || location.hash.startsWith('#/responses');
   $('#bar').innerHTML =
-    `<div class="wrap nav"><a class="brand" href="#/" aria-label="Celebration Studio home">${brand}</a><nav><a href="#/" class="${!dash && !location.hash.startsWith('#/designs') ? 'active' : ''}">${ic('grid', 14)} Studio</a><a href="#/designs" class="${location.hash.startsWith('#/designs') ? 'active' : ''}">Design library</a><a href="#/dashboard" class="${dash ? 'active' : ''}">My invitations</a>${state.user?.admin ? '<a href="#/admin">Admin</a>' : ''}</nav><div class="account">${state.user ? `<button id="account" class="profile" aria-label="Account for ${h(state.user.name)}">${h(state.user.name.slice(0, 1).toUpperCase())}</button>` : `<button id="login" class="btn plain compact">${ic('door', 14)} Sign in</button>`}</div></div>`;
+    `<div class="wrap nav"><a class="brand" href="#/" aria-label="Celebration Studio home">${brand}</a><nav><a href="#/" class="${!dash && !location.hash.startsWith('#/designs') ? 'active' : ''}">${ic('grid', 14)} Studio</a><a href="#/designs" class="${location.hash.startsWith('#/designs') ? 'active' : ''}">Occasions</a><a href="#/dashboard" class="${dash ? 'active' : ''}">My invitations</a>${state.user?.admin ? '<a href="#/admin">Admin</a>' : ''}</nav><div class="account">${state.user ? `<button id="account" class="profile" aria-label="Account for ${h(state.user.name)}">${h(state.user.name.slice(0, 1).toUpperCase())}</button>` : `<button id="login" class="btn plain compact">${ic('door', 14)} Sign in</button>`}</div></div>`;
   $('#footer').innerHTML =
-    `<div class="wrap footer-inner"><span class="brand tiny">${brand}</span><span>Made for moments that matter.</span><a href="https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/" target="_blank" rel="noopener noreferrer">Birthday Wish Studio ${ic('up', 12)}</a></div>`;
+    `<div class="wrap footer-inner"><span class="brand tiny">${brand}</span><span>Create moments. Share happiness. ♥</span><a href="https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/" target="_blank" rel="noopener noreferrer">Birthday Wish Studio ${ic('up', 12)}</a></div>`;
   $('#login')?.addEventListener('click', () => authDialog('login'));
   $('#account')?.addEventListener('click', () => {
     const el = modal(
@@ -101,44 +103,8 @@ function authDialog(mode, next) {
 function how() {
   modal(
     'An invitation in three steps.',
-    `<ol class="guide"><li><b>Choose your stationery</b><p>13 occasions, curated designs and eight opening scenes. Start in the editor without an account.</p></li><li><b>Make it personal</b><p>नाम, तस्वीर, अपना संदेश और कार्यक्रम जोड़ें। Sign in to autosave a private draft.</p></li><li><b>Publish & welcome guests</b><p>Send the personal link. Guests reply without signing in; only you and the administrator see the guest list.</p></li></ol>`,
+    `<ol class="guide"><li><b>Choose your stationery</b><p>Choose an occasion, then one of its illustrated editions. Try its six-page editor without an account.</p></li><li><b>Make it personal</b><p>नाम, तस्वीर, अपना संदेश और कार्यक्रम जोड़ें। Sign in to autosave a private draft.</p></li><li><b>Publish & welcome guests</b><p>Send the personal link. Guests reply without signing in; only you and the administrator see the guest list.</p></li></ol>`,
   );
-}
-const collectionText = {
-  royal: 'The Royal|Edit',
-  floral: 'In full|bloom.',
-  festive: 'Festival|of lights.',
-  midnight: 'Under the|stars.',
-  playful: 'Let’s|celebrate!',
-  classic: 'To you,|with love.',
-};
-function tile(t, i) {
-  const lines = collectionText[t.art]?.split('|') || [t.name, ''];
-  return `<a class="design-tile ${h(t.art)}" href="#/new/${h(t.code)}"><div class="design-art"><img src="${art(t)}" alt="" loading="lazy"><div class="art-shade"></div><span class="design-num">PLATE / ${String(i + 1).padStart(2, '0')}</span><strong>${h(lines[0])}<em>${h(lines[1])}</em></strong></div><div class="design-foot"><div><small>${h(t.collection.toUpperCase())}</small><h3>${h(t.name)}</h3></div><span class="tile-arrow">${ic('up', 15)}</span></div></a>`;
-}
-function gallery() {
-  const c = state.catalog.templates,
-    filtered = c.filter((t) => group === 'All designs' || t.collection === group);
-  return `<div class="gallery-head"><div><span class="eyeline"><i></i> THE STATIONERY ARCHIVE</span><h2>The design <em>library.</em></h2><p>अपना डिज़ाइन चुनें। हर कार्ड को अपने अवसर के अनुसार बदलें।</p></div><span class="design-total">${String(filtered.length).padStart(2, '0')} curated designs</span></div><div class="chips" role="group" aria-label="Filter designs">${['All designs', ...new Set(c.map((t) => t.collection))].map((g) => `<button data-group="${h(g)}" aria-pressed="${g === group}">${g === 'All designs' ? ic('grid', 13) : ''}${h(g)}</button>`).join('')}</div><div class="designs">${filtered.map((t) => tile(t, c.indexOf(t))).join('') || '<p>No designs are available in this collection yet.</p>'}</div>`;
-}
-function renderGallery() {
-  const container = $('#library');
-  container.innerHTML = gallery();
-  container.querySelectorAll('[data-group]').forEach(
-    (b) =>
-      (b.onclick = () => {
-        group = b.dataset.group;
-        renderGallery();
-        [...container.querySelectorAll('[data-group]')]
-          .find((el) => el.dataset.group === group)
-          ?.focus({ preventScroll: true });
-      }),
-  );
-}
-function home(libraryOnly = false) {
-  root.innerHTML = `<div class="wrap home"><div class="breadcrumb-line"><span>${ic('grid', 12)} Workspace <b>/</b> ${libraryOnly ? 'Design library' : 'Studio'}</span><small><i></i> INVITATION ATELIER</small></div>${libraryOnly ? '' : `<section class="hero"><img class="hero-image" src="/s/assets/atelier.webp" alt="Gold-printed Indian stationery, marigolds and a rose envelope"><div class="hero-copy"><span class="hero-label">✦ &nbsp; THE CELEBRATION COLLECTION</span><h1>Create moments.<br><em>Share happiness.</em></h1><p>अपनों के लिए एक खास निमंत्रण बनाएँ। Add your story, set the scene and invite the people who matter.</p><div class="actions"><a class="btn primary" href="#/new">${ic('plus')} Create invitation</a><button class="how-btn" id="how">How it works ${ic('up', 13)}</button></div></div><span class="hero-edition">INDIAN STATIONERY &nbsp; / &nbsp; VOL. 01</span></section><div class="ribbon"><span><b>${ic('feather', 18)}</b><strong>${state.catalog.occasions.length} occasions</strong><small>Made personal</small></span><span><b>${ic('play', 16)}</b><strong>8 opening scenes</strong><small>Cinematic reveals</small></span><span><b>${ic('people', 18)}</b><strong>Live RSVPs</strong><small>Your private guest list</small></span></div>`}<section id="library" class="library"></section></div>`;
-  renderGallery();
-  $('#how')?.addEventListener('click', how);
 }
 function gate() {
   root.innerHTML = `<div class="wrap section-page"><div class="crumb">Studio / Private workspace</div><div class="gate"><div class="seal">${ic('lock', 27)}</div><span class="eyeline">YOUR PRIVATE WORKSPACE</span><h1>My invitations.</h1><p>ड्राफ़्ट, प्रकाशित निमंत्रण और मेहमानों के जवाब आपके खाते में मिलेंगे।</p><div class="actions"><button class="btn primary" id="gate-in">Sign in</button><button class="btn plain" id="gate-new">Create account</button></div></div></div>`;
@@ -250,6 +216,9 @@ async function route() {
         slug,
         photo: d.photo ? `/api/public/${slug}/media/${d.photo}` : '',
         video: d.video ? `/api/public/${slug}/media/${d.video}` : '',
+        gallery: Object.fromEntries(
+          (d.gallery || []).map((m) => [m.id, `/api/public/${slug}/media/${m.id}`]),
+        ),
       });
       return;
     }
@@ -266,13 +235,20 @@ async function route() {
         refreshTimer = setInterval(() => {
           if (!document.hidden) responses(id, ticket).catch(() => {});
         }, 12000);
-    } else if (page === 'new' || page === 'edit') {
+    } else if (page === 'studio') {
+      const e = state.catalog.occasions.find((e) => e.id === id);
+      if (!e) throw Error('Occasion not found.');
+      studio(root, e);
+    } else if ((page === 'new' && id) || page === 'edit') {
       let r;
       if (page === 'edit') {
         r = await api('invitations/' + encodeURIComponent(id));
       } else {
-        const t = designOf(id) || state.catalog.templates[0];
-        if (!t) throw Error('No active templates. Please contact the administrator.');
+        const t = designOf(id);
+        if (!t)
+          throw Error(
+            'This edition is not listed. Choose another design from the occasion library.',
+          );
         const initialEvent =
           {
             royal: 'wedding',
@@ -287,13 +263,13 @@ async function route() {
           version: 0,
           slug: '',
           published: false,
-          data: initial(t, eventOf(initialEvent)),
+          data: initial(t, eventOf(t.occasion || initialEvent)),
         };
       }
       if (ticket !== nav) return;
       editor = new Editor(r, account);
       editor.mount(root);
-    } else home(page === 'designs');
+    } else home(root, how, page === 'designs' || page === 'new');
     window.scrollTo({ top: 0, behavior: 'instant' });
   } catch (e) {
     if (ticket !== nav) return;

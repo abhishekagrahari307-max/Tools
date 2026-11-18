@@ -3,11 +3,26 @@ import uuid
 from django.conf import settings
 from django.db import models
 
-from .catalog import ART, GROUPS, OPENINGS, PALETTES
+from .catalog import ART, GROUPS, OCCASIONS, OPENINGS, PALETTES
 
 
 class Design(models.Model):
     code = models.SlugField(primary_key=True, max_length=40)
+    occasion = models.SlugField(
+        max_length=32,
+        blank=True,
+        default="",
+        choices=[(k, v["name"]) for k, v in OCCASIONS.items()],
+    )
+    edition = models.CharField(
+        max_length=12,
+        default="signature",
+        choices=[
+            ("signature", "Illustrated plate"),
+            ("folio", "Letter folio"),
+            ("nocturne", "Night edition"),
+        ],
+    )
     name = models.CharField(max_length=70)
     caption = models.CharField(max_length=120)
     collection = models.CharField(max_length=20, choices=[(v, v) for v in GROUPS])
@@ -26,7 +41,17 @@ class Design(models.Model):
     def public(self):
         return {
             k: getattr(self, k)
-            for k in ("code", "name", "caption", "collection", "art", "opening", "palette")
+            for k in (
+                "code",
+                "name",
+                "caption",
+                "collection",
+                "art",
+                "opening",
+                "palette",
+                "occasion",
+                "edition",
+            )
         }
 
 

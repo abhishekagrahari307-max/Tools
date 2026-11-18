@@ -12,6 +12,8 @@ from datetime import date, timedelta
 from functools import wraps
 from urllib.parse import urlsplit
 
+import segno
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
@@ -29,6 +31,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .catalog import FONTS, MUSIC, OCCASIONS, OPENINGS, PALETTES
 from .models import Design, Invitation, Media, Reply, StudioSession
+from .programs import PROGRAMS, allowed_fields
 
 User = get_user_model()
 TTL = timedelta(days=3)
@@ -79,7 +82,7 @@ def throttle(request, scope, limit, seconds=600):
 def payload(request):
     if request.content_type != "application/json":
         fail(415, "Send a JSON object.")
-    if len(request.body) > 32000:
+    if len(request.body) > 65536:
         fail(413, "Invitation details are too large.")
     try:
         obj = json.loads(request.body)
@@ -187,7 +190,8 @@ def me(request):
 def catalog(request):
     return JsonResponse(
         {
-            "occasions": list(OCCASIONS.values()),
+            "publicOrigin": settings.STUDIO_PUBLIC_ORIGIN,
+            "occasions": [{**e, **PROGRAMS[k]} for k, e in OCCASIONS.items()],
             "templates": [d.public() for d in Design.objects.filter(enabled=True)],
             "openings": OPENINGS,
             "palettes": PALETTES,
@@ -226,11 +230,40 @@ def clean(raw, inv=None):
         snapshot = inv.draft["design"]
     else:
         fail(400, "This design is not available. Choose another template.")
-    data = {"occasion": ev, "template": code, "design": snapshot}
+    if snapshot.get("occasion") and snapshot["occasion"] != ev:
+        fail(400, "Choose a design from this occasion’s studio.")
+    language = raw.get("language", "hi")
+    if language not in ("en", "hi"):
+        fail(400, "Choose Hindi or English.")
+    fields = raw.get("fields", {})
+    allowed = allowed_fields(ev)
+    if not isinstance(fields, dict) or fields.keys() - allowed.keys():
+        fail(400, "Choose fields from this occasion’s six chapters.")
+    values = {}
+    for key in fields:
+        spec = allowed[key]
+        value = string(fields, key, spec["limit"])
+        if not value:
+            continue
+        if spec["kind"] == "age" and not re.fullmatch(r"[0-9\u0966-\u096f]{1,3}", value):
+            fail(400, "Age and years must be whole numbers.")
+        if spec["kind"] == "time" and not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+            fail(400, "Choose a valid chapter time.")
+        if spec["kind"] == "lines" and len(value.splitlines()) > 12:
+            fail(400, "Use at most 12 entries in a chapter list.")
+        values[key] = value
+    data = {
+        "occasion": ev,
+        "template": code,
+        "design": snapshot,
+        "language": language,
+        "fields": values,
+    }
     for k, n in [
         ("person", 100),
         ("host", 100),
         ("message", 1600),
+        ("messageAlt", 1600),
         ("date", 10),
         ("time", 5),
         ("venue", 240),
@@ -285,17 +318,54 @@ def clean(raw, inv=None):
         if not isinstance(value, bool):
             fail(400, "Invalid invitation setting.")
         data[flag] = value
-    for kind in ["photo", "video"]:
-        media = string(raw, kind, 36)
-        if media:
-            try:
-                media = str(uuid.UUID(media))
-            except ValueError:
-                fail(400, "Invalid media reference.")
-            if not inv or not Media.objects.filter(pk=media, kind=kind, invitation=inv).exists():
-                fail(400, "This file does not belong to the invitation.")
-        data[kind] = media
+    # Include the original portrait and short film for backwards compatibility. Album entries
+    # are ordered and typed. Check every reference against this invitation in one query.
+    refs = {}
+
+    def reference(mid, kind):
+        try:
+            mid = str(uuid.UUID(mid))
+        except ValueError:
+            fail(400, "Invalid media reference.")
+        if mid in refs:
+            fail(400, "A file can only be attached once.")
+        refs[mid] = kind
+        return mid
+
+    for kind in ("photo", "video"):
+        mid = string(raw, kind, 36)
+        data[kind] = reference(mid, kind) if mid else ""
+    gallery = raw.get("gallery", [])
+    if not isinstance(gallery, list) or len(gallery) > 8:
+        fail(400, "Choose at most eight additional album items.")
+    data["gallery"] = []
+    for item in gallery:
+        if not isinstance(item, dict) or item.get("kind") not in ("photo", "video"):
+            fail(400, "Choose a photo or video for the album.")
+        mid = reference(string(item, "id", 36, True), item["kind"])
+        data["gallery"].append(
+            {"id": mid, "kind": item["kind"], "caption": string(item, "caption", 120)}
+        )
+    if refs and (
+        not inv
+        or {
+            str(mid): kind
+            for mid, kind in Media.objects.filter(pk__in=refs, invitation=inv).values_list(
+                "pk", "kind"
+            )
+        }
+        != refs
+    ):
+        fail(400, "One or more files do not belong to this invitation or have the wrong type.")
     return data
+
+
+def media_ids(data):
+    if not data:
+        return set()
+    return {mid for mid in (data.get("photo"), data.get("video")) if mid} | {
+        item["id"] for item in data.get("gallery", [])
+    }
 
 
 def details(inv):
@@ -397,6 +467,24 @@ def guest_card(request, slug):
     return JsonResponse({"data": shared(slug).published, "slug": slug})
 
 
+@endpoint("GET")
+def invitation_qr(request, slug):
+    shared(slug)  # No draft previews, account tokens, guest receipts or personal data in a QR.
+    path = "/i/" + slug
+    host = request.get_host()
+    if settings.STUDIO_PUBLIC_ORIGIN:
+        link = settings.STUDIO_PUBLIC_ORIGIN + path
+    elif host.lower().endswith(".e2b.app"):
+        link = "https://" + host + path
+    else:
+        link = request.build_absolute_uri(path)
+    out = io.BytesIO()
+    segno.make_qr(link, error="m").save(out, kind="png", scale=7, border=4)
+    response = HttpResponse(out.getvalue(), content_type="image/png")
+    response["Content-Disposition"] = f'inline; filename="{slug}-invitation-qr.png"'
+    return response
+
+
 @endpoint("POST")
 def rsvp(request, slug):
     inv = shared(slug)
@@ -483,9 +571,7 @@ def upload(request, key, kind):
         else:
             fail(400, "Choose an MP4 or WebM video.")
     # Discard superseded, unreferenced files. Published assets must survive draft edits.
-    keep = {
-        d.get(k) for d in (inv.draft, inv.published or {}) for k in ("photo", "video") if d.get(k)
-    }
+    keep = media_ids(inv.draft) | media_ids(inv.published)
     inv.media.exclude(pk__in=keep).filter(created__lt=timezone.now() - timedelta(hours=1)).delete()
     used = (
         Media.objects.filter(invitation__owner_id=inv.owner_id).aggregate(n=Sum("size"))["n"] or 0
@@ -530,7 +616,7 @@ def private_media(request, key, mid):
 @endpoint("GET")
 def public_media(request, slug, mid):
     inv = shared(slug)
-    if str(mid) not in [inv.published.get("photo"), inv.published.get("video")]:
+    if str(mid) not in media_ids(inv.published):
         fail(404, "File not published.")
     return media_file(request, inv, mid)
 

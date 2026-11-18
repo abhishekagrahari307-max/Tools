@@ -26,6 +26,7 @@ SECRET_KEY = secret()
 DEBUG = False
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "0.0.0.0", ".e2b.app"]
 ALLOWED_HOSTS += [h for h in os.getenv("STUDIO_HOSTS", "").split(",") if h]
+STUDIO_PUBLIC_ORIGIN = os.getenv("STUDIO_PUBLIC_ORIGIN", "").rstrip("/")
 CSRF_TRUSTED_ORIGINS = [s for s in os.getenv("STUDIO_ORIGINS", "").split(",") if s]
 if os.getenv("E2B_SANDBOX_ID"):
     CSRF_TRUSTED_ORIGINS.append(

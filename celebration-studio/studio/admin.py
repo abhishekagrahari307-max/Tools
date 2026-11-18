@@ -10,9 +10,9 @@ admin.site.index_title = "Platform management"
 
 @admin.register(Design)
 class DesignAdmin(admin.ModelAdmin):
-    list_display = ("name", "collection", "opening", "palette", "enabled", "position")
+    list_display = ("name", "occasion", "edition", "opening", "palette", "enabled", "position")
     list_editable = ("enabled", "position")
-    list_filter = ("collection", "enabled")
+    list_filter = ("occasion", "collection", "enabled")
     search_fields = ("code", "name")
 
     def get_readonly_fields(self, request, obj=None):

@@ -15,6 +15,7 @@ urlpatterns = [
     path("api/invitations/<uuid:key>/media/<uuid:mid>", v.private_media),
     path("api/invitations/<uuid:key>/<str:action>", v.publication),
     path("api/public/<slug:slug>", v.guest_card),
+    path("api/public/<slug:slug>/qr.png", v.invitation_qr),
     path("api/public/<slug:slug>/rsvp", v.rsvp),
     path("api/public/<slug:slug>/media/<uuid:mid>", v.public_media),
     path("api/oversight", v.oversight),

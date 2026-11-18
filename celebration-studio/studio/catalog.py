@@ -144,5 +144,5 @@ PALETTES = {
 }
 FONTS = {"serif": "Editorial serif", "sans": "Modern sans", "hand": "Handwritten"}
 MUSIC = {"chimes": "Soft chimes", "festive": "Celebration bells", "none": "No music"}
-ART = ["royal", "floral", "festive", "midnight", "playful", "classic"]
+ART = ["royal", "floral", "festive", "midnight", "playful", "classic", *OCCASIONS]
 GROUPS = ["Milestones", "Festivals", "Family"]

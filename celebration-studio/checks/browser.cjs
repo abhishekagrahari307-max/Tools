@@ -5,6 +5,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const puppeteer = require('puppeteer-core');
+const jsQR = require('jsqr');
 (async () => {
   const base = process.env.STUDIO_TEST_BASE;
   assert(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
@@ -43,18 +44,77 @@ const puppeteer = require('puppeteer-core');
     await host.setViewport({ width: 1280, height: 920 });
     await guest.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
     await host.goto(base);
-    await host.waitForSelector('.design-tile');
-    assert.equal((await host.$$('.design-tile')).length, 6);
+    await host.waitForSelector('.occasion-tile');
+    assert.equal((await host.$$('.occasion-tile')).length, 13);
+    // Anonymous studio tour: every function has three distinct plates and its own six proofs.
+    const catalog = await host.evaluate(() => fetch('/api/catalog').then((r) => r.json()));
+    const plates = new Set();
+    for (const e of catalog.occasions) {
+      await click(host, `[data-occasion="${e.id}"]`);
+      await host.waitForSelector(`.function-room[data-studio="${e.id}"]`);
+      const images = await host.$$eval('.edition-face img', async (imgs) => {
+        await Promise.all(imgs.map((im) => im.decode()));
+        return imgs.map((im) => im.src);
+      });
+      assert.equal(images.length, 3);
+      images.forEach((img) => plates.add(img));
+      await click(host, '.edition-card[data-edition="signature"]');
+      await host.waitForSelector(`.program-editor[data-studio="${e.id}"]`);
+      assert.equal((await host.$$('[data-key="template"] option')).length, 3);
+      for (let i = 0; i < 6; i++) {
+        await host.select('[data-edit-page]', String(i));
+        assert.equal(
+          await host.$eval('#live-poster .book-leaf', (el) => el.dataset.kind),
+          e.pages[i].kind,
+        );
+        assert.equal(
+          (await host.$$(`[data-pane="${i}"]:not([hidden]) [data-chapter-field]`)).length,
+          e.pages[i].fields.length,
+        );
+      }
+      if (e.id === 'birthday') {
+        await host.select('[data-edit-page]', '4');
+        await set(host, '[data-chapter-field="surprise"]', 'A birthday poem.');
+        await click(host, '#live-poster summary');
+        assert.match(await text(host, '#live-poster details[open]'), /A birthday poem/);
+      } else if (e.id === 'wedding') {
+        await host.select('[data-edit-page]', '0');
+        await set(host, '[data-key="person"]', 'Aanya');
+        await set(host, '[data-chapter-field="partner"]', 'Arjun');
+        assert.equal(await text(host, '#live-poster h2'), 'Aanya & Arjun');
+        await host.select('[data-edit-page]', '3');
+        assert.equal((await host.$$('.rite-grid h3')).length, 4);
+      } else if (e.id === 'holi') {
+        await host.select('[data-edit-page]', '2');
+        await click(host, '[data-gulal="#267d75"]');
+        assert.equal(
+          await host.$eval('[data-gulal="#267d75"]', (el) => el.getAttribute('aria-pressed')),
+          'true',
+        );
+      }
+      await click(host, '.crumb a[href="#/"]');
+      await host.waitForSelector('.occasion-tile');
+    }
+    assert.equal(plates.size, 39);
     await click(host, '[data-group="Festivals"]');
-    assert.equal((await host.$$('.design-tile')).length, 2);
-    await click(host, '[href="#/new/festive"]');
-    await host.waitForSelector('[data-key="person"]');
-    assert.equal(await host.$eval('[data-key="occasion"]', (el) => el.value), 'diwali');
+    assert.equal((await host.$$('.occasion-tile')).length, 6);
+    await click(host, '[data-occasion="diwali"]');
+    await click(host, '[href="#/new/diwali-folio"]');
+    await host.waitForSelector('.program-editor[data-studio="diwali"]');
     const title = 'मीरा & परिवार',
       note = 'दीपावली का निमंत्रण। साथ मिलकर दीप जलाएँ!';
     await set(host, '[data-key="person"]', title);
     await set(host, '[data-key="host"]', 'कश्यप परिवार');
+    const english = 'Come light a diya in our courtyard.';
+    await host.select('[data-edit-page]', '1');
     await set(host, '[data-key="message"]', note);
+    await click(host, '.translation-note summary');
+    await set(host, '[data-key="messageAlt"]', english);
+    await host.select('[data-edit-page]', '2');
+    await set(host, '[data-chapter-field="puja"]', '18:15 · लक्ष्मी पूजा');
+    await host.select('[data-edit-page]', '4');
+    await set(host, '[data-chapter-field="dinner"]', 'खीर');
+    await host.select('[data-edit-page]', '0');
     await click(host, '[data-do="save"]');
     await host.waitForSelector('#auth-form');
     const password = crypto.randomBytes(16).toString('hex'),
@@ -65,6 +125,8 @@ const puppeteer = require('puppeteer-core');
     await click(host, '#auth-form button');
     await host.waitForFunction(() => location.hash.startsWith('#/edit/'));
     await click(host, '[data-tab="1"]');
+    await host.select('[data-key="template"]', 'diwali-nocturne');
+    assert.equal(await host.$eval('#live-poster article', (el) => el.dataset.edition), 'nocturne');
     await host.select('[data-key="opening"]', 'scratch');
     await host.select('[data-key="music"]', 'none');
     await host.select('[data-key="font"]', 'hand');
@@ -107,15 +169,33 @@ const puppeteer = require('puppeteer-core');
     await fs.writeFile(clipPath, Buffer.from(clip));
     await (await host.$('[data-file="video"]')).uploadFile(clipPath);
     await host.waitForSelector('[data-remove="video"]', { visible: true });
+    await (await host.$('[data-file="gallery"]')).uploadFile(photoPath, clipPath);
+    await host.waitForSelector('.album-row:nth-child(2)');
+    await host.waitForSelector('.album-thumb img');
+    await set(host, '.album-row:nth-child(1) [data-caption]', 'First diya in the courtyard');
+    await set(host, '.album-row:nth-child(2) [data-caption]', 'Lighting the lamps');
+    await click(host, '[data-album-action="up"][data-index="1"]');
     await click(host, '[data-tab="2"]');
     await set(host, '[data-key="date"]', '2028-10-21', 'change');
     await set(host, '[data-key="time"]', '18:00', 'change');
     await set(host, '[data-key="venue"]', 'Varanasi courtyard');
     await set(host, '[data-key="schedule"]', '18:00 · दीपोत्सव\n19:00 · Dinner');
+    await host.waitForFunction(
+      () => document.querySelector('#save-state').textContent === 'Saved to your account',
+    );
+    await host.reload();
+    await host.waitForSelector('.program-editor');
+    await click(host, '[data-tab="1"]');
+    assert.deepEqual(await host.$$eval('[data-caption]', (els) => els.map((el) => el.value)), [
+      'Lighting the lamps',
+      'First diya in the courtyard',
+    ]);
     await click(host, '[data-do="play"]');
     await click(host, '#cinema .open-card');
     await host.waitForSelector('#cinema .countdown');
-    assert.match(await text(host, '#cinema .preview-hint'), /preview/i);
+    await host.select('#cinema [data-contents]', '5');
+    assert.match(await text(host, '#cinema .preview-hint'), /प्रीव्यू/);
+    assert.equal(await host.$('#cinema .rsvp-form'), null);
     await click(host, '#cinema .back');
     await click(host, '[data-do="publish"]');
     await host.waitForSelector('#share-url');
@@ -128,32 +208,91 @@ const puppeteer = require('puppeteer-core');
       ),
       'You’re invited! ' + url,
     );
-    await guest.goto(url);
+    const pixels = await host.$eval('.share-qr img', async (im) => {
+      await im.decode();
+      const cv = document.createElement('canvas');
+      cv.width = im.naturalWidth;
+      cv.height = im.naturalHeight;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(im, 0, 0);
+      const { data } = ctx.getImageData(0, 0, cv.width, cv.height);
+      return {
+        w: cv.width,
+        h: cv.height,
+        gray: Array.from({ length: cv.width * cv.height }, (_, i) => data[i * 4]),
+      };
+    });
+    const rgba = new Uint8ClampedArray(pixels.w * pixels.h * 4);
+    pixels.gray.forEach((v, i) => {
+      rgba.set([v, v, v, 255], i * 4);
+    });
+    const decoded = jsQR(rgba, pixels.w, pixels.h);
+    assert.equal(decoded?.data, url);
+    await guest.goto(decoded.data);
     await guest.waitForSelector('.ticket-face h1');
     assert.equal(await text(guest, '.ticket-face h1'), title);
     assert(await guest.$('.scene-icon.scratch canvas'));
     await click(guest, '.open-card');
-    await guest.waitForSelector('.rsvp-form');
-    assert.equal(await text(guest, '.letter-msg'), note);
+    await guest.waitForSelector('.cover-leaf');
     assert(await guest.$('.countdown'));
-    assert.match(await text(guest, '.itinerary ul'), /Dinner/);
+    assert.equal(await guest.$('.rsvp-form'), null);
+    await guest.waitForFunction(() => document.querySelector('.portrait')?.naturalWidth === 48);
+    await click(guest, '[data-next]');
+    assert.equal(await text(guest, '.letter-msg'), note);
+    await click(guest, '.language');
+    assert.equal(await text(guest, '.letter-msg'), english);
+    await click(guest, '[data-prev]');
+    assert.equal(await guest.$eval('.book-leaf', (p) => p.dataset.page), '1');
+    await click(guest, '[data-next]');
+    await click(guest, '[data-next]');
+    await click(guest, '[data-light]');
+    assert(await guest.$('.lamp-row.lit'));
+    assert.match(await text(guest, '.ledger-list'), /लक्ष्मी/);
+    await click(guest, '[data-next]');
+    assert.equal((await guest.$$('[data-slide]')).length, 4);
+    await click(guest, '[data-album="1"]');
+    assert.match(await text(guest, 'figure:not([hidden]) figcaption'), /Lighting the lamps/);
     await guest.waitForFunction(
-      () =>
-        document.querySelector('.portrait').naturalWidth === 48 &&
-        document.querySelector('video')?.videoWidth === 96,
+      () => document.querySelector('figure:not([hidden]) video')?.videoWidth === 96,
     );
+    await click(guest, '[data-album="1"]');
+    assert.match(await text(guest, 'figure:not([hidden]) figcaption'), /First diya/);
+    await click(guest, '[data-next]');
+    assert.match(await text(guest, '.menu-card'), /खीर/);
+    assert.match(await text(guest, '.program-slip'), /Dinner/);
+    assert.equal(
+      await guest.$eval('.map-link', (a) => new URL(a.href).searchParams.get('query')),
+      'Varanasi courtyard',
+    );
+    await click(guest, '[data-next]');
+    await guest.waitForSelector('.rsvp-form');
+    assert(await guest.$('[data-next]:disabled'));
     await guest.evaluate(() => {
-      window.print = () => {};
+      window.print = () => {
+        window.testPrint = true;
+      };
     });
     await click(guest, '.guest-actions .print');
+    await guest.waitForFunction(() => window.testPrint);
     await guest.emulateMediaType('print');
     assert.equal(await guest.$eval('#print-sheet', (e) => getComputedStyle(e).display), 'block');
-    assert.equal(await text(guest, '#print-sheet .letter-msg'), note);
+    assert.equal(await text(guest, '#print-sheet .letter-msg'), english);
+    assert.equal((await guest.$$('#print-sheet .book-leaf')).length, 6);
+    assert(await guest.$('#print-sheet .printed-link img'));
     const pdf = await guest.pdf({ format: 'A4' });
     assert.equal(Buffer.from(pdf).subarray(0, 4).toString(), '%PDF');
+    assert.equal(
+      Buffer.from(pdf)
+        .toString('latin1')
+        .match(/\/Type\s*\/Page\b/g)?.length,
+      6,
+    );
     await guest.emulateMediaType('screen');
     await guest.type('.rsvp-form [name="name"]', 'एक मेहमान');
     await set(guest, '[name="party"]', '3');
+    await click(guest, '[data-prev]');
+    await click(guest, '[data-next]');
+    assert.equal(await guest.$eval('[name="name"]', (e) => e.value), 'एक मेहमान');
     await click(guest, '.rsvp-form button');
     await guest.waitForFunction(() =>
       document.querySelector('.reply-status').textContent.includes('3 guests confirmed'),
@@ -196,7 +335,13 @@ const puppeteer = require('puppeteer-core');
     const file = (await fs.readdir(dl))[0];
     assert(file.endsWith('.html'));
     const standalone = await fs.readFile(path.join(dl, file), 'utf8');
-    assert(standalone.includes('data:image/jpeg;base64,') && standalone.includes(note));
+    assert(
+      standalone.includes('data:image/jpeg;base64,') &&
+        standalone.includes(english) &&
+        standalone.includes('First diya in the courtyard') &&
+        standalone.includes('id="leaf-6"') &&
+        standalone.includes('data:image/png;base64,'),
+    );
     await click(host, 'nav a[href="#/dashboard"]');
     await click(host, '[data-off]');
     await click(host, '#commit-action');
@@ -206,7 +351,7 @@ const puppeteer = require('puppeteer-core');
     assert.match(await text(guest, '.gate h1'), /unavailable/i);
     assert.deepEqual(errors, []);
     console.log(
-      'PASS: separate host & mobile guest sessions; account → autosaved draft with photo/schedule → cinematic preview → stable public link → RSVP for 3 → change to 2 without duplication → real organizer dashboard → standalone download → unpublish.',
+      'PASS: 13 distinct studios, 39 plates, 78 chapter proofs; separate host & mobile guest sessions; account → autosaved bilingual album and schedule → cinematic preview → scanned published QR → guest chapter navigation, video, Maps & six-leaf print/PDF → RSVP for 3 → change to 2 without duplication → real organizer dashboard → standalone download → unpublish.',
     );
   } finally {
     await browser.close();

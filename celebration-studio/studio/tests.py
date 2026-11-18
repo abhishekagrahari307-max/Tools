@@ -2,14 +2,15 @@ import io
 import secrets
 from datetime import timedelta
 
+import segno
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
-from .models import Design, Media, Reply, StudioSession
+from .models import Design, Invitation, Media, Reply, StudioSession
 
 
 class StudioFlowTests(TestCase):
@@ -162,7 +163,7 @@ class StudioFlowTests(TestCase):
     def test_design_catalog_and_validation(self):
         c = self.guest.get("/api/catalog").json()
         self.assertEqual(len(c["occasions"]), 13)
-        self.assertEqual(len(c["templates"]), 6)
+        self.assertEqual(len(c["templates"]), 45)
         self.assertEqual(len(c["openings"]), 8)
         r = self.make()
         self.assertEqual(
@@ -181,7 +182,7 @@ class StudioFlowTests(TestCase):
             403,
         )
         Design.objects.filter(pk="floral").update(enabled=False)
-        self.assertEqual(len(self.guest.get("/api/catalog").json()["templates"]), 5)
+        self.assertEqual(len(self.guest.get("/api/catalog").json()["templates"]), 44)
         self.assertEqual(
             self.host_client.post(
                 "/api/invitations", {"data": self.data}, content_type="application/json"
@@ -221,6 +222,159 @@ class StudioFlowTests(TestCase):
         self.host_client.delete(url)
         self.assertFalse(Media.objects.exists())
 
+    def test_program_editions_and_six_chapters(self):
+        orders = {
+            "birthday": "cover wish-wall location album cake reply",
+            "wedding": "cover families story rites location reply",
+            "engagement": "cover portraits promise album location reply",
+            "anniversary": "cover timeline wish-wall album location reply",
+            "diwali": "cover letter lamps album menu reply",
+            "holi": "cover letter colour-run album menu reply",
+            "raksha-bandhan": "cover thread wish-wall album location reply",
+            "baby-shower": "cover portrait wish-wall agenda album reply",
+            "housewarming": "cover portrait letter lamps album reply",
+            "festival-party": "cover letter setlist album location reply",
+            "karwa-chauth": "cover letter rites album location reply",
+            "new-year": "cover letter setlist album location reply",
+            "christmas": "cover letter setlist album menu reply",
+        }
+        catalog = self.guest.get("/api/catalog").json()
+        self.assertEqual({e["id"] for e in catalog["occasions"]}, set(orders))
+        for e in catalog["occasions"]:
+            with self.subTest(occasion=e["id"]):
+                pages = e["pages"]
+                self.assertEqual([p["kind"] for p in pages], orders[e["id"]].split())
+                for block in ["message", "gallery", "schedule", "venue", "reply"]:
+                    self.assertEqual(sum(block in p["blocks"] for p in pages), 1)
+                for p in pages:
+                    self.assertTrue(all(p["title"]) and all(p["intro"]))
+                designs = [t for t in catalog["templates"] if t["occasion"] == e["id"]]
+                self.assertEqual(
+                    [t["edition"] for t in designs], ["signature", "folio", "nocturne"]
+                )
+                self.assertTrue(all(t["art"] == e["id"] for t in designs))
+                self.assertEqual(len({t["name"] for t in designs}), 3)
+        self.assertIn(
+            "gallery",
+            next(e for e in catalog["occasions"] if e["id"] == "wedding")["pages"][2]["blocks"],
+        )
+        self.assertIn(
+            "venue",
+            next(e for e in catalog["occasions"] if e["id"] == "housewarming")["pages"][5][
+                "blocks"
+            ],
+        )
+
+    @override_settings(STUDIO_PUBLIC_ORIGIN="")
+    def test_chapter_field_validation_snapshot_and_qr(self):
+        self.data.update(
+            occasion="birthday",
+            template="birthday-nocturne",
+            language="en",
+            messageAlt="जन्मदिन मुबारक!",
+            fields={"age": "9", "surprise": "A little poem.", "cakeTime": "17:30"},
+        )
+        r = self.make()
+        self.assertEqual(r["data"]["design"]["edition"], "nocturne")
+        self.assertEqual(r["data"]["fields"], self.data["fields"])
+        for invalid in [
+            {"occasion": "wedding"},
+            {"fields": {"age": "-9"}},
+            {"fields": {"cakeTime": "29:99"}},
+            {"fields": {"haldi": "x"}},
+            {"fields": {"surprise": "x" * 701}},
+            {"fields": {"wishes": "x\n" * 13 + "x"}},
+            {"fields": []},
+            {"language": "auto"},
+            {"messageAlt": "x" * 1601},
+        ]:
+            self.assertEqual(self.save(r, {**self.data, **invalid}).status_code, 400)
+        self.assertEqual(self.guest.get("/api/public/" + r["slug"] + "/qr.png").status_code, 404)
+        r = self.pub(r)
+        public = "/api/public/" + r["slug"]
+        live = self.guest.get(public).json()["data"]
+        self.assertEqual(live["language"], "en")
+        self.assertEqual(live["messageAlt"], self.data["messageAlt"])
+        self.assertEqual(live["fields"]["surprise"], "A little poem.")
+        edited = self.save(r, {**self.data, "fields": {"age": "10"}}).json()
+        self.assertEqual(self.guest.get(public).json()["data"]["fields"]["age"], "9")
+        # The encoded destination is the public HTTPS URL, never a draft, session or receipt.
+        host = "8000-test.e2b.app"
+        dest = "https://" + host + "/i/" + r["slug"]
+        expected = io.BytesIO()
+        segno.make_qr(dest, error="m").save(expected, kind="png", scale=7, border=4)
+        qr = self.guest.get(public + "/qr.png", HTTP_HOST=host)
+        self.assertEqual(qr["Content-Type"], "image/png")
+        self.assertEqual(qr.content, expected.getvalue())
+        self.assertEqual(qr["Cache-Control"], "no-store")
+        self.pub(edited, "unpublish")
+        self.assertEqual(self.guest.get(public + "/qr.png").status_code, 404)
+
+    def test_album_validation_and_published_media_fence(self):
+        r = self.make()
+        url = "/api/invitations/" + r["id"]
+        image = io.BytesIO()
+        Image.new("RGB", (30, 20), "red").save(image, "PNG")
+
+        def photo():
+            return self.host_client.post(
+                url + "/upload/photo",
+                {"file": SimpleUploadedFile("a.png", image.getvalue(), content_type="image/png")},
+            ).json()["id"]
+
+        a, b = photo(), photo()
+
+        def entry(mid):
+            return {"kind": "photo", "id": mid, "caption": "पहली याद"}
+
+        r = self.save(r, {**self.data, "gallery": [entry(a)]}).json()
+        r = self.pub(r)
+        pub = "/api/public/" + r["slug"]
+        media = pub + "/media/"
+        self.assertEqual(self.guest.get(media + a).status_code, 200)
+        self.assertEqual(self.guest.get(media + b).status_code, 404)
+        for invalid in [
+            [entry(a)] * 9,
+            [{**entry(a), "kind": "video"}],
+            [entry(a), entry(a)],
+            [{"kind": "photo", "id": "fake"}],
+            {},
+            [{**entry(a), "caption": "x" * 121}],
+        ]:
+            self.assertEqual(self.save(r, {**self.data, "gallery": invalid}).status_code, 400)
+        self.assertEqual(
+            self.save(self.make(), {**self.data, "gallery": [entry(a)]}).status_code, 400
+        )
+        r = self.save(r, {**self.data, "gallery": [entry(b)]}).json()
+        Media.objects.update(created=timezone.now() - timedelta(days=1))
+        photo()  # cleanup must keep both versions
+        self.assertTrue(Media.objects.filter(pk=b).exists())
+        self.assertEqual(self.guest.get(media + a).status_code, 200)
+        self.assertEqual(self.guest.get(media + b).status_code, 404)
+        self.assertEqual(self.guest.get(pub).json()["data"]["gallery"], [entry(a)])
+        r = self.pub(r)
+        self.assertEqual(self.guest.get(media + a).status_code, 404)
+        self.assertEqual(self.guest.get(media + b).status_code, 200)
+        self.pub(r, "unpublish")
+        self.assertEqual(self.guest.get(media + b).status_code, 404)
+
+    def test_pre_program_draft_and_published_link_survive(self):
+        r = self.pub(self.make())
+        d = r["data"].copy()
+        for k in ["language", "messageAlt", "gallery", "fields"]:
+            d.pop(k)
+        d["design"] = {k: v for k, v in d["design"].items() if k not in ("occasion", "edition")}
+        Invitation.objects.filter(pk=r["id"]).update(draft=d, published=d)
+        old = "/api/public/" + r["slug"]
+        self.assertEqual(self.guest.get(old).json()["data"], d)
+        Design.objects.filter(pk="floral").update(enabled=False)
+        saved = self.save(r, d).json()
+        self.assertEqual(saved["data"]["gallery"], [])
+        self.assertEqual(saved["data"]["language"], "hi")
+        republished = self.pub(saved)
+        self.assertEqual(republished["slug"], r["slug"])
+        self.assertEqual(self.guest.get(old).json()["data"]["message"], d["message"])
+
     def test_admin_template_management(self):
         self.assertEqual(Client().get("/admin/studio/design/").status_code, 302)
         admin = get_user_model().objects.create_superuser(
@@ -230,6 +384,8 @@ class StudioFlowTests(TestCase):
         c.force_login(admin)
         form = {
             "code": "new-stationery",
+            "occasion": "christmas",
+            "edition": "folio",
             "name": "Winter Letter",
             "caption": "A winter welcome",
             "collection": "Festivals",
