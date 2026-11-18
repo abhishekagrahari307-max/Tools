@@ -9,17 +9,34 @@
 
 ## File tools
 
-`file-tools.html` + `file-tools.js` run entirely on the visitor’s device:
+`file-tools.html` + `file-tools.js` are one page with 20 tools that run entirely on the visitor’s device. Files are never uploaded; `pdf-lib` (MIT) and `pdf.js` (Apache-2.0) are vendored in `vendor/` with their licences, and the worker path is local, so the page works offline and behind blocked CDNs.
 
-| Tool | What it does | Anchor |
-| --- | --- | --- |
-| Image converter | JPG ↔ PNG ↔ WebP, quality slider, batch downloads | `file-tools.html#convert` |
-| Image resizer | Fit, exact size or percent; JPG/PNG/WebP output | `file-tools.html#resize` |
-| PDF merger | Joins several PDFs in the chosen order | `file-tools.html#merge` |
-| PDF compressor | Rasterises pages (scale + quality) or cleans the structure | `file-tools.html#compress` |
-| PDF to Word | Lifts the text layer and writes a real `.docx` (ZIP writer included, page breaks kept) | `file-tools.html#word` |
-| Separate utilities | [Image compressor](img-compress.html) · [Photo enhancer](pho-en.html) | — |
+| PDF tool       | What it does                                               | Anchor                      |
+| -------------- | ---------------------------------------------------------- | --------------------------- |
+| Merge PDF      | Joins several PDFs in a chosen order                       | `file-tools.html#merge`     |
+| Split PDF      | Page ranges, or one file per page                          | `file-tools.html#split`     |
+| PDF to JPG     | Every page as JPG or PNG                                   | `file-tools.html#pdftojpg`  |
+| Images to PDF  | JPG/PNG/WebP into one PDF, fit or A4                       | `file-tools.html#imgtopdf`  |
+| Compress PDF   | Clean the structure, or search settings to hit a KB target | `file-tools.html#compress`  |
+| PDF to Word    | Real `.docx` (built-in ZIP writer), page breaks kept       | `file-tools.html#word`      |
+| PDF to text    | The selectable text as `.txt`, page by page                | `file-tools.html#pdftext`   |
+| Organise pages | Reorder or delete pages                                    | `file-tools.html#organize`  |
+| Rotate PDF     | 90/180/270° on all or selected pages                       | `file-tools.html#rotate`    |
+| Page numbers   | Bottom/top, “3”, “3 / 12” or “Page 3”                      | `file-tools.html#pagenum`   |
+| Watermark PDF  | Text across every page, diagonal or flat                   | `file-tools.html#watermark` |
 
-`pdf-lib` (MIT) and `pdf.js` (Apache-2.0) live in `vendor/` with their licences; worker path is local too, so the tools keep working offline and behind blocked CDNs. `node --test tests/*.test.*` checks that no homepage link is a placeholder and that every local anchor resolves.
+| Image tool         | What it does                                              | Anchor                         |
+| ------------------ | --------------------------------------------------------- | ------------------------------ |
+| Image converter    | JPG ⇄ PNG ⇄ WebP with quality control                     | `file-tools.html#convert`      |
+| Image resizer      | Fit, exact pixels or percent                              | `file-tools.html#resize`       |
+| Compress to a size | Searches quality and dimensions to fit an exact KB target | `file-tools.html#imgcompress`  |
+| Crop image         | Exact pixel crop from the top-left corner                 | `file-tools.html#crop`         |
+| Rotate & flip      | 90/180/270° plus horizontal/vertical mirror               | `file-tools.html#rotateflip`   |
+| Watermark image    | Name or © line, outlined for any background               | `file-tools.html#imgwatermark` |
+| Background colour  | Flattens transparency onto white or any hex colour        | `file-tools.html#whitebg`      |
+| Photo + signature  | Stacks both into the single image forms ask for           | `file-tools.html#photosign`    |
+| Passport photo     | 35×45 mm, 35×35 mm, 2×2 in, 50×70 mm at 150–600 dpi       | `file-tools.html#passport`     |
 
-The existing GitHub Pages site serves the static files in the root of `main`. The optional [local Django preview](celebration-studio/SERVER.md) is separate; the public studios don’t depend on an application server.
+Two older standalone pages still work and are linked from the footer: [image compressor](img-compress.html) and [photo enhancer](pho-en.html).
+
+`node --test tests/*.test.*` fails if a homepage link is a placeholder, if any local link or `#fragment` is missing, if a tool tile has no panel/runner, or if the vendored libraries and licences go missing.
