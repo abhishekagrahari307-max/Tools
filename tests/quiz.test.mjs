@@ -96,3 +96,77 @@ test('the quiz is linked from the homepage and the tools page', () => {
   assert.match(home, /ToolKit Quiz/);
   assert.match(tools, /href="\.\/quiz\.html"/);
 });
+
+/* ------------------------------------------------------------------ generator */
+const genSandbox = {};
+vm.runInNewContext(read('quiz-gen.js'), { window: genSandbox, Math });
+const GEN = genSandbox.QUIZ_GEN;
+
+test('the page loads the generator before the engine', () => {
+  assert.match(page, /<script src="\.\/quiz-gen\.js"><\/script>/);
+  assert.ok(
+    page.indexOf('quiz-gen.js') < page.indexOf('quiz.js'),
+    'quiz-gen.js must load before quiz.js',
+  );
+});
+
+test('the generator covers all six subjects and all three levels', () => {
+  assert.deepEqual([...GEN.subjects].sort(), [...EXPECTED].sort());
+  assert.deepEqual([...GEN.LEVELS], ['easy', 'medium', 'hard']);
+});
+
+test('generated questions are complete, solvable and explained', () => {
+  EXPECTED.forEach((subject) => {
+    GEN.LEVELS.forEach((level) => {
+      for (let i = 0; i < 40; i += 1) {
+        const question = GEN.generate(subject, level);
+        const where = subject + '/' + level + ' #' + i;
+        assert.ok(question, where + ' produced nothing');
+        assert.equal(typeof question.q, 'string', where + ' needs a question');
+        assert.ok(question.q.trim().length > 8, where + ' question is too short: ' + question.q);
+        assert.equal(question.options.length, 4, where + ' needs four options');
+        question.options.forEach((option) =>
+          assert.ok(String(option).trim().length > 0, where + ' has an empty option'),
+        );
+        assert.equal(new Set(question.options.map(String)).size, 4, where + ' options repeat');
+        assert.ok(Number.isInteger(question.answer), where + ' answer must be an index');
+        assert.ok(question.answer >= 0 && question.answer < 4, where + ' answer out of range');
+        assert.equal(typeof question.options[question.answer], 'string', where + ' key misses');
+        assert.ok(question.why && question.why.length > 8, where + ' needs an explanation');
+        assert.ok(question.topic, where + ' needs a topic');
+        assert.ok(GEN.LEVELS.includes(question.level), where + ' has a bad level');
+        assert.equal(question.source, 'generated', where + ' should be marked generated');
+        assert.doesNotMatch(
+          question.q + ' ' + question.why + ' ' + question.options.join(' '),
+          /\{[a-z]+\}|undefined|NaN/,
+          where + ' left a template placeholder: ' + question.q,
+        );
+      }
+    });
+  });
+});
+
+test('the generator has depth: far more than a paper of unique questions per level', () => {
+  EXPECTED.forEach((subject) => {
+    GEN.LEVELS.forEach((level) => {
+      const seen = new Set();
+      for (let i = 0; i < 1200; i += 1) {
+        const question = GEN.generate(subject, level);
+        if (question) seen.add(question.q);
+      }
+      assert.ok(
+        seen.size >= 25,
+        subject + '/' + level + ' only produced ' + seen.size + ' distinct questions',
+      );
+    });
+  });
+});
+
+test('the engine adapts difficulty using the generator', () => {
+  assert.match(engine, /QUIZ_GEN/);
+  assert.match(engine, /LEVELS = \['easy', 'medium', 'hard'\]/);
+  assert.match(engine, /function adaptAfterAnswer/);
+  assert.match(engine, /function levelForNextSlot/);
+  assert.match(engine, /store\.levels/);
+  assert.match(page, /id="quiz-level"/);
+});

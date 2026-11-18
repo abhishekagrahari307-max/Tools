@@ -7,19 +7,21 @@
 - **[Birthday Wish Studio](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/)** — the original birthday cards, including [Garima’s card](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/#/wish/garima). [Sharing guide](birthday-wishes/README.md).
 - **[File tools](https://abhishekagrahari307-max.github.io/Tools/file-tools.html)** — convert, resize, merge, shrink and PDF-to-Word, all inside the browser tab. Files are never uploaded; PDF libraries are vendored in `vendor/`, so nothing loads from a CDN.
 
-- **[ToolKit Quiz](https://abhishekagrahari307-max.github.io/Tools/quiz.html)** — 120 questions across six subjects. Practice mode explains every answer, the timed test gives 20 questions in 15 minutes, and your score history stays in the browser. No sign-up, no network calls.
+- **[ToolKit Quiz](https://abhishekagrahari307-max.github.io/Tools/quiz.html)** — six subjects, 120 curated questions plus unlimited auto-generated ones and a difficulty that follows your answers. Practice explains every question, the timed test gives 20 questions in 15 minutes, and your score history stays in the browser. No sign-up, no network calls.
 
 ## Quiz
 
-`quiz.html` + `quiz-data.js` + `quiz.js` — a self-contained quiz app:
+`quiz.html` + `quiz-data.js` + `quiz-gen.js` + `quiz.js` — a self-contained, adaptive quiz app:
 
-- **120 questions**: Physics, Chemistry, Mathematics, Biology, General Knowledge, Computer & Web (20 each, with a one-line explanation and a topic for every question).
-- **Practice mode** checks each answer as you go and shows the explanation; **timed test** gives 20 questions in 15 minutes with a countdown, mark-for-review, a question grid and a two-step submit.
-- **Results**: score ring, correct/wrong/skipped, time, per-question review with filters, “retry the wrong ones”, share text and a print layout.
-- **History** in `localStorage` only (last 30 attempts, best score shown on each subject card) — no account, no server, no network requests.
+- **120 curated questions**: Physics, Chemistry, Mathematics, Biology, General Knowledge, Computer & Web (20 each, with a one-line explanation and a topic for every question).
+- **Unlimited auto-generated questions**: `quiz-gen.js` builds new questions at run time — calculated physics and maths problems plus shuffled element, formula, capital, currency, organ, shortcut and tag tables asked in both directions. Every generated question has a computed answer and its own explanation, so the paper never runs out and never repeats inside one attempt.
+- **Adaptive difficulty**: each question carries `easy`, `medium` or `hard`. Practice keeps a rolling four-answer window and moves the level up when you are on a run and down when you slip; a timed test starts at the level your last attempt ended on and picks each new question from the accuracy so far. The current level is shown in the quiz bar and in every review item.
+- **Practice mode** is endless — step past the newest question and a fresh one appears at the current difficulty; **timed test** gives 20 questions in 15 minutes with a countdown, mark-for-review, a question grid and a two-step submit.
+- **Results**: score ring, correct/wrong/skipped, time, difficulty reached, per-question review with filters, “retry the wrong ones”, share text and a print layout.
+- **History** in `localStorage` only (last 30 attempts, mode, starting → final difficulty, best score per subject) — no account, no server, no network requests.
 - Keyboard support (1–4 to answer, arrow keys to move), 360 px layout, and no CDN: icons are inline SVG and the score ring is CSS.
 
-`web-quiz.html` is now a `noindex` redirect to the new page. Question bank integrity (four options, valid keys, no duplicates, balanced answer positions) is checked by `node --test tests/quiz.test.mjs`.
+`web-quiz.html` is now a `noindex` redirect to the new page. Question bank integrity (four options, valid keys, no duplicates, balanced answer positions) and the generator (every subject × level returns four distinct options with a computed answer and an explanation) are checked by `node --test tests/quiz.test.mjs`.
 
 ## File tools
 
