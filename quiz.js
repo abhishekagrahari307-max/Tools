@@ -3,9 +3,15 @@
 
 (() => {
   const BANK = window.QUIZ_BANK;
+  const GEN = window.QUIZ_GEN || null;
   const STORE_KEY = 'toolkit-quiz-v1';
   const HISTORY_LIMIT = 30;
   const TEST_SECONDS = 15 * 60;
+  const TEST_LENGTH = 20;
+  const LEVELS = ['easy', 'medium', 'hard'];
+  const LEVEL_TITLE = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+  const shiftLevel = (level, delta) =>
+    LEVELS[Math.min(LEVELS.length - 1, Math.max(0, LEVELS.indexOf(level) + delta))];
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -31,11 +37,16 @@
     try {
       const raw = localStorage.getItem(STORE_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
-      if (parsed && Array.isArray(parsed.attempts)) return parsed;
+      if (parsed && Array.isArray(parsed.attempts)) {
+        return {
+          attempts: parsed.attempts,
+          levels: parsed.levels && typeof parsed.levels === 'object' ? parsed.levels : {},
+        };
+      }
     } catch {
       /* private mode or corrupted value — start fresh */
     }
-    return { attempts: [] };
+    return { attempts: [], levels: {} };
   }
   function saveStore() {
     try {
@@ -49,6 +60,16 @@
     const scores = store.attempts.filter((a) => a.subject === subject).map((a) => a.percent);
     return scores.length ? Math.max(...scores) : null;
   };
+  // Where a subject starts: the level saved when the last attempt ended,
+  // otherwise a level inferred from the recent scores.
+  function startLevelFor(subject) {
+    const saved = store.levels[subject];
+    if (LEVELS.includes(saved)) return saved;
+    const recent = store.attempts.filter((a) => a.subject === subject).slice(0, 3);
+    if (!recent.length) return 'easy';
+    const average = recent.reduce((sum, attempt) => sum + attempt.percent, 0) / recent.length;
+    return average >= 80 ? 'hard' : average >= 50 ? 'medium' : 'easy';
+  }
 
   /* -------------------------------------------------------------------- toast */
   let toastTimer;
@@ -111,8 +132,14 @@
       const meta = document.createElement('span');
       meta.className = 'meta';
       const count = document.createElement('span');
-      count.textContent = subject.questions.length + ' questions';
+      count.textContent = subject.questions.length + ' curated + auto';
       meta.append(count);
+      const startingLevel = startLevelFor(key);
+      const level = document.createElement('span');
+      level.className = 'lvl';
+      level.dataset.level = startingLevel;
+      level.textContent = LEVEL_TITLE[startingLevel] || 'Easy';
+      meta.append(level);
       if (best !== null) {
         const bestEl = document.createElement('span');
         bestEl.className = 'best';
@@ -129,17 +156,120 @@
   const chosenMode = () => $('input[name="mode"]:checked')?.value || 'practice';
 
   /* -------------------------------------------------------------------- quiz */
-  function startQuiz(subjectKey, questions) {
+  // Build the next question for a level: curated bank first, then the
+  // generator, and never the same wording twice in one attempt.
+  function makeQuestion(level) {
+    const subject = BANK[session.subject];
+    const bank = (subject.questions || []).filter(
+      (question) => question.level === level && !session.seen.has(question.q),
+    );
+    for (let attempt = 0; attempt < 48; attempt += 1) {
+      const useBank = bank.length > 0 && (Math.random() < 0.55 || !GEN);
+      const candidate = useBank
+        ? bank.splice(Math.floor(Math.random() * bank.length), 1)[0]
+        : GEN
+          ? GEN.generate(session.subject, level)
+          : null;
+      if (!candidate || !Array.isArray(candidate.options) || candidate.options.length < 4) continue;
+      if (typeof candidate.answer !== 'number' || session.seen.has(candidate.q)) continue;
+      return candidate;
+    }
+    const spare = (subject.questions || []).filter((question) => !session.seen.has(question.q));
+    if (spare.length) return spare[Math.floor(Math.random() * spare.length)];
+    return GEN ? GEN.generate(session.subject, level) : null;
+  }
+
+  function pushQuestion(question) {
+    session.questions.push(question);
+    session.answers.push(null);
+    session.marked.push(false);
+    session.checked.push(false);
+    if (question && question.q) session.seen.add(question.q);
+  }
+
+  function placeQuestion(index, question) {
+    session.questions[index] = question;
+    session.answers[index] = null;
+    session.marked[index] = false;
+    session.checked[index] = false;
+    if (question && question.q) session.seen.add(question.q);
+  }
+
+  // 20 slots in a timed test, the fixed list for a retry, unlimited in practice.
+  const slotCount = () => session.planned || session.questions.length;
+  const isPlanned = () => session.mode === 'test' || session.fixed;
+
+  // In a timed test the difficulty of each new slot follows the accuracy of the
+  // answers given so far, starting from the level saved for this subject.
+  function levelForNextSlot() {
+    const answered = session.questions
+      .map((question, index) => (question ? session.answers[index] : null))
+      .filter((answer) => answer !== null && answer !== undefined);
+    if (answered.length < 3) return session.level;
+    const right = session.questions.reduce((sum, question, index) => {
+      const answer = session.answers[index];
+      const gave = question && answer !== null && answer !== undefined;
+      return sum + (gave && answer === question.answer ? 1 : 0);
+    }, 0);
+    const accuracy = right / answered.length;
+    if (accuracy >= 0.75) return shiftLevel(session.level, 1);
+    if (accuracy <= 0.4) return shiftLevel(session.level, -1);
+    return session.level;
+  }
+
+  // Builds only the slot that was asked for, so a timed test can be generated
+  // one question at a time and the paper still follows the running accuracy.
+  function ensureQuestion(index) {
+    if (session.questions[index]) return true;
+    const count = session.questions.filter(Boolean).length;
+    if (!isPlanned()) {
+      if (index !== count) return false;
+    } else if (index < 0 || index >= session.planned) {
+      return false;
+    }
+    if (session.mode === 'test' && !session.fixed && count > 0) {
+      session.level = levelForNextSlot();
+    }
+    const question = makeQuestion(session.level);
+    if (!question) return false;
+    placeQuestion(index, question);
+    return true;
+  }
+
+  // Practice mode: a four-answer rolling window moves the level up or down, so
+  // the quiz gets harder while you are doing well and easier when you struggle.
+  function adaptAfterAnswer(question, answer) {
+    if (session.mode !== 'practice' || session.fixed) return;
+    session.recent.push(answer === question.answer ? 1 : 0);
+    session.recent = session.recent.slice(-4);
+    const recent = session.recent;
+    if (recent.length < 2) return;
+    const accuracy = recent.reduce((sum, value) => sum + value, 0) / recent.length;
+    const before = session.level;
+    if (accuracy >= 0.75) session.level = shiftLevel(session.level, 1);
+    else if (accuracy <= 0.4) session.level = shiftLevel(session.level, -1);
+    if (session.level !== before) toast('Difficulty is now ' + LEVEL_TITLE[session.level] + '.');
+  }
+
+  function startQuiz(subjectKey, fixedQuestions) {
     const subject = BANK[subjectKey];
     if (!subject) return;
+    const mode = chosenMode();
+    const level = startLevelFor(subjectKey);
     session = {
       subject: subjectKey,
       name: subject.name,
-      mode: chosenMode(),
-      questions: questions || subject.questions,
+      mode,
+      fixed: Boolean(fixedQuestions),
+      planned: fixedQuestions ? fixedQuestions.length : mode === 'test' ? TEST_LENGTH : null,
+      questions: [],
       answers: [],
       marked: [],
       checked: [],
+      seen: new Set(),
+      recent: [],
+      level,
+      startLevel: level,
       index: 0,
       startedAt: Date.now(),
       secondsLeft: TEST_SECONDS,
@@ -147,18 +277,21 @@
       submitted: false,
       ranOut: false,
     };
-    session.questions.forEach(() => {
-      session.answers.push(null);
-      session.marked.push(false);
-      session.checked.push(false);
-    });
+    if (fixedQuestions) fixedQuestions.forEach((question) => pushQuestion(question));
+    else ensureQuestion(0);
 
-    byId('quiz-title').textContent = session.name + (questions ? ' · retry' : '');
+    byId('quiz-title').textContent = session.name + (fixedQuestions ? ' · retry' : '');
     byId('quiz-mode').textContent =
-      session.mode === 'test' ? 'Timed test · 15 min' : 'Practice · explanations on';
+      session.mode === 'test' ? 'Timed test · adaptive' : 'Practice · endless';
+    byId('quiz-level').textContent = 'Level: ' + LEVEL_TITLE[session.level];
+    byId('quiz-level').dataset.level = session.level;
     byId('quiz-timer').hidden = session.mode !== 'test';
     byId('check').hidden = session.mode === 'test';
-    byId('submit').textContent = session.mode === 'test' ? 'Submit test' : 'Finish quiz';
+    byId('submit').textContent = session.mode === 'test' ? 'Submit test' : 'Finish & see score';
+    $('.progress').hidden = session.mode !== 'test';
+    byId('next').textContent = session.mode === 'test' ? 'Next' : 'Next question';
+    const side = byId('side-card');
+    if (side) side.hidden = session.mode !== 'test';
     buildGrid();
     renderQuestion();
     startTimer();
@@ -168,7 +301,7 @@
   function buildGrid() {
     const grid = byId('grid');
     grid.replaceChildren();
-    session.questions.forEach((_, index) => {
+    for (let index = 0; index < slotCount(); index += 1) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = String(index + 1);
@@ -179,13 +312,13 @@
         renderQuestion();
       });
       grid.append(button);
-    });
+    }
   }
 
   function paintGrid() {
     $$('#grid button').forEach((button, index) => {
-      const answered = session.answers[index] !== null;
-      const marked = session.marked[index];
+      const answered = session.answers[index] !== null && session.answers[index] !== undefined;
+      const marked = Boolean(session.marked[index]);
       let value = 'idle';
       if (index === session.index) value = 'current';
       else if (answered) value = 'answered';
@@ -206,25 +339,44 @@
         'Question ' + (index + 1) + (marked ? ', marked' : '') + (answered ? ', answered' : ''),
       );
     });
-    const answered = session.answers.filter((value) => value !== null).length;
+    const answered = session.answers.filter(
+      (value) => value !== null && value !== undefined,
+    ).length;
     const marked = session.marked.filter(Boolean).length;
-    byId('side-answered').textContent = 'Answered ' + answered + ' of ' + session.questions.length;
+    byId('side-answered').textContent = 'Answered ' + answered + ' of ' + slotCount();
     byId('side-marked').textContent = 'Marked ' + marked;
   }
 
   function renderQuestion() {
     if (!session) return;
     const index = session.index;
+    ensureQuestion(index);
     const question = session.questions[index];
+    if (!question) {
+      toast('No more questions for this subject.');
+      return;
+    }
     const checked = session.checked[index];
+    const planned = isPlanned();
+    const level = question.level || session.level;
 
     byId('q-topic').textContent =
-      'Question ' + (index + 1) + ' of ' + session.questions.length + ' · ' + question.topic;
+      (planned ? 'Question ' + (index + 1) + ' of ' + slotCount() : 'Question ' + (index + 1)) +
+      ' · ' +
+      question.topic +
+      ' · ' +
+      LEVEL_TITLE[level];
     byId('q-text').textContent = question.q;
-    byId('quiz-position').textContent =
-      'Question ' + (index + 1) + ' of ' + session.questions.length;
-    byId('quiz-progress').style.width =
-      ((index + (session.answers[index] !== null ? 1 : 0)) / session.questions.length) * 100 + '%';
+    byId('quiz-position').textContent = planned
+      ? 'Question ' + (index + 1) + ' of ' + slotCount()
+      : 'Question ' + (index + 1) + ' · adaptive';
+    const chipLevel = session.mode === 'test' ? level : session.level;
+    byId('quiz-level').textContent = 'Level: ' + LEVEL_TITLE[chipLevel];
+    byId('quiz-level').dataset.level = chipLevel;
+    if (planned) {
+      byId('quiz-progress').style.width =
+        ((index + (session.answers[index] !== null ? 1 : 0)) / slotCount()) * 100 + '%';
+    }
 
     const options = byId('options');
     options.replaceChildren();
@@ -253,7 +405,9 @@
       input.addEventListener('change', () => {
         session.answers[index] = optionIndex;
         paintGrid();
-        byId('quiz-progress').style.width = ((index + 1) / session.questions.length) * 100 + '%';
+        if (planned) {
+          byId('quiz-progress').style.width = ((index + 1) / slotCount()) * 100 + '%';
+        }
       });
       options.append(label);
     });
@@ -282,8 +436,9 @@
     byId('prev').disabled = index === 0;
     byId('next').disabled = false;
     byId('check').hidden = session.mode === 'test' || checked;
-    byId('next').hidden = index === session.questions.length - 1;
-    byId('submit').hidden = !(session.mode === 'test' || index === session.questions.length - 1);
+    const last = planned && index === slotCount() - 1;
+    byId('next').hidden = Boolean(last);
+    byId('submit').hidden = planned ? !(session.mode === 'test' || last) : false;
     byId('mark').textContent = session.marked[index] ? 'Unmark' : 'Mark';
     pendingSubmit = 0;
     byId('submit-note').hidden = true;
@@ -292,18 +447,39 @@
 
   function move(delta) {
     const next = session.index + delta;
-    if (next < 0 || next >= session.questions.length) return;
+    if (next < 0 || next >= slotCount()) return;
     session.index = next;
     renderQuestion();
   }
 
+  // Practice is endless: stepping past the newest question adds a fresh one at
+  // the current difficulty, so the quiz never runs out of questions.
+  function goNext() {
+    if (!session) return;
+    if (!isPlanned() && session.index === session.questions.length - 1) {
+      if (session.answers[session.index] === null) {
+        toast('Answer this question first, or press Finish to stop.');
+        return;
+      }
+      ensureQuestion(session.questions.length);
+      session.index += 1;
+      renderQuestion();
+      return;
+    }
+    move(1);
+  }
+
   function checkAnswer() {
     const index = session.index;
+    const question = session.questions[index];
+    if (!question) return;
     if (session.answers[index] === null) {
       toast('Pick an option first.');
       return;
     }
+    if (session.checked[index]) return;
     session.checked[index] = true;
+    adaptAfterAnswer(question, session.answers[index]);
     renderQuestion();
   }
 
@@ -341,17 +517,23 @@
     if (!session || session.submitted) return;
     stopTimer();
     session.submitted = true;
+    // Fill a timed test's empty slots so every planned question has text in the review.
+    if (session.planned) {
+      for (let index = 0; index < session.planned; index += 1) {
+        if (!session.questions[index]) ensureQuestion(index);
+      }
+    }
     const total = session.questions.length;
     let correct = 0;
     let wrong = 0;
     let skipped = 0;
     session.questions.forEach((question, index) => {
       const answer = session.answers[index];
-      if (answer === null) skipped += 1;
+      if (answer === null || answer === undefined) skipped += 1;
       else if (answer === question.answer) correct += 1;
       else wrong += 1;
     });
-    const percent = Math.round((correct / total) * 100);
+    const percent = total ? Math.round((correct / total) * 100) : 0;
     const seconds =
       session.mode === 'test'
         ? TEST_SECONDS - session.secondsLeft
@@ -363,6 +545,8 @@
       subject: session.subject,
       name: session.name,
       mode: session.mode,
+      level: session.level,
+      startLevel: session.startLevel,
       total,
       correct,
       wrong,
@@ -372,6 +556,7 @@
       at: new Date().toISOString(),
     });
     store.attempts = store.attempts.slice(0, HISTORY_LIMIT);
+    store.levels[session.subject] = session.level;
     saveStore();
     renderSubjects();
     paintResult();
@@ -384,8 +569,13 @@
     byId('ring').style.setProperty('--pct', String(percent));
     byId('ring').setAttribute('aria-label', percent + ' percent score');
     byId('result-h').textContent = session.name + ' — ' + correct + ' of ' + total + ' correct';
+    const difficulty =
+      session.level === session.startLevel
+        ? 'Difficulty: ' + LEVEL_TITLE[session.level]
+        : 'Difficulty: ' + LEVEL_TITLE[session.startLevel] + ' → ' + LEVEL_TITLE[session.level];
     const bits = [
-      session.mode === 'test' ? 'Timed test' : 'Practice',
+      session.mode === 'test' ? 'Timed test' : 'Adaptive practice',
+      difficulty,
       session.ranOut ? 'time ran out' : null,
       percent >= 80 ? 'strong result' : percent >= 50 ? 'solid effort' : 'worth another try',
     ].filter(Boolean);
@@ -425,6 +615,11 @@
       tag.className = 'tag ' + (state === 'right' ? 'ok' : state === 'wrong' ? 'no' : 'miss');
       tag.textContent = state === 'right' ? 'Correct' : state === 'wrong' ? 'Wrong' : 'Skipped';
 
+      const levelTag = document.createElement('span');
+      levelTag.className = 'tag lvl';
+      levelTag.dataset.level = question.level || 'medium';
+      levelTag.textContent = LEVEL_TITLE[question.level] || LEVEL_TITLE.medium;
+
       const q = document.createElement('p');
       q.className = 'q';
       q.textContent = index + 1 + '. ' + question.q;
@@ -446,7 +641,7 @@
       why.className = 'why';
       why.textContent = question.why;
 
-      item.append(tag, q, yours, right, why);
+      item.append(tag, levelTag, q, yours, right, why);
       holder.append(item);
     });
     if (!shown) {
@@ -473,7 +668,7 @@
     table.className = 'history-table';
     const head = document.createElement('thead');
     head.innerHTML =
-      '<tr><th scope="col">When</th><th scope="col">Subject</th><th scope="col">Mode</th><th scope="col">Score</th></tr>';
+      '<tr><th scope="col">When</th><th scope="col">Subject</th><th scope="col">Mode</th><th scope="col">Level</th><th scope="col">Score</th></tr>';
     const body = document.createElement('tbody');
     store.attempts.forEach((attempt) => {
       const row = document.createElement('tr');
@@ -487,11 +682,17 @@
       const subject = document.createElement('td');
       subject.textContent = attempt.name;
       const mode = document.createElement('td');
-      mode.textContent = attempt.mode === 'test' ? 'Timed' : 'Practice';
+      mode.textContent = attempt.mode === 'test' ? 'Timed' : 'Adaptive';
+      const levelCell = document.createElement('td');
+      const levelName = LEVEL_TITLE[attempt.level] || '—';
+      levelCell.textContent =
+        attempt.startLevel && attempt.startLevel !== attempt.level
+          ? LEVEL_TITLE[attempt.startLevel] + ' → ' + levelName
+          : levelName;
       const score = document.createElement('td');
       score.className = 'score';
       score.textContent = attempt.correct + '/' + attempt.total + ' · ' + attempt.percent + '%';
-      row.append(when, subject, mode, score);
+      row.append(when, subject, mode, levelCell, score);
       body.append(row);
     });
     table.append(head, body);
@@ -500,9 +701,10 @@
 
   /* ---------------------------------------------------------------- listeners */
   byId('prev').addEventListener('click', () => move(-1));
-  byId('next').addEventListener('click', () => move(1));
+  byId('next').addEventListener('click', goNext);
   byId('check').addEventListener('click', checkAnswer);
   byId('mark').addEventListener('click', () => {
+    if (!session || !session.questions[session.index]) return;
     session.marked[session.index] = !session.marked[session.index];
     renderQuestion();
   });
@@ -616,15 +818,13 @@
     if (tag === 'input' || tag === 'textarea') return;
     if (/^[1-4]$/.test(event.key) && session) {
       const option = Number(event.key) - 1;
-      if (
-        option < session.questions[session.index].options.length &&
-        !session.checked[session.index]
-      ) {
+      const question = session.questions[session.index];
+      if (question && option < question.options.length && !session.checked[session.index]) {
         session.answers[session.index] = option;
         renderQuestion();
       }
     }
-    if (event.key === 'ArrowRight') move(1);
+    if (event.key === 'ArrowRight') goNext();
     if (event.key === 'ArrowLeft') move(-1);
   });
   window.addEventListener('hashchange', route);
