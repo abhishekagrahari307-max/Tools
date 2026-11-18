@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta
+      name="description"
+      content="Free browser tools to convert and resize images, merge or shrink PDFs and turn a PDF into an editable Word document. Files never leave your device."
+    />
+    <title>File tools — convert, resize, merge, compress, PDF to Word</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Cpath d='M20 24h24v18H20z' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M20 30h24' stroke='white' stroke-width='4'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        --ink: #1e293b;
+        --soft: #5b6b7f;
+        --line: #dfe6ee;
+        --paper: #ffffff;
+        --wash: #f6f8fc;
+        --brand: #4f46e5;
+        --brand-dark: #3f37c9;
+        --ok: #0f7a52;
+        --warn: #8a5a00;
+        --bad: #a21d1d;
+        --radius: 14px;
+        --shadow: 0 10px 30px rgb(24 39 75 / 0.08);
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 78px;
+      }
+      body {
+        margin: 0;
+        font: 16px/1.6 var(--sans);
+        color: var(--ink);
+        background: var(--wash);
+        -webkit-text-size-adjust: 100%;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      a {
+        color: var(--brand-dark);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 3px solid #8f88ff;
+        outline-offset: 3px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .skip {
+        position: absolute;
+        left: -999px;
+        top: 6px;
+        z-index: 20;
+        background: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+      }
+      .skip:focus {
+        left: 6px;
+      }
+      .shell {
+        width: min(1080px, calc(100% - 32px));
+        margin-inline: auto;
+      }
+
+      header.top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgb(255 255 255 / 0.94);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line);
+      }
+      .top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 0;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: var(--ink);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .brand .mark {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(140deg, var(--brand), #7c3aed);
+        color: #fff;
+        font-size: 17px;
+      }
+      .top nav {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .top nav a {
+        padding: 8px 10px;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #3c4a5c;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .top nav a:hover {
+        background: #eef1f8;
+      }
+
+      .intro {
+        padding: clamp(26px, 5vw, 54px) 0 18px;
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--brand-dark);
+      }
+      .intro h1 {
+        font-size: clamp(30px, 4.6vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+        margin: 8px 0 10px;
+      }
+      .intro p {
+        max-width: 62ch;
+        color: var(--soft);
+      }
+      .promise {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin-top: 16px;
+        padding: 0;
+        list-style: none;
+        font-size: 13.5px;
+        color: #344256;
+      }
+      .promise li::before {
+        content: "✓";
+        color: var(--ok);
+        font-weight: 700;
+        margin-right: 6px;
+      }
+
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        padding: 8px 0 26px;
+      }
+      .tile {
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        padding: 14px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--ink);
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.16s ease,
+          border-color 0.16s ease;
+      }
+      .tile:hover,
+      .tile[aria-current="true"] {
+        transform: translateY(-2px);
+        border-color: #b9b3ff;
+        box-shadow: var(--shadow);
+      }
+      .tile[aria-current="true"] {
+        background: #f5f3ff;
+      }
+      .tile .ic svg {
+        width: 19px;
+        height: 19px;
+      }
+      .tile .ic {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        flex: none;
+        border-radius: 9px;
+        background: #eef0ff;
+        color: var(--brand-dark);
+      }
+      .tile b {
+        display: block;
+        font-size: 14.5px;
+      }
+      .tile small {
+        display: block;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--soft);
+      }
+
+      .panel {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: clamp(18px, 3vw, 30px);
+        margin-bottom: 22px;
+        scroll-margin-top: 82px;
+      }
+      .panel h2 {
+        font-size: clamp(22px, 3vw, 29px);
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+      }
+      .panel .lede {
+        color: var(--soft);
+        font-size: 14.5px;
+        margin-top: 6px;
+        max-width: 68ch;
+      }
+      .panel-foot {
+        font-size: 12.5px;
+        color: #7a8798;
+        margin-top: 14px;
+      }
+      .panel-foot a {
+        font-weight: 600;
+      }
+
+      .drop {
+        display: grid;
+        place-items: center;
+        gap: 4px;
+        min-height: 132px;
+        margin-top: 16px;
+        padding: 18px;
+        text-align: center;
+        border: 2px dashed #c8d2e2;
+        border-radius: 12px;
+        background: #f9fbff;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+      }
+      .drop:hover,
+      .drop.over {
+        border-color: var(--brand);
+        background: #f2f1ff;
+      }
+      .drop .big {
+        font-weight: 650;
+        font-size: 15px;
+      }
+      .drop .sub {
+        font-size: 12.5px;
+        color: var(--soft);
+      }
+      .drop input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+
+      .files {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+        padding: 0;
+        list-style: none;
+      }
+      .files li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fcfdff;
+        font-size: 13px;
+      }
+      .files .nm {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .files .sz {
+        color: var(--soft);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+      }
+      .files .mini {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 7px;
+        width: 28px;
+        height: 28px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .files .mini:hover {
+        border-color: var(--brand);
+        color: var(--brand-dark);
+      }
+      .files .mini:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .opts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px 20px;
+        align-items: flex-end;
+        margin-top: 16px;
+      }
+      .opt {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+      .opt label,
+      .opt .lab {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #66748a;
+      }
+      .opt select,
+      .opt input[type="number"] {
+        padding: 9px 10px;
+        border: 1px solid #cfd8e6;
+        border-radius: 8px;
+        background: #fff;
+        min-height: 42px;
+        font-size: 14px;
+      }
+      .opt input[type="number"] {
+        width: 110px;
+      }
+      .opt .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #42536a;
+        border: 1px solid #cfd8e6;
+        border-radius: 8px;
+        padding: 9px 11px;
+        background: #fff;
+        min-height: 42px;
+        cursor: pointer;
+      }
+      .opt .row input {
+        accent-color: var(--brand);
+        margin: 0;
+      }
+      .slider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+      }
+      .slider input[type="range"] {
+        width: 150px;
+        accent-color: var(--brand);
+      }
+      .slider output {
+        font-variant-numeric: tabular-nums;
+        font-size: 13px;
+        color: #42536a;
+        min-width: 42px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        padding: 11px 16px;
+        min-height: 44px;
+        font-weight: 650;
+        font-size: 14.5px;
+        background: var(--brand);
+        color: #fff;
+        text-decoration: none;
+      }
+      .btn:hover {
+        background: var(--brand-dark);
+      }
+      .btn:disabled {
+        background: #b9c2d4;
+        cursor: not-allowed;
+      }
+      .btn.ghost {
+        background: #fff;
+        color: var(--brand-dark);
+        border-color: #c8d0e6;
+      }
+      .btn.ghost:hover {
+        background: #f2f1ff;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+        align-items: center;
+      }
+
+      .msg {
+        margin-top: 14px;
+        font-size: 13.5px;
+        min-height: 1.4em;
+      }
+      .msg:empty {
+        margin: 0;
+      }
+      .msg[data-kind="ok"] {
+        color: var(--ok);
+      }
+      .msg[data-kind="bad"] {
+        color: var(--bad);
+      }
+      .msg[data-kind="warn"] {
+        color: var(--warn);
+      }
+      .progress {
+        height: 6px;
+        border-radius: 4px;
+        background: #e8edf6;
+        overflow: hidden;
+        margin-top: 14px;
+      }
+      .progress > i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--brand);
+        transition: width 0.2s ease;
+      }
+      .progress[hidden] {
+        display: none;
+      }
+
+      .out {
+        display: grid;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .out .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid #cfe6d9;
+        border-radius: 10px;
+        background: #f4fbf7;
+        font-size: 13.5px;
+        flex-wrap: wrap;
+      }
+      .out .row .nm {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-weight: 600;
+      }
+      .out .row .sz {
+        color: #3d6b55;
+        font-variant-numeric: tabular-nums;
+        font-size: 12.5px;
+      }
+      .out .row a.btn {
+        min-height: 36px;
+        padding: 7px 12px;
+        font-size: 13px;
+      }
+
+      .note {
+        border-left: 3px solid #d8b25a;
+        background: #fffaf0;
+        padding: 10px 12px;
+        border-radius: 0 8px 8px 0;
+        font-size: 13px;
+        color: #6b5420;
+        margin-top: 14px;
+      }
+
+      footer.site {
+        border-top: 1px solid var(--line);
+        background: #fff;
+        padding: 24px 0 40px;
+        margin-top: 30px;
+        font-size: 13px;
+        color: var(--soft);
+      }
+      footer.site .shell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 26px;
+        justify-content: space-between;
+      }
+      footer.site nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+      }
+      footer.site a {
+        color: #40506a;
+        text-decoration: none;
+      }
+      footer.site a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 700px) {
+        html {
+          scroll-padding-top: 118px;
+        }
+        .top-row {
+          flex-wrap: wrap;
+          gap: 8px;
+          padding: 10px 0;
+        }
+        .top nav {
+          width: 100%;
+          justify-content: flex-start;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          gap: 2px;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+        .top nav::-webkit-scrollbar {
+          display: none;
+        }
+        .top nav a {
+          white-space: nowrap;
+          font-size: 13px;
+          padding: 7px 9px;
+        }
+        .panel {
+          scroll-margin-top: 120px;
+        }
+        .opt input[type="number"] {
+          width: 92px;
+        }
+        .slider input[type="range"] {
+          width: 120px;
+        }
+        .actions .btn {
+          flex: 1 1 150px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .tile {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the tools</a>
+    <header class="top">
+      <div class="shell top-row">
+        <a class="brand" href="./"><span class="mark" aria-hidden="true">✳</span>ToolKit Pro</a>
+        <nav aria-label="Site">
+          <a href="./">Home</a>
+          <a href="#convert">Image tools</a>
+          <a href="#merge">PDF tools</a>
+          <a href="./celebration-studio/">Studios</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="shell">
+      <section class="intro">
+        <p class="eyebrow">Working file tools · no sign-up</p>
+        <h1>Convert, resize, merge and shrink — right in this tab.</h1>
+        <p>
+          Every tool below runs inside your browser. Nothing is uploaded, no account is needed, and
+          each result is a normal file you can download and share. PDF tools load their library only
+          when you use them, so the page stays light.
+        </p>
+        <ul class="promise">
+          <li>Files never leave your device</li>
+          <li>No watermark, no daily limit</li>
+          <li>Works on phone, tablet and desktop</li>
+        </ul>
+      </section>
+
+      <nav class="tiles" aria-label="Choose a tool">
+        <a class="tile" href="#convert" data-tab="convert">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 8h13l-3-3" />
+              <path d="M20 16H7l3 3" /></svg
+          ></span>
+          <span><b>Image converter</b><small>JPG, PNG and WebP in/out</small></span>
+        </a>
+        <a class="tile" href="#resize" data-tab="resize">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 4H4v5" />
+              <path d="M15 4h5v5" />
+              <path d="M9 20H4v-5" />
+              <path d="M15 20h5v-5" /></svg
+          ></span>
+          <span><b>Image resizer</b><small>Fit, exact size or percent</small></span>
+        </a>
+        <a class="tile" href="#merge" data-tab="merge">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 4h10v10H4z" />
+              <path d="M10 10h10v10H10z" /></svg
+          ></span>
+          <span><b>PDF merger</b><small>Join several PDFs in order</small></span>
+        </a>
+        <a class="tile" href="#compress" data-tab="compress">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 3h7l4 4v14H7z" />
+              <path d="M14 3v5h5" />
+              <path d="M12 12v5" />
+              <path d="M9.5 14.5L12 17l2.5-2.5" /></svg
+          ></span>
+          <span><b>PDF compressor</b><small>Clean structure or shrink pages</small></span>
+        </a>
+        <a class="tile" href="#word" data-tab="word">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 3h7l4 4v14H7z" />
+              <path d="M14 3v5h5" />
+              <path d="M10 13h5" />
+              <path d="M10 17h5" /></svg
+          ></span>
+          <span><b>PDF to Word</b><small>Editable text document</small></span>
+        </a>
+        <a class="tile" href="./img-compress.html">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M8 3v5H3" />
+              <path d="M16 21v-5h5" />
+              <path d="M21 8h-5V3" />
+              <path d="M3 16h5v5" /></svg
+          ></span>
+          <span><b>Image compressor</b><small>Quality and format control</small></span>
+        </a>
+        <a class="tile" href="./pho-en.html">
+          <span class="ic"
+            ><svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /></svg
+          ></span>
+          <span><b>Image enhancer</b><small>Brighten and optimise</small></span>
+        </a>
+      </nav>
+
+      <!-- IMAGE CONVERTER -->
+      <section class="panel" id="convert" aria-labelledby="convert-h">
+        <h2 id="convert-h">Image converter</h2>
+        <p class="lede">
+          Pick images and choose the format you need. PNG keeps sharp edges and transparency; JPG
+          and WebP give much smaller files for photographs.
+        </p>
+        <label class="drop" data-drop="convert">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG, WebP or GIF · up to 20 files · 60 MB each</span>
+          <input type="file" accept="image/*" multiple data-input="convert" />
+        </label>
+        <ul class="files" data-files="convert" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt">
+            <label for="convert-format">Convert to</label>
+            <select id="convert-format" data-opt="convert-format">
+              <option value="image/jpeg">JPG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </span>
+          <span class="opt">
+            <span class="lab">Quality</span>
+            <span class="slider">
+              <input type="range" id="convert-quality" min="40" max="100" value="88" />
+              <output id="convert-quality-out" for="convert-quality">88%</output>
+            </span>
+          </span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="convert-run" disabled>Convert images</button>
+          <button class="btn ghost" type="button" id="convert-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="convert-progress" hidden><i></i></div>
+        <p class="msg" id="convert-msg" role="status"></p>
+        <div class="out" id="convert-out"></div>
+        <p class="panel-foot">
+          Tips: use PNG for logos and screenshots, JPG for photos, WebP when the recipient opens
+          files in a modern browser. Compress first with the
+          <a href="./img-compress.html">image compressor</a> if you need a smaller file at the same
+          format.
+        </p>
+      </section>
+
+      <!-- IMAGE RESIZER -->
+      <section class="panel" id="resize" aria-labelledby="resize-h">
+        <h2 id="resize-h">Image resizer</h2>
+        <p class="lede">
+          Shrink photos for a form, a website or a chat. “Fit inside” keeps the aspect ratio, “Exact
+          size” stretches to the numbers you type, and “Percent” scales the original.
+        </p>
+        <label class="drop" data-drop="resize">
+          <span class="big">Choose images or drop them here</span>
+          <span class="sub">JPG, PNG or WebP · up to 20 files</span>
+          <input type="file" accept="image/*" multiple data-input="resize" />
+        </label>
+        <ul class="files" data-files="resize" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt">
+            <label for="resize-mode">How to resize</label>
+            <select id="resize-mode">
+              <option value="fit">Fit inside a box</option>
+              <option value="exact">Exact width × height</option>
+              <option value="percent">Scale by percent</option>
+            </select>
+          </span>
+          <span class="opt" data-when="fit exact">
+            <label for="resize-w">Width (px)</label>
+            <input id="resize-w" type="number" min="16" max="12000" step="1" value="1600" />
+          </span>
+          <span class="opt" data-when="fit exact">
+            <label for="resize-h">Height (px)</label>
+            <input id="resize-h" type="number" min="16" max="12000" step="1" value="1600" />
+          </span>
+          <span class="opt" data-when="percent" hidden>
+            <label for="resize-pct">Percent (%)</label>
+            <input id="resize-pct" type="number" min="5" max="400" step="5" value="50" />
+          </span>
+          <span class="opt">
+            <label for="resize-format">Output format</label>
+            <select id="resize-format">
+              <option value="keep">Keep the original</option>
+              <option value="image/jpeg">JPG</option>
+              <option value="image/png">PNG</option>
+              <option value="image/webp">WebP</option>
+            </select>
+          </span>
+          <span class="opt">
+            <span class="lab">JPEG / WebP quality</span>
+            <span class="slider">
+              <input type="range" id="resize-quality" min="40" max="100" value="90" />
+              <output id="resize-quality-out" for="resize-quality">90%</output>
+            </span>
+          </span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="resize-run" disabled>Resize images</button>
+          <button class="btn ghost" type="button" id="resize-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="resize-progress" hidden><i></i></div>
+        <p class="msg" id="resize-msg" role="status"></p>
+        <div class="out" id="resize-out"></div>
+      </section>
+
+      <!-- PDF MERGER -->
+      <section class="panel" id="merge" aria-labelledby="merge-h">
+        <h2 id="merge-h">PDF merger</h2>
+        <p class="lede">
+          Add the PDFs in the order you want them. Use the arrows to reorder, then download one
+          combined document. Pages keep their original size and quality.
+        </p>
+        <label class="drop" data-drop="merge">
+          <span class="big">Choose PDFs or drop them here</span>
+          <span class="sub">Up to 20 files · 60 MB each · password-free PDFs only</span>
+          <input type="file" accept="application/pdf,.pdf" multiple data-input="merge" />
+        </label>
+        <ul class="files" data-files="merge" aria-live="polite"></ul>
+        <div class="actions">
+          <button class="btn" type="button" id="merge-run" disabled>Merge PDFs</button>
+          <button class="btn ghost" type="button" id="merge-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="merge-progress" hidden><i></i></div>
+        <p class="msg" id="merge-msg" role="status"></p>
+        <div class="out" id="merge-out"></div>
+      </section>
+
+      <!-- PDF COMPRESSOR -->
+      <section class="panel" id="compress" aria-labelledby="compress-h">
+        <h2 id="compress-h">PDF compressor</h2>
+        <p class="lede">
+          Two honest options. <b>Clean up</b> rewrites the file without unused objects — good for
+          exported documents, harmless to text. <b>Shrink pages</b> turns each page into a picture,
+          which can cut scans sharply but removes selectable text.
+        </p>
+        <label class="drop" data-drop="compress">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="compress" />
+        </label>
+        <ul class="files" data-files="compress" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt">
+            <label for="compress-mode">Method</label>
+            <select id="compress-mode">
+              <option value="clean">Clean up the structure (keeps text)</option>
+              <option value="raster">Shrink pages as images</option>
+            </select>
+          </span>
+          <span class="opt" data-when="raster" hidden>
+            <label for="compress-scale">Page sharpness</label>
+            <select id="compress-scale">
+              <option value="0.75">Smaller files (0.75×)</option>
+              <option value="1" selected>Normal (1×)</option>
+              <option value="1.5">Sharper (1.5×)</option>
+            </select>
+          </span>
+          <span class="opt" data-when="raster" hidden>
+            <span class="lab">Picture quality</span>
+            <span class="slider">
+              <input type="range" id="compress-quality" min="35" max="90" value="62" />
+              <output id="compress-quality-out" for="compress-quality">62%</output>
+            </span>
+          </span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="compress-run" disabled>Compress PDF</button>
+          <button class="btn ghost" type="button" id="compress-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="compress-progress" hidden><i></i></div>
+        <p class="msg" id="compress-msg" role="status"></p>
+        <div class="out" id="compress-out"></div>
+        <p class="note" id="compress-note" hidden>
+          If the result is not smaller, keep your original. PDFs that are already optimised or
+          contain a single compressed photo often cannot shrink much.
+        </p>
+      </section>
+
+      <!-- PDF TO WORD -->
+      <section class="panel" id="word" aria-labelledby="word-h">
+        <h2 id="word-h">PDF to Word</h2>
+        <p class="lede">
+          Reads the text of each page and writes a real <b>.docx</b> you can open in Word, Google
+          Docs or LibreOffice. Page breaks are kept. Scanned PDFs without a text layer cannot be
+          converted here — there is no text to lift out.
+        </p>
+        <label class="drop" data-drop="word">
+          <span class="big">Choose a PDF or drop it here</span>
+          <span class="sub">One PDF · up to 60 MB · password-free</span>
+          <input type="file" accept="application/pdf,.pdf" data-input="word" />
+        </label>
+        <ul class="files" data-files="word" aria-live="polite"></ul>
+        <div class="opts">
+          <span class="opt">
+            <label for="word-detail">What to write</label>
+            <select id="word-detail">
+              <option value="text">Text only</option>
+              <option value="headed">Text with a page heading</option>
+            </select>
+          </span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" id="word-run" disabled>Make the Word file</button>
+          <button class="btn ghost" type="button" id="word-clear" disabled>Clear</button>
+        </div>
+        <div class="progress" id="word-progress" hidden><i></i></div>
+        <p class="msg" id="word-msg" role="status"></p>
+        <div class="out" id="word-out"></div>
+        <p class="panel-foot">
+          Need the pages as pictures or a merged file instead? Use the
+          <a href="#compress">PDF compressor</a> or <a href="#merge">PDF merger</a> above.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="shell">
+        <span>Files are processed on this device. Nothing is uploaded.</span>
+        <nav aria-label="Footer">
+          <a href="./">Home</a>
+          <a href="./img-compress.html">Image compressor</a>
+          <a href="./pho-en.html">Image enhancer</a>
+          <a href="./celebration-studio/">Celebration Studio</a>
+          <a href="./wishlys-studio/">Wishlys</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script type="module" src="./file-tools.js"></script>
+  </body>
+</html>
