@@ -1,62 +1,17 @@
-// V1 is a portable snapshot, not a lookup key. Keep the v1 catalog/decoder for old links.
-import { zlibSync, unzlibSync, qrcode } from './vendor/codecs.js';
+// The versioned transport is shared with other studios; each payload has its
+// own allowlist. Celebration links keep their existing v1 contract byte for byte.
+import { qrcode } from './vendor/codecs.js';
 import { state, initial, eventOf, designOf, mapLink, minuteTime } from '../shared.js';
+import { MAX_LINK, LinkSizeError, pack, need } from './snapshot-v1.js';
+export { MAX_LINK, LinkSizeError, pack, unpack, newID } from './snapshot-v1.js';
 
 const base = new URL('../../', import.meta.url).href;
-export const MAX_LINK = 8000;
 export const MAX_QR = 2953;
-const MAX_RAW = 64 * 1024;
 export const publicURL = (token) => base + '#/i/' + token;
 export const replyURL = (token) => base + '#/reply/' + token;
-const b64 = (bytes) =>
-  btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-export const newID = () => b64(crypto.getRandomValues(new Uint8Array(12)));
 const validID = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{16}$/.test(v);
 const object = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
-export class LinkSizeError extends Error {}
-function need(
-  ok,
-  text = 'This link is incomplete or invalid. Ask the sender to copy the whole link again.',
-) {
-  if (!ok) throw Error(text);
-}
-export function pack(value) {
-  const bytes = new TextEncoder().encode(JSON.stringify(value));
-  if (bytes.length > MAX_RAW)
-    throw new LinkSizeError(
-      'This invitation is too large for a link. Shorten the text or use the downloadable Card.',
-    );
-  return 'v1.' + b64(zlibSync(bytes, { level: 9 }));
-}
-export function unpack(token) {
-  try {
-    need(
-      typeof token === 'string' && token.length <= MAX_LINK && /^v1\.[A-Za-z0-9_-]+$/.test(token),
-    );
-    const zipped = Uint8Array.from(
-      atob(token.slice(3).replace(/-/g, '+').replace(/_/g, '/')),
-      (c) => c.charCodeAt(0),
-    );
-    need(zipped.length >= 8);
-    const bytes = unzlibSync(zipped, { out: new Uint8Array(MAX_RAW + 1) });
-    need(bytes.length <= MAX_RAW);
-    // Check the zlib trailer as well as JSON. Truncated chat links must fail closed.
-    let a = 1,
-      b = 0;
-    for (const n of bytes) {
-      a = (a + n) % 65521;
-      b = (b + a) % 65521;
-    }
-    need(new DataView(zipped.buffer).getUint32(zipped.length - 4) === b * 65536 + a);
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch {
-    need(false);
-  }
-}
 const limits = {
   person: 100,
   host: 100,

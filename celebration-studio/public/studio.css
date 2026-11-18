@@ -2045,6 +2045,18 @@ dialog::backdrop {
 .export-contact { overflow-wrap: anywhere; }
 
 /* Shared desk and the personal print library (Pages edition). */
+.desk-bridge.wishlys-bridge {
+  background: linear-gradient(110deg, #fdf7ee, #f8eddf);
+  border-color: #e6d4bf;
+}
+.wishlys-bridge .bridge-seal {
+  border-color: #bd9370;
+  color: #9a5a3d;
+}
+.wishlys-bridge .eyeline {
+  color: #9a6a4f;
+}
+
 .desk-bridge {
   display: grid;
   grid-template-columns: auto 1fr auto;

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Wishlys">
+  <rect width="64" height="64" rx="12" fill="#fbf3e5"/>
+  <rect x="4.5" y="4.5" width="55" height="55" rx="8.5" fill="none" stroke="#c9a583" stroke-width="1.2"/>
+  <path d="M14 20h6l4 8 4-8h6l-7 13 7 13h-6l-4-8-4 8h-6l7-13z" fill="#a54e36"/>
+  <path d="M44 33q1 6 7 7-6 1-7 7-1-6-7-7 6-1 7-7z" fill="#c9a583"/>
+</svg>
