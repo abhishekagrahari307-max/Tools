@@ -1,6 +1,10 @@
-# Celebration Studio · working invitation platform preview
+# Celebration Studio · invitations and RSVPs
 
-**Create moments, share happiness.** A Hindi/English invitation editor with a real account → private draft → published invitation → guest RSVP → organizer dashboard workflow. This is a separate application on the working branch. It does **not** replace the Tools homepage, Birthday Wish Studio, Garima’s card, or previously shared wish fragments.
+**Create moments, share happiness.** A Hindi/English invitation editor with a real account → private draft → published invitation → guest RSVP → organizer dashboard workflow. This is a separate Django application. It does **not** replace the Tools homepage, Birthday Wish Studio, Garima’s card, or previously shared wish fragments.
+
+## Permanent hosting
+
+See **[Launch Celebration Studio](DEPLOY.md)** for the Render Blueprint, billing approval, durable storage, live checks and backups, or use the same Gunicorn entrypoint behind your own HTTPS proxy. Merging this code does **not** itself provision hosting or create a permanent link. The local preview below needs no cloud account.
 
 ## Try the preview
 
@@ -47,7 +51,7 @@ This preview uses **Django + SQLite**, not localStorage as a database and not a 
 - `STUDIO_DATA_DIR`: private persistent directory for the database and secret. `STUDIO_SECRET_KEY`: optional server-managed Django secret. `PORT`, `STUDIO_HOSTS` and `STUDIO_ORIGINS`: listener/additional allowed hosts/trusted HTTPS origins. `STUDIO_HTTPS=1`: secure cookies for the separate admin interface. `STUDIO_PUBLIC_ORIGIN`: optional canonical origin for guest links/QR behind a proxy; the preview script sets the HTTPS Arena address automatically.
 - Passwords use Django’s salted password hashing. Studio API sessions are random, revocable, expiring bearer tokens (only digests stored server-side, token in tab session storage to support embedded previews). Cookie credentials are not used by the studio API. Admin sessions remain server-managed and CSRF-protected.
 - Media is private until it is referenced by a published snapshot. Photos are validated and re-encoded; short MP4/WebM clips are type/size checked and support range playback. Guest names/notes are only sent to authorized organizers/admins. There are preview rate, size and account quota limits. No service-role keys or configuration entry boxes are exposed to users.
-- **Before a production launch:** deploy the application server behind trusted HTTPS with a durable database/backups and private object storage. GitHub Pages alone cannot run this server. A managed PostgreSQL/Supabase deployment is a separate integration, not provisioned here. Add email verification/recovery, production abuse controls, malware scanning for public uploads, monitoring, privacy/retention policy and operator review. The development server and single-process rate limiter are intended for acceptance testing.
+- **Hosted mode:** the single-instance profile stores the database and private media together on a persistent disk. It does not provision Supabase or run on GitHub Pages. See the [deployment guide](DEPLOY.md) for operational limits and the steps needed before a broader production launch.
 
 ## Checks
 

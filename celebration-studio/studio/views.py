@@ -19,7 +19,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import RequestDataTooBig, ValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import Count, F, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -73,7 +73,7 @@ def endpoint(*methods):
 
 
 def throttle(request, scope, limit, seconds=600):
-    # Single-server preview. Trust the TCP peer rather than arbitrary forwarded IP headers.
+    # Single-worker service. Trust the TCP peer rather than arbitrary forwarded IP headers.
     key = "limit:" + digest(scope + "|" + str(request.META.get("REMOTE_ADDR", "unknown")))
     if not cache.add(key, 1, seconds) and cache.incr(key) > limit:
         fail(429, "Too many attempts. Please try again later.")
@@ -186,11 +186,22 @@ def me(request):
     return JsonResponse({"user": profile(session(request).user)})
 
 
+@endpoint("GET", "HEAD")
+def health(request):
+    # Read a migrated table (not just a static page). Never expose counts, files or SQL errors.
+    try:
+        Design.objects.exists()
+    except DatabaseError:
+        return JsonResponse({"status": "unavailable"}, status=503)
+    return JsonResponse({"status": "ok"})
+
+
 @endpoint("GET")
 def catalog(request):
     return JsonResponse(
         {
             "publicOrigin": settings.STUDIO_PUBLIC_ORIGIN,
+            "previewHost": not settings.STUDIO_PRODUCTION,
             "occasions": [{**e, **PROGRAMS[k]} for k, e in OCCASIONS.items()],
             "templates": [d.public() for d in Design.objects.filter(enabled=True)],
             "openings": OPENINGS,
@@ -409,7 +420,7 @@ def invitations(request):
     if request.method == "GET":
         return JsonResponse({"invitations": summaries(Invitation.objects.filter(owner=u))})
     if Invitation.objects.filter(owner=u).count() >= 100:
-        fail(409, "Preview limit: 100 invitations per account.")
+        fail(409, "Limit: 100 invitations per account.")
     throttle(request, "create:" + str(u.pk), 100, 3600)
     d = clean(payload(request).get("data"))
     key = uuid.uuid4()
@@ -577,9 +588,7 @@ def upload(request, key, kind):
         Media.objects.filter(invitation__owner_id=inv.owner_id).aggregate(n=Sum("size"))["n"] or 0
     )
     if used + len(raw) > 80 * 1024**2:
-        fail(
-            413, "Preview storage limit reached (80 MB/account). Delete an unused invitation first."
-        )
+        fail(413, "Storage limit reached (80 MB/account). Delete an unused invitation first.")
     m = Media.objects.create(invitation=inv, kind=kind, mime=mime, size=len(raw), contents=raw)
     return JsonResponse({"id": str(m.pk), "kind": m.kind}, status=201)
 

@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
+if [ "${STUDIO_ENV:-preview}" != preview ] || [ "${RENDER:-}" = true ]; then
+  echo "Use ./run-production.sh for a hosted service." >&2
+  exit 1
+fi
 PYTHON=${PYTHON:-python3}
 # The proxy may forward an internal host. Encode the same public, HTTPS guest URL in
 # printed QR codes and copy/share links, never a loopback URL from the backend.

@@ -1,11 +1,32 @@
-"""Single-origin working preview; no cloud keys or external services required."""
+"""Single-origin Django settings for the local preview and a durable, TLS-proxied deployment."""
 
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
+
+from django.core.exceptions import ImproperlyConfigured
+
+from .hosting import hosted_data_dir, hosted_origins
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.getenv("STUDIO_DATA_DIR", BASE_DIR / ".local"))
+STUDIO_ENV = os.getenv("STUDIO_ENV", "preview")
+if STUDIO_ENV not in ("preview", "production"):
+    raise ImproperlyConfigured("STUDIO_ENV must be preview or production.")
+STUDIO_PRODUCTION = STUDIO_ENV == "production"
+if STUDIO_PRODUCTION:
+    STUDIO_PUBLIC_ORIGIN, CSRF_TRUSTED_ORIGINS, ALLOWED_HOSTS = hosted_origins(os.environ)
+    DATA_DIR = hosted_data_dir(os.environ, BASE_DIR.parent)
+else:
+    DATA_DIR = Path(os.getenv("STUDIO_DATA_DIR", BASE_DIR / ".local"))
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "0.0.0.0", ".e2b.app"]
+    ALLOWED_HOSTS += [h for h in os.getenv("STUDIO_HOSTS", "").split(",") if h]
+    STUDIO_PUBLIC_ORIGIN = os.getenv("STUDIO_PUBLIC_ORIGIN", "").rstrip("/")
+    CSRF_TRUSTED_ORIGINS = [s for s in os.getenv("STUDIO_ORIGINS", "").split(",") if s]
+    if os.getenv("E2B_SANDBOX_ID"):
+        CSRF_TRUSTED_ORIGINS.append(
+            f"https://{os.getenv('PORT', '8000')}-{os.environ['E2B_SANDBOX_ID']}.e2b.app"
+        )
 DATA_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 
 
@@ -24,14 +45,6 @@ def secret():
 
 SECRET_KEY = secret()
 DEBUG = False
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "0.0.0.0", ".e2b.app"]
-ALLOWED_HOSTS += [h for h in os.getenv("STUDIO_HOSTS", "").split(",") if h]
-STUDIO_PUBLIC_ORIGIN = os.getenv("STUDIO_PUBLIC_ORIGIN", "").rstrip("/")
-CSRF_TRUSTED_ORIGINS = [s for s in os.getenv("STUDIO_ORIGINS", "").split(",") if s]
-if os.getenv("E2B_SANDBOX_ID"):
-    CSRF_TRUSTED_ORIGINS.append(
-        f"https://{os.getenv('PORT', '8000')}-{os.environ['E2B_SANDBOX_ID']}.e2b.app"
-    )
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -87,11 +100,24 @@ USE_TZ = True
 STATIC_URL = "/s/"
 STATIC_ROOT = DATA_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "public"]
-WHITENOISE_USE_FINDERS = True
+WHITENOISE_USE_FINDERS = not STUDIO_PRODUCTION
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 256  # JSON only; uploaded files use Django's file handlers.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 512
 DATA_UPLOAD_MAX_NUMBER_FILES = 1
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = os.getenv("STUDIO_HTTPS") == "1"
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = STUDIO_PRODUCTION or os.getenv("STUDIO_HTTPS") == "1"
 SECURE_REFERRER_POLICY = "no-referrer"
+
+if STUDIO_PRODUCTION:
+    # Gunicorn must only be reachable through a trusted edge that replaces this header.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_HOST = urlsplit(STUDIO_PUBLIC_ORIGIN).netloc
+    SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
+    SECURE_HSTS_SECONDS = 604800
+    MIDDLEWARE.append("django.middleware.clickjacking.XFrameOptionsMiddleware")
+    X_FRAME_OPTIONS = "DENY"
+    # This deployment controls one hostname, not its subdomains or browser preload lists.
+    SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W021"]
+    DATABASES["default"]["OPTIONS"]["transaction_mode"] = "IMMEDIATE"

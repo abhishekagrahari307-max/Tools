@@ -67,7 +67,7 @@ function authDialog(mode, next) {
   const signup = mode === 'register';
   const el = modal(
     signup ? 'Create your studio.' : 'Welcome back.',
-    `<p>${signup ? 'निजी डैशबोर्ड बनाएँ। आपके निमंत्रण और मेहमानों के जवाब आपके खाते में सुरक्षित रहेंगे।' : 'अपने निजी निमंत्रण और मेहमानों के जवाब देखने के लिए साइन इन करें।'}</p><div class="auth-tabs"><button data-mode="login" aria-pressed="${!signup}">Sign in</button><button data-mode="register" aria-pressed="${signup}">Create account</button></div><form id="auth-form">${signup ? '<label class="field">Your name<input name="display" required maxlength="70" autocomplete="name" placeholder="आपका नाम"></label>' : ''}<label class="field">Email address<input type="email" name="email" required maxlength="150" autocomplete="email" placeholder="you@example.com"></label><label class="field">Password<input type="password" name="password" autocomplete="${signup ? 'new-password' : 'current-password'}" ${signup ? 'minlength="10"' : ''} maxlength="128" required placeholder="${signup ? 'At least 10 characters' : 'Your password'}"></label><div class="auth-error" role="alert"></div><button class="btn primary full">${signup ? 'Create account' : 'Sign in'} ${ic('arrow')}</button></form><p class="fine">Branch preview · Use a separate preview password. No email verification or reset service is connected.</p>`,
+    `<p>${signup ? 'निजी डैशबोर्ड बनाएँ। आपके निमंत्रण और मेहमानों के जवाब आपके खाते में सुरक्षित रहेंगे।' : 'अपने निजी निमंत्रण और मेहमानों के जवाब देखने के लिए साइन इन करें।'}</p><div class="auth-tabs"><button data-mode="login" aria-pressed="${!signup}">Sign in</button><button data-mode="register" aria-pressed="${signup}">Create account</button></div><form id="auth-form">${signup ? '<label class="field">Your name<input name="display" required maxlength="70" autocomplete="name" placeholder="आपका नाम"></label>' : ''}<label class="field">Email address<input type="email" name="email" required maxlength="150" autocomplete="email" placeholder="you@example.com"></label><label class="field">Password<input type="password" name="password" autocomplete="${signup ? 'new-password' : 'current-password'}" ${signup ? 'minlength="10"' : ''} maxlength="128" required placeholder="${signup ? 'At least 10 characters' : 'Your password'}"></label><div class="auth-error" role="alert"></div><button class="btn primary full">${signup ? 'Create account' : 'Sign in'} ${ic('arrow')}</button></form><p class="fine">${state.catalog.previewHost ? 'Branch preview · Use a separate preview password.' : 'Use a unique password.'} No email verification or reset service is connected.</p>`,
   );
   el.querySelectorAll('[data-mode]').forEach(
     (b) => (b.onclick = () => authDialog(b.dataset.mode, next)),
@@ -134,7 +134,7 @@ async function dashboard(admin, ticket) {
   if (ticket !== nav) return;
   const list = result.invitations,
     total = list.reduce((s, i) => s + i.attending, 0);
-  root.innerHTML = `<div class="wrap section-page"><div class="crumb"><a href="#/">Studio</a> / ${admin ? 'Administration' : 'Private workspace'}</div><div class="page-head"><div><span class="eyeline">${admin ? 'PLATFORM ADMINISTRATION' : 'THE ORGANIZER’S DESK'}</span><h1>${admin ? 'All invitations.' : 'My invitations.'}</h1><p>${admin ? 'Manage invitations across the preview.' : 'आपके ड्राफ़्ट, निमंत्रण और असली RSVP एक जगह।'}</p></div><div class="actions">${admin ? '<a class="btn plain" href="/admin/" target="_blank" rel="noopener">Manage users & templates ↗</a>' : ''}<a class="btn primary" href="#/new">${ic('plus')} Create invitation</a></div></div><div class="stats">${[
+  root.innerHTML = `<div class="wrap section-page"><div class="crumb"><a href="#/">Studio</a> / ${admin ? 'Administration' : 'Private workspace'}</div><div class="page-head"><div><span class="eyeline">${admin ? 'PLATFORM ADMINISTRATION' : 'THE ORGANIZER’S DESK'}</span><h1>${admin ? 'All invitations.' : 'My invitations.'}</h1><p>${admin ? 'Manage invitations across the studio.' : 'आपके ड्राफ़्ट, निमंत्रण और असली RSVP एक जगह।'}</p></div><div class="actions">${admin ? '<a class="btn plain" href="/admin/" target="_blank" rel="noopener">Manage users & templates ↗</a>' : ''}<a class="btn primary" href="#/new">${ic('plus')} Create invitation</a></div></div><div class="stats">${[
     [list.filter((x) => !x.published).length, 'Private drafts', 'feather'],
     [list.filter((x) => x.published).length, 'Published invitations', 'letter'],
     [total, 'Confirmed guests', 'people'],
@@ -296,6 +296,6 @@ async function route() {
     window.addEventListener('hashchange', route);
     await route();
   } catch (e) {
-    root.innerHTML = `<div class="wrap section-page"><h1>Studio unavailable</h1>${errorBox(message(e))}<p>Please reload when the preview server is ready.</p></div>`;
+    root.innerHTML = `<div class="wrap section-page"><h1>Studio unavailable</h1>${errorBox(message(e))}<p>Please reload when the studio server is ready.</p></div>`;
   }
 })();

@@ -4,6 +4,7 @@ from django.urls import path
 from studio import views as v
 
 urlpatterns = [
+    path("healthz", v.health),
     path("admin/", admin.site.urls),
     path("api/catalog", v.catalog),
     path("api/auth/<str:action>", v.auth),
