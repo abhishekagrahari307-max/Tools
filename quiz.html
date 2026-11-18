@@ -1,1101 +1,1208 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QuizMaster - Test Your Knowledge</title>
-    <meta name="description" content="Challenge yourself with thousands of quizzes across various subjects and competitive exams">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
-    
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="120 free quiz questions across Physics, Chemistry, Maths, Biology, General Knowledge and Computer & Web. Practice with instant explanations or sit a timed 15-minute test. Nothing leaves your device."
+    />
+    <meta name="theme-color" content="#5b46f5" />
+    <title>ToolKit Quiz — 120 questions, practice or timed test</title>
     <style>
-        :root {
-            --primary: #4361ee;
-            --primary-dark: #3a56d4;
-            --secondary: #7209b7;
-            --accent: #f72585;
-            --light: #f8f9fa;
-            --dark: #212529;
-            --gray: #6c757d;
-            --success: #4cc9f0;
-            --warning: #f8961e;
-            --danger: #ef233c;
-            --border-radius: 12px;
-            --box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            --transition: all 0.3s ease;
+      :root {
+        --brand: #5b46f5;
+        --brand-dark: #3b2bc4;
+        --brand-soft: #eeeaff;
+        --ink: #151b2b;
+        --soft: #5c6879;
+        --line: #e1e5ef;
+        --paper: #ffffff;
+        --bg: #f6f7fb;
+        --ok: #0f7a48;
+        --ok-soft: #e6f7ee;
+        --bad: #b3261e;
+        --bad-soft: #fdecea;
+        --warn: #a35a00;
+        --radius: 16px;
+        --shadow: 0 1px 2px rgba(20, 26, 45, 0.06), 0 12px 30px rgba(20, 26, 45, 0.07);
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 84px;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      a {
+        color: var(--brand-dark);
+      }
+      .skip {
+        position: absolute;
+        left: -999px;
+        top: 0;
+        background: var(--paper);
+        padding: 10px 14px;
+        border-radius: 0 0 10px 0;
+        z-index: 60;
+      }
+      .skip:focus {
+        left: 0;
+      }
+      .shell {
+        width: min(1080px, 100% - 28px);
+        margin-inline: auto;
+      }
+
+      header.top {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+      }
+      .top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        min-height: 62px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 17px;
+        color: var(--ink);
+        text-decoration: none;
+        letter-spacing: -0.01em;
+      }
+      .brand .mark {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(140deg, var(--brand), #7a5cff);
+        color: #fff;
+      }
+      .brand svg {
+        width: 19px;
+        height: 19px;
+      }
+      header nav {
+        display: flex;
+        gap: 18px;
+        font-size: 14px;
+        font-weight: 600;
+        overflow-x: auto;
+      }
+      header nav a {
+        color: #3d4759;
+        text-decoration: none;
+        white-space: nowrap;
+        padding: 4px 0;
+      }
+      header nav a[aria-current="page"] {
+        color: var(--brand-dark);
+        box-shadow: 0 2px 0 var(--brand);
+      }
+      header nav a:hover {
+        color: var(--brand-dark);
+      }
+
+      main {
+        padding: 26px 0 70px;
+        flex: 1 0 auto;
+      }
+      .screen[hidden] {
+        display: none;
+      }
+
+      .hero h1 {
+        font-size: clamp(28px, 4.4vw, 44px);
+        line-height: 1.1;
+        letter-spacing: -0.035em;
+        margin: 8px 0 10px;
+      }
+      .eyebrow {
+        margin: 0;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--brand-dark);
+      }
+      .hero p.lead {
+        max-width: 62ch;
+        color: var(--soft);
+        margin: 0 0 14px;
+      }
+      .facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin: 0 0 22px;
+        padding: 0;
+        list-style: none;
+        font-size: 13.5px;
+        color: #37455c;
+      }
+      .facts li::before {
+        content: "✓";
+        color: var(--ok);
+        font-weight: 800;
+        margin-right: 6px;
+      }
+
+      .mode-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 26px;
+      }
+      .mode {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+        cursor: pointer;
+      }
+      .mode:has(input:checked) {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px var(--brand-soft);
+      }
+      .mode input {
+        margin-top: 3px;
+        accent-color: var(--brand);
+        width: 17px;
+        height: 17px;
+      }
+      .mode b {
+        display: block;
+        font-size: 14.5px;
+      }
+      .mode small {
+        color: var(--soft);
+        font-size: 12.5px;
+      }
+
+      .subjects {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 14px;
+      }
+      .subject {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: left;
+        padding: 18px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+        cursor: pointer;
+        color: var(--ink);
+        transition:
+          transform 0.16s ease,
+          border-color 0.16s ease;
+        font: inherit;
+      }
+      .subject:hover,
+      .subject:focus-visible {
+        transform: translateY(-2px);
+        border-color: #b9b0ff;
+      }
+      .subject .ic {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        background: var(--brand-soft);
+        color: var(--brand-dark);
+      }
+      .subject .ic svg {
+        width: 21px;
+        height: 21px;
+      }
+      .subject b {
+        font-size: 16.5px;
+      }
+      .subject small {
+        color: var(--soft);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+      .subject .meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 2px;
+        font-size: 12px;
+        color: #6b7788;
+      }
+      .best {
+        font-weight: 700;
+        color: var(--ok);
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 30px 0 12px;
+      }
+      .section-head h2 {
+        font-size: 15px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #4b5872;
+        margin: 0;
+      }
+      .section-head a {
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      /* ------------------------------------------------------------- quiz view */
+      .quiz-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .quiz-bar .title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+      }
+      .quiz-bar .title small {
+        font-weight: 600;
+        color: var(--soft);
+        font-size: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        background: var(--brand-soft);
+        color: var(--brand-dark);
+        font-size: 12.5px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .chip.time {
+        background: #fff4e5;
+        color: var(--warn);
+      }
+      .chip.time.low {
+        background: var(--bad-soft);
+        color: var(--bad);
+      }
+      .progress {
+        height: 7px;
+        background: #e7e9f4;
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: 18px;
+      }
+      .progress i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--brand), #8b6cff);
+        transition: width 0.25s ease;
+      }
+
+      .quiz-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 240px;
+        gap: 18px;
+        align-items: start;
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: clamp(16px, 2.6vw, 26px);
+      }
+      .q-count {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #7a8798;
+      }
+      .q-text {
+        font-size: clamp(18px, 2.2vw, 22px);
+        line-height: 1.4;
+        margin: 8px 0 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .options {
+        display: grid;
+        gap: 10px;
+        border: 0;
+        padding: 0;
+        margin: 0;
+      }
+      .opt {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        cursor: pointer;
+        background: #fff;
+        transition:
+          border-color 0.14s ease,
+          background 0.14s ease;
+      }
+      .opt:hover {
+        border-color: #b9b0ff;
+      }
+      .opt input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .opt .key {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        flex: none;
+        border-radius: 8px;
+        background: #eef0f7;
+        font-size: 12.5px;
+        font-weight: 800;
+        color: #48546a;
+      }
+      .opt .txt {
+        font-size: 15px;
+        padding-top: 1px;
+      }
+      .opt:has(input:checked) {
+        border-color: var(--brand);
+        background: #f7f5ff;
+      }
+      .opt:has(input:checked) .key {
+        background: var(--brand);
+        color: #fff;
+      }
+      .opt:has(input:focus-visible) {
+        outline: 3px solid #c9c0ff;
+        outline-offset: 2px;
+      }
+      .opt.correct {
+        border-color: var(--ok);
+        background: var(--ok-soft);
+      }
+      .opt.correct .key {
+        background: var(--ok);
+        color: #fff;
+      }
+      .opt.wrong {
+        border-color: var(--bad);
+        background: var(--bad-soft);
+      }
+      .opt.wrong .key {
+        background: var(--bad);
+        color: #fff;
+      }
+      .opt[data-disabled="true"] {
+        cursor: default;
+      }
+
+      .feedback {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        display: none;
+      }
+      .feedback.on {
+        display: block;
+      }
+      .feedback.good {
+        background: var(--ok-soft);
+        color: #0b5c37;
+        border: 1px solid #bfe8d2;
+      }
+      .feedback.bad {
+        background: var(--bad-soft);
+        color: #8c1d18;
+        border: 1px solid #f4c9c5;
+      }
+      .feedback b {
+        display: block;
+        margin-bottom: 2px;
+      }
+      .feedback .why {
+        color: #2f3d52;
+        margin-top: 4px;
+      }
+
+      .quiz-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 18px;
+      }
+      .quiz-actions .spacer {
+        flex: 1;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 11px 16px;
+        font: inherit;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        background: var(--brand);
+        color: #fff;
+        text-decoration: none;
+        min-height: 44px;
+      }
+      .btn:hover {
+        background: var(--brand-dark);
+        color: #fff;
+      }
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .btn.ghost {
+        background: #fff;
+        color: var(--brand-dark);
+        border-color: #cfc8f7;
+      }
+      .btn.ghost:hover {
+        background: var(--brand-soft);
+      }
+      .btn.plain {
+        background: #fff;
+        color: #3d4759;
+        border-color: var(--line);
+      }
+      .btn.plain:hover {
+        background: #f2f4f9;
+        color: var(--ink);
+      }
+      .btn.ok {
+        background: var(--ok);
+      }
+      .btn.ok:hover {
+        background: #0b6239;
+      }
+      .btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      .submit-note {
+        width: 100%;
+        font-size: 13px;
+        color: var(--warn);
+        margin: 0;
+      }
+      .submit-note[hidden] {
+        display: none;
+      }
+
+      .side-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+      .side-card h2 {
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #6b7788;
+        margin: 0 0 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 7px;
+      }
+      .grid button {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: #fff;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #4b5872;
+        cursor: pointer;
+        position: relative;
+        min-height: 34px;
+      }
+      .grid button[data-state="answered"] {
+        background: #e8f3ff;
+        border-color: #a9cdf5;
+        color: #14497d;
+      }
+      .grid button[data-state="marked"]::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #e08a00;
+      }
+      .grid button[data-state="current"] {
+        outline: 2px solid var(--brand);
+        outline-offset: 1px;
+      }
+      .grid button[data-state="right"] {
+        background: var(--ok-soft);
+        border-color: #9fdcbb;
+        color: #0b5c37;
+      }
+      .grid button[data-state="wrong"] {
+        background: var(--bad-soft);
+        border-color: #f0b7b2;
+        color: #8c1d18;
+      }
+      .side-card .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 11.5px;
+        color: #6b7788;
+      }
+      .legend i {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 3px;
+        margin-right: 4px;
+      }
+      .side-stats {
+        margin-top: 12px;
+        font-size: 12.5px;
+        color: #4b5872;
+        display: grid;
+        gap: 2px;
+      }
+
+      /* ----------------------------------------------------------- result view */
+      .result-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 22px;
+        align-items: center;
+      }
+      .ring {
+        --pct: 0;
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(closest-side, #fff 76%, transparent 77%),
+          conic-gradient(var(--brand) calc(var(--pct) * 1%), #e7e9f4 0);
+        flex: none;
+      }
+      .ring b {
+        font-size: 30px;
+        letter-spacing: -0.03em;
+      }
+      .ring small {
+        display: block;
+        text-align: center;
+        font-size: 11px;
+        color: var(--soft);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .result-title h1 {
+        margin: 0 0 4px;
+        font-size: clamp(22px, 3vw, 30px);
+        letter-spacing: -0.02em;
+      }
+      .result-title p {
+        margin: 0;
+        color: var(--soft);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin: 20px 0 4px;
+      }
+      .stat {
+        background: #f7f8fc;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+      }
+      .stat b {
+        display: block;
+        font-size: 21px;
+      }
+      .stat small {
+        color: var(--soft);
+        font-size: 11.5px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .stat.right b {
+        color: var(--ok);
+      }
+      .stat.wrong b {
+        color: var(--bad);
+      }
+
+      .review-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 24px 0 12px;
+        align-items: center;
+      }
+      .review-tools h2 {
+        font-size: 13px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #4b5872;
+        margin: 0 10px 0 0;
+      }
+      .filter {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #3d4759;
+        border-radius: 999px;
+        padding: 7px 13px;
+        font: inherit;
+        font-size: 12.5px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .filter[aria-pressed="true"] {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .review {
+        display: grid;
+        gap: 10px;
+      }
+      .review-item {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: #fff;
+      }
+      .review-item.good {
+        border-left: 4px solid var(--ok);
+      }
+      .review-item.bad {
+        border-left: 4px solid var(--bad);
+      }
+      .review-item.skip {
+        border-left: 4px solid #b5bdcb;
+      }
+      .review-item .q {
+        font-weight: 650;
+        margin: 0 0 6px;
+      }
+      .review-item .ans {
+        font-size: 13.5px;
+        color: #3d4759;
+        margin: 2px 0;
+      }
+      .review-item .ans b {
+        font-weight: 700;
+      }
+      .review-item .why {
+        font-size: 13px;
+        color: #5c6879;
+        margin: 6px 0 0;
+      }
+      .review-item .tag {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .review-item .tag.ok {
+        color: var(--ok);
+      }
+      .review-item .tag.no {
+        color: var(--bad);
+      }
+      .review-item .tag.miss {
+        color: #6b7788;
+      }
+
+      /* ---------------------------------------------------------- history view */
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .history-table th,
+      .history-table td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .history-table th {
+        font-size: 11.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6b7788;
+      }
+      .history-table td.score {
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .empty {
+        padding: 26px;
+        text-align: center;
+        color: var(--soft);
+        background: #fff;
+        border: 1px dashed var(--line);
+        border-radius: var(--radius);
+      }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translate(-50%, 20px);
+        background: #141a2b;
+        color: #fff;
+        padding: 11px 16px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.2s ease,
+          transform 0.2s ease;
+        z-index: 70;
+        max-width: calc(100% - 32px);
+      }
+      .toast.on {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      footer.site {
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+      footer.site .shell {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 0;
+        font-size: 12.5px;
+        color: #6b7788;
+      }
+      footer nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+      footer nav a {
+        color: #4b5872;
+        text-decoration: none;
+      }
+
+      @media (max-width: 860px) {
+        .quiz-layout {
+          grid-template-columns: 1fr;
         }
-        
+        .side-card {
+          order: 2;
+        }
+        .mode-card {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .brand-name {
+          display: none;
+        }
+        header nav {
+          gap: 10px;
+          font-size: 12.5px;
+        }
+        .top-row {
+          min-height: 56px;
+        }
+      }
+      @media (max-width: 560px) {
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        .result-head {
+          grid-template-columns: 1fr;
+          justify-items: start;
+        }
+        .ring {
+          width: 108px;
+          height: 108px;
+        }
+        .ring b {
+          font-size: 24px;
+        }
+        .grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        header nav {
+          gap: 12px;
+          font-size: 13px;
+        }
+        .brand {
+          font-size: 15px;
+        }
+        .quiz-actions .btn {
+          flex: 1 1 auto;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+          transition: none !important;
+          scroll-behavior: auto !important;
         }
-        
+      }
+      @media print {
+        header.top,
+        footer.site,
+        .no-print,
+        .review-tools {
+          display: none !important;
+        }
         body {
-            font-family: 'Poppins', sans-serif;
-            line-height: 1.6;
-            color: var(--dark);
-            background-color: #f5f7ff;
-            overflow-x: hidden;
+          background: #fff;
         }
-        
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
+        .card,
+        .review-item {
+          box-shadow: none;
+          break-inside: avoid;
         }
-        
-        /* Header Styles */
-        header {
-            background-color: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000;
-        }
-        
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-        }
-        
-        .logo {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }
-        
-        .logo-icon {
-            font-size: 28px;
-            color: var(--primary);
-            margin-right: 10px;
-        }
-        
-        .logo-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--dark);
-        }
-        
-        .logo-text span {
-            color: var(--primary);
-        }
-        
-        nav ul {
-            display: flex;
-            list-style: none;
-        }
-        
-        nav ul li {
-            margin-left: 25px;
-            position: relative;
-        }
-        
-        nav ul li a {
-            text-decoration: none;
-            color: var(--dark);
-            font-weight: 500;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-        }
-        
-        nav ul li a i {
-            margin-right: 8px;
-            font-size: 18px;
-        }
-        
-        nav ul li a:hover {
-            color: var(--primary);
-        }
-        
-        .auth-buttons .btn {
-            margin-left: 15px;
-        }
-        
-        .mobile-menu-btn {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: var(--dark);
-            cursor: pointer;
-        }
-        
-        /* Hero Section */
-        .hero {
-            padding: 150px 0 100px;
-            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path fill="rgba(255,255,255,0.05)" d="M0,0 L100,0 L100,100 L0,100 Z"></path></svg>');
-            background-size: cover;
-            opacity: 0.3;
-        }
-        
-        .hero-content {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .hero-text {
-            max-width: 600px;
-        }
-        
-        .hero-title {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            line-height: 1.2;
-        }
-        
-        .hero-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 30px;
-        }
-        
-        .hero-image {
-            width: 45%;
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-            100% { transform: translateY(0px); }
-        }
-        
-        .hero-stats {
-            display: flex;
-            margin-top: 50px;
-            gap: 30px;
-        }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 1rem;
-            opacity: 0.8;
-        }
-        
-        /* Features Section */
-        .features {
-            padding: 80px 0;
-        }
-        
-        .section-title {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-        
-        .section-title h2 {
-            font-size: 2.5rem;
-            color: var(--dark);
-            margin-bottom: 15px;
-            position: relative;
-            display: inline-block;
-        }
-        
-        .section-title h2::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: var(--primary);
-            border-radius: 2px;
-        }
-        
-        .section-title p {
-            color: var(--gray);
-            max-width: 700px;
-            margin: 0 auto;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-        }
-        
-        .feature-card {
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 30px;
-            box-shadow: var(--box-shadow);
-            transition: var(--transition);
-            text-align: center;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-        }
-        
-        .feature-icon {
-            width: 80px;
-            height: 80px;
-            background: rgba(67, 97, 238, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 25px;
-            color: var(--primary);
-            font-size: 30px;
-        }
-        
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
-            color: var(--dark);
-        }
-        
-        .feature-card p {
-            color: var(--gray);
-        }
-        
-        /* Categories Section */
-        .categories {
-            padding: 80px 0;
-            background: #f8f9fa;
-        }
-        
-        .categories-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
-        }
-        
-        .category-card {
-            background: white;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            box-shadow: var(--box-shadow);
-            transition: var(--transition);
-            position: relative;
-        }
-        
-        .category-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
-        }
-        
-        .category-badge {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: var(--accent);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-        
-        .category-image {
-            height: 160px;
-            overflow: hidden;
-        }
-        
-        .category-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease;
-        }
-        
-        .category-card:hover .category-image img {
-            transform: scale(1.1);
-        }
-        
-        .category-content {
-            padding: 20px;
-        }
-        
-        .category-content h3 {
-            font-size: 1.3rem;
-            margin-bottom: 10px;
-            color: var(--dark);
-        }
-        
-        .category-meta {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-        
-        .category-meta span {
-            display: flex;
-            align-items: center;
-        }
-        
-        .category-meta i {
-            margin-right: 5px;
-        }
-        
-        /* Testimonials Section */
-        .testimonials {
-            padding: 80px 0;
-        }
-        
-        .testimonials-slider {
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-        }
-        
-        .testimonial-card {
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 30px;
-            box-shadow: var(--box-shadow);
-            margin: 20px;
-            text-align: center;
-        }
-        
-        .testimonial-text {
-            font-size: 1.1rem;
-            font-style: italic;
-            margin-bottom: 20px;
-            color: var(--dark);
-        }
-        
-        .testimonial-author {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .author-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin-right: 15px;
-        }
-        
-        .author-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .author-info h4 {
-            font-size: 1.1rem;
-            color: var(--dark);
-            margin-bottom: 5px;
-        }
-        
-        .author-info p {
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-        
-        /* CTA Section */
-        .cta {
-            padding: 80px 0;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            text-align: center;
-        }
-        
-        .cta h2 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
-        
-        .cta p {
-            max-width: 700px;
-            margin: 0 auto 30px;
-            opacity: 0.9;
-            font-size: 1.1rem;
-        }
-        
-        /* Footer */
-        footer {
-            background: var(--dark);
-            color: white;
-            padding: 60px 0 20px;
-        }
-        
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 40px;
-            margin-bottom: 40px;
-        }
-        
-        .footer-column h3 {
-            font-size: 1.3rem;
-            margin-bottom: 20px;
-            position: relative;
-            padding-bottom: 10px;
-        }
-        
-        .footer-column h3::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 40px;
-            height: 3px;
-            background: var(--primary);
-        }
-        
-        .footer-column p {
-            opacity: 0.8;
-            margin-bottom: 20px;
-        }
-        
-        .social-links {
-            display: flex;
-            gap: 15px;
-        }
-        
-        .social-links a {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            transition: var(--transition);
-        }
-        
-        .social-links a:hover {
-            background: var(--primary);
-            transform: translateY(-3px);
-        }
-        
-        .footer-column ul {
-            list-style: none;
-        }
-        
-        .footer-column ul li {
-            margin-bottom: 12px;
-        }
-        
-        .footer-column ul li a {
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-        }
-        
-        .footer-column ul li a i {
-            margin-right: 8px;
-            font-size: 14px;
-        }
-        
-        .footer-column ul li a:hover {
-            color: white;
-            padding-left: 5px;
-        }
-        
-        .footer-bottom {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.6);
-            font-size: 0.9rem;
-        }
-        
-        /* Buttons */
-        .btn {
-            display: inline-block;
-            padding: 12px 30px;
-            border-radius: var(--border-radius);
-            font-weight: 500;
-            text-decoration: none;
-            transition: var(--transition);
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: var(--primary);
-        }
-        
-        .btn-secondary:hover {
-            background: #f0f0f0;
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-        }
-        
-        .btn-outline:hover {
-            background: white;
-            color: var(--primary);
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .btn-lg {
-            padding: 15px 40px;
-            font-size: 1.1rem;
-        }
-        
-        /* Responsive Styles */
-        @media (max-width: 992px) {
-            .hero-content {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .hero-text {
-                margin-bottom: 50px;
-            }
-            
-            .hero-image {
-                width: 70%;
-            }
-            
-            .hero-title {
-                font-size: 2.5rem;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            nav {
-                position: fixed;
-                top: 80px;
-                left: -100%;
-                width: 80%;
-                height: calc(100vh - 80px);
-                background: white;
-                box-shadow: var(--box-shadow);
-                transition: left 0.3s ease;
-                z-index: 999;
-                padding: 30px;
-            }
-            
-            nav.active {
-                left: 0;
-            }
-            
-            nav ul {
-                flex-direction: column;
-            }
-            
-            nav ul li {
-                margin: 15px 0;
-            }
-            
-            .auth-buttons {
-                display: none;
-            }
-            
-            .mobile-menu-btn {
-                display: block;
-            }
-            
-            .hero {
-                padding: 120px 0 80px;
-            }
-            
-            .hero-title {
-                font-size: 2rem;
-            }
-            
-            .hero-stats {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            
-            .stat-item {
-                flex: 0 0 50%;
-                margin-bottom: 20px;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .hero-title {
-                font-size: 1.8rem;
-            }
-            
-            .hero-subtitle {
-                font-size: 1rem;
-            }
-            
-            .section-title h2 {
-                font-size: 2rem;
-            }
-            
-            .btn {
-                padding: 10px 20px;
-            }
-            
-            .btn-lg {
-                padding: 12px 30px;
-            }
-            
-            .hero-image {
-                width: 100%;
-            }
-        }
+      }
     </style>
-</head>
-<body>
-    <!-- Header -->
-    <header>
-        <div class="container header-container">
-            <a href="index.html" class="logo">
-                <div class="logo-icon">
-                    <i class="fas fa-brain"></i>
-                </div>
-                <div class="logo-text">Quiz<span>Master</span></div>
-            </a>
-            
-            <nav id="mainNav">
-                <ul>
-                    <li><a href="index.html"><i class="fas fa-home"></i> Home</a></li>
-                    <li><a href="classes.html"><i class="fas fa-graduation-cap"></i> Classes</a></li>
-                    <li><a href="exams.html"><i class="fas fa-trophy"></i> Exams</a></li>
-                    <li><a href="dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                    <li><a href="about.html"><i class="fas fa-info-circle"></i> About</a></li>
-                </ul>
-                
-                <div class="auth-buttons">
-                    <a href="login.html" class="btn btn-secondary">Login</a>
-                    <a href="register.html" class="btn btn-primary">Register</a>
-                </div>
-            </nav>
-            
-            <button class="mobile-menu-btn" id="mobileMenuBtn">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the quiz</a>
+
+    <header class="top">
+      <div class="shell top-row">
+        <a class="brand" href="./">
+          <span class="mark" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 4h12M12 4v6M8 20h8M9 20c0-4 3-4 3-10" />
+            </svg>
+          </span>
+          <span class="brand-name">ToolKit Pro</span>
+        </a>
+        <nav aria-label="Site">
+          <a href="./">Home</a>
+          <a href="./file-tools.html#pdf-tools">PDF tools</a>
+          <a href="./file-tools.html#image-tools">Image tools</a>
+          <a href="./quiz.html" aria-current="page">Quiz</a>
+        </nav>
+      </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="container hero-content">
-            <div class="hero-text">
-                <h1 class="hero-title">Test Your Knowledge With Our Interactive Quizzes</h1>
-                <p class="hero-subtitle">Challenge yourself with thousands of questions across various subjects and competitive exams. Track your progress and improve your skills.</p>
-                
-                <div class="hero-buttons">
-                    <a href="classes.html" class="btn btn-outline btn-lg"><i class="fas fa-graduation-cap"></i> Browse Classes</a>
-                    <a href="exams.html" class="btn btn-secondary btn-lg"><i class="fas fa-trophy"></i> Competitive Exams</a>
-                </div>
-                
-                <div class="hero-stats">
-                    <div class="stat-item">
-                        <div class="stat-number">10,000+</div>
-                        <div class="stat-label">Questions</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">12+</div>
-                        <div class="stat-label">Subjects</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number">98%</div>
-                        <div class="stat-label">Satisfaction</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="hero-image">
-                <img src="https://via.placeholder.com/600x500?text=Quiz+Illustration" alt="Quiz Illustration">
-            </div>
-        </div>
-    </section>
+    <main id="main" class="shell">
+      <!-- ------------------------------------------------------------ home -->
+      <section class="screen hero" id="home" aria-labelledby="home-h">
+        <p class="eyebrow">120 questions · no sign-up</p>
+        <h1 id="home-h">Test yourself, twenty questions at a time.</h1>
+        <p class="lead">
+          Pick a subject, choose practice or a timed test, and get a full answer review with a
+          one-line explanation for every question. Everything runs in your tab — no account, no
+          upload, and your history stays on this device.
+        </p>
+        <ul class="facts">
+          <li>6 subjects · 20 questions each</li>
+          <li>Practice mode explains every answer</li>
+          <li>Timed test: 20 questions in 15 minutes</li>
+        </ul>
 
-    <!-- Features Section -->
-    <section class="features">
-        <div class="container">
-            <div class="section-title">
-                <h2>Why Choose QuizMaster?</h2>
-                <p>Our platform offers everything you need to prepare for exams and test your knowledge effectively</p>
-            </div>
-            
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-database"></i>
-                    </div>
-                    <h3>Extensive Question Bank</h3>
-                    <p>Access thousands of carefully curated questions with detailed explanations and solutions.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <h3>Performance Analytics</h3>
-                    <p>Track your progress with detailed reports and analytics to identify strengths and weaknesses.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-mobile-alt"></i>
-                    </div>
-                    <h3>Mobile Friendly</h3>
-                    <p>Practice anytime, anywhere with our fully responsive design that works on all devices.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-stopwatch"></i>
-                    </div>
-                    <h3>Timed Tests</h3>
-                    <p>Simulate real exam conditions with our timed test feature to improve your speed.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-bookmark"></i>
-                    </div>
-                    <h3>Bookmark Questions</h3>
-                    <p>Save important questions for later review and create custom practice sets.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-trophy"></i>
-                    </div>
-                    <h3>Compete with Friends</h3>
-                    <p>Challenge your friends and see who scores higher on our leaderboards.</p>
-                </div>
-            </div>
+        <div class="section-head">
+          <h2>Choose a mode</h2>
         </div>
-    </section>
+        <div class="mode-card" role="radiogroup" aria-label="Quiz mode">
+          <label class="mode">
+            <input type="radio" name="mode" value="practice" checked />
+            <span>
+              <b>Practice</b>
+              <small>Check each answer as you go, with the explanation. No clock.</small>
+            </span>
+          </label>
+          <label class="mode">
+            <input type="radio" name="mode" value="test" />
+            <span>
+              <b>Timed test</b>
+              <small>20 questions, 15 minutes, mark for review and submit when ready.</small>
+            </span>
+          </label>
+        </div>
 
-    <!-- Categories Section -->
-    <section class="categories">
-        <div class="container">
-            <div class="section-title">
-                <h2>Popular Quiz Categories</h2>
-                <p>Explore our most popular quiz categories to start testing your knowledge</p>
-            </div>
-            
-            <div class="categories-grid">
-                <div class="category-card">
-                    <div class="category-badge">Class 12</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=Physics" alt="Physics">
-                    </div>
-                    <div class="category-content">
-                        <h3>Physics</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 850 Questions</span>
-                            <span><i class="fas fa-clock"></i> 15 Hours</span>
-                        </div>
-                        <a href="physics.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-                
-                <div class="category-card">
-                    <div class="category-badge">Class 11</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=Chemistry" alt="Chemistry">
-                    </div>
-                    <div class="category-content">
-                        <h3>Chemistry</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 720 Questions</span>
-                            <span><i class="fas fa-clock"></i> 12 Hours</span>
-                        </div>
-                        <a href="chemistry.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-                
-                <div class="category-card">
-                    <div class="category-badge">Class 10</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=Mathematics" alt="Mathematics">
-                    </div>
-                    <div class="category-content">
-                        <h3>Mathematics</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 950 Questions</span>
-                            <span><i class="fas fa-clock"></i> 18 Hours</span>
-                        </div>
-                        <a href="math.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-                
-                <div class="category-card">
-                    <div class="category-badge">NEET</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=Biology" alt="Biology">
-                    </div>
-                    <div class="category-content">
-                        <h3>Biology</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 1200 Questions</span>
-                            <span><i class="fas fa-clock"></i> 25 Hours</span>
-                        </div>
-                        <a href="biology.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-                
-                <div class="category-card">
-                    <div class="category-badge">JEE</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=Advanced+Physics" alt="Advanced Physics">
-                    </div>
-                    <div class="category-content">
-                        <h3>Advanced Physics</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 1500 Questions</span>
-                            <span><i class="fas fa-clock"></i> 30 Hours</span>
-                        </div>
-                        <a href="advanced-physics.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-                
-                <div class="category-card">
-                    <div class="category-badge">UPSC</div>
-                    <div class="category-image">
-                        <img src="https://via.placeholder.com/400x250?text=General+Knowledge" alt="General Knowledge">
-                    </div>
-                    <div class="category-content">
-                        <h3>General Knowledge</h3>
-                        <div class="category-meta">
-                            <span><i class="fas fa-question-circle"></i> 2000 Questions</span>
-                            <span><i class="fas fa-clock"></i> 40 Hours</span>
-                        </div>
-                        <a href="gk.html" class="btn btn-primary">Start Quiz</a>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="text-align: center; margin-top: 40px;">
-                <a href="categories.html" class="btn btn-outline" style="color: var(--dark); border-color: var(--dark);">View All Categories <i class="fas fa-arrow-right"></i></a>
-            </div>
+        <div class="section-head">
+          <h2>Pick a subject</h2>
+          <a href="#history" id="history-link">Your history</a>
         </div>
-    </section>
+        <div class="subjects" id="subjects"></div>
+      </section>
 
-    <!-- Testimonials Section -->
-    <section class="testimonials">
-        <div class="container">
-            <div class="section-title">
-                <h2>What Our Users Say</h2>
-                <p>Don't just take our word for it - hear from our community of learners</p>
+      <!-- ------------------------------------------------------------ quiz -->
+      <section class="screen" id="quiz" aria-labelledby="quiz-title" hidden>
+        <div class="quiz-bar">
+          <div class="title">
+            <button class="btn plain no-print" type="button" id="quit" title="Leave this quiz">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+              <span class="sr-only">Leave</span>Back
+            </button>
+            <div>
+              <span id="quiz-title">Physics</span>
+              <small id="quiz-mode">Practice</small>
             </div>
-            
-            <div class="testimonials-slider">
-                <div class="testimonial-card">
-                    <p class="testimonial-text">"QuizMaster helped me tremendously in preparing for my board exams. The detailed explanations for each question made learning so much easier!"</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">
-                            <img src="https://via.placeholder.com/100x100?text=User" alt="Rahul Sharma">
-                        </div>
-                        <div class="author-info">
-                            <h4>Rahul Sharma</h4>
-                            <p>Class 12 Student</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="testimonial-card">
-                    <p class="testimonial-text">"The competitive exam quizzes are excellent! They're challenging but fair, and the performance tracking helped me identify my weak areas."</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">
-                            <img src="https://via.placeholder.com/100x100?text=User" alt="Priya Patel">
-                        </div>
-                        <div class="author-info">
-                            <h4>Priya Patel</h4>
-                            <p>NEET Aspirant</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="testimonial-card">
-                    <p class="testimonial-text">"As a teacher, I recommend QuizMaster to all my students. The quality of questions and the depth of explanations are unmatched."</p>
-                    <div class="testimonial-author">
-                        <div class="author-avatar">
-                            <img src="https://via.placeholder.com/100x100?text=User" alt="Anil Kumar">
-                        </div>
-                        <div class="author-info">
-                            <h4>Anil Kumar</h4>
-                            <p>Physics Teacher</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <span class="chip" id="quiz-position">Question 1 of 20</span>
+            <span class="chip time" id="quiz-timer" hidden>15:00</span>
+          </div>
         </div>
-    </section>
+        <div class="progress" aria-hidden="true"><i id="quiz-progress"></i></div>
 
-    <!-- CTA Section -->
-    <section class="cta">
-        <div class="container">
-            <h2>Ready to Test Your Knowledge?</h2>
-            <p>Join thousands of students and competitive exam aspirants who are improving their skills with QuizMaster</p>
-            <div class="cta-buttons">
-                <a href="register.html" class="btn btn-primary btn-lg"><i class="fas fa-user-plus"></i> Sign Up Now</a>
-                <a href="login.html" class="btn btn-outline btn-lg"><i class="fas fa-sign-in-alt"></i> Login</a>
-            </div>
-        </div>
-    </section>
+        <div class="quiz-layout">
+          <div class="card">
+            <p class="q-count" id="q-topic">Question 1</p>
+            <h2 class="q-text" id="q-text"></h2>
+            <fieldset class="options" id="options">
+              <legend class="sr-only">Answer choices</legend>
+            </fieldset>
+            <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
 
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-column">
-                    <h3>About QuizMaster</h3>
-                    <p>QuizMaster is a comprehensive quiz platform designed to help students and competitive exam aspirants test their knowledge and improve their skills.</p>
-                    <div class="social-links">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="#"><i class="fab fa-youtube"></i></a>
-                    </div>
-                </div>
-                
-                <div class="footer-column">
-                    <h3>Quick Links</h3>
-                    <ul>
-                        <li><a href="index.html"><i class="fas fa-chevron-right"></i> Home</a></li>
-                        <li><a href="classes.html"><i class="fas fa-chevron-right"></i> Classes</a></li>
-                        <li><a href="exams.html"><i class="fas fa-chevron-right"></i> Competitive Exams</a></li>
-                        <li><a href="dashboard.html"><i class="fas fa-chevron-right"></i> Dashboard</a></li>
-                        <li><a href="about.html"><i class="fas fa-chevron-right"></i> About Us</a></li>
-                        <li><a href="contact.html"><i class="fas fa-chevron-right"></i> Contact</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-column">
-                    <h3>Subjects</h3>
-                    <ul>
-                        <li><a href="physics.html"><i class="fas fa-chevron-right"></i> Physics</a></li>
-                        <li><a href="chemistry.html"><i class="fas fa-chevron-right"></i> Chemistry</a></li>
-                        <li><a href="math.html"><i class="fas fa-chevron-right"></i> Mathematics</a></li>
-                        <li><a href="biology.html"><i class="fas fa-chevron-right"></i> Biology</a></li>
-                        <li><a href="english.html"><i class="fas fa-chevron-right"></i> English</a></li>
-                        <li><a href="gk.html"><i class="fas fa-chevron-right"></i> General Knowledge</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-column">
-                    <h3>Support</h3>
-                    <ul>
-                        <li><a href="faq.html"><i class="fas fa-chevron-right"></i> FAQ</a></li>
-                        <li><a href="help.html"><i class="fas fa-chevron-right"></i> Help Center</a></li>
-                        <li><a href="privacy.html"><i class="fas fa-chevron-right"></i> Privacy Policy</a></li>
-                        <li><a href="terms.html"><i class="fas fa-chevron-right"></i> Terms of Service</a></li>
-                        <li><a href="refund.html"><i class="fas fa-chevron-right"></i> Refund Policy</a></li>
-                    </ul>
-                </div>
+            <div class="quiz-actions">
+              <button class="btn plain" type="button" id="prev">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+                Previous
+              </button>
+              <button class="btn ghost" type="button" id="mark">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 3h12v18l-6-4-6 4z" />
+                </svg>
+                Mark
+              </button>
+              <span class="spacer"></span>
+              <button class="btn" type="button" id="check" hidden>Check answer</button>
+              <button class="btn" type="button" id="next">Next</button>
+              <button class="btn ok" type="button" id="submit" hidden>Submit test</button>
+              <p class="submit-note" id="submit-note" hidden></p>
             </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2023 QuizMaster. All Rights Reserved. | Designed with <i class="fas fa-heart" style="color: var(--accent);"></i> for students</p>
+          </div>
+
+          <aside class="side-card no-print" aria-label="Question navigator">
+            <h2>Questions</h2>
+            <div class="grid" id="grid"></div>
+            <ul class="legend">
+              <li><i style="background: #e8f3ff; border: 1px solid #a9cdf5"></i>Answered</li>
+              <li><i style="background: #fff; border: 1px solid #e1e5ef"></i>Not answered</li>
+              <li><i style="background: #e08a00"></i>Marked</li>
+            </ul>
+            <div class="side-stats">
+              <span id="side-answered">Answered 0 of 20</span>
+              <span id="side-marked">Marked 0</span>
             </div>
+          </aside>
         </div>
+      </section>
+
+      <!-- ---------------------------------------------------------- result -->
+      <section class="screen" id="result" aria-labelledby="result-h" hidden>
+        <div class="card">
+          <div class="result-head">
+            <div class="ring" id="ring" role="img" aria-label="Score">
+              <div>
+                <b id="score-pct">0%</b>
+                <small>score</small>
+              </div>
+            </div>
+            <div class="result-title">
+              <h1 id="result-h">Result</h1>
+              <p id="result-sub"></p>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat right"><b id="stat-correct">0</b><small>Correct</small></div>
+            <div class="stat wrong"><b id="stat-wrong">0</b><small>Wrong</small></div>
+            <div class="stat"><b id="stat-skipped">0</b><small>Skipped</small></div>
+            <div class="stat"><b id="stat-time">0:00</b><small>Time</small></div>
+          </div>
+
+          <div class="quiz-actions no-print">
+            <button class="btn" type="button" id="again">Try this subject again</button>
+            <button class="btn ghost" type="button" id="retry-wrong" hidden>
+              Retry the wrong ones
+            </button>
+            <button class="btn plain" type="button" id="share">Share result</button>
+            <button class="btn plain" type="button" id="print">Print</button>
+            <span class="spacer"></span>
+            <a class="btn plain" href="#home" id="home-btn">All subjects</a>
+          </div>
+
+          <div class="review-tools">
+            <h2>Review</h2>
+            <button class="filter" type="button" data-filter="all" aria-pressed="true">
+              All 20
+            </button>
+            <button class="filter" type="button" data-filter="wrong" aria-pressed="false">
+              Wrong
+            </button>
+            <button class="filter" type="button" data-filter="skipped" aria-pressed="false">
+              Skipped
+            </button>
+          </div>
+          <div class="review" id="review"></div>
+        </div>
+      </section>
+
+      <!-- --------------------------------------------------------- history -->
+      <section class="screen" id="history" aria-labelledby="history-h" hidden>
+        <p class="eyebrow">Saved on this device</p>
+        <h1 id="history-h" style="margin: 6px 0 6px; font-size: clamp(24px, 3.4vw, 34px)">
+          Your quiz history
+        </h1>
+        <p class="lead" style="color: var(--soft); margin: 0 0 20px">
+          Only the last 30 attempts are kept, in this browser. Clearing site data removes them.
+        </p>
+        <div class="card" id="history-card"></div>
+        <div class="quiz-actions" style="margin-top: 18px">
+          <a class="btn plain" href="#home">Back to subjects</a>
+          <span class="spacer"></span>
+          <button class="btn plain" type="button" id="clear-history">Clear history</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="shell">
+        <span>Questions never leave your device. No account, no ads.</span>
+        <nav aria-label="Footer">
+          <a href="./">Home</a>
+          <a href="./file-tools.html">File tools</a>
+          <a href="./celebration-studio/">Celebration Studio</a>
+          <a href="./wishlys-studio/">Wishlys</a>
+        </nav>
+      </div>
     </footer>
 
-    <script>
-        // Mobile Menu Toggle
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mainNav = document.getElementById('mainNav');
-        
-        mobileMenuBtn.addEventListener('click', () => {
-            mainNav.classList.toggle('active');
-            mobileMenuBtn.innerHTML = mainNav.classList.contains('active') 
-                ? '<i class="fas fa-times"></i>' 
-                : '<i class="fas fa-bars"></i>';
-        });
-        
-        // Simple testimonial slider
-        let currentTestimonial = 0;
-        const testimonials = document.querySelectorAll('.testimonial-card');
-        
-        function showTestimonial(index) {
-            testimonials.forEach(testimonial => {
-                testimonial.style.display = 'none';
-            });
-            
-            testimonials[index].style.display = 'block';
-        }
-        
-        function nextTestimonial() {
-            currentTestimonial = (currentTestimonial + 1) % testimonials.length;
-            showTestimonial(currentTestimonial);
-        }
-        
-        // Initialize first testimonial
-        showTestimonial(0);
-        
-        // Auto-rotate testimonials every 5 seconds
-        setInterval(nextTestimonial, 5000);
-        
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                const targetId = this.getAttribute('href');
-                if (targetId === '#') return;
-                
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth'
-                    });
-                }
-            });
-        });
-    </script>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./quiz-data.js"></script>
+    <script src="./quiz.js"></script>
+  </body>
 </html>
