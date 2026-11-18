@@ -1,0 +1,5 @@
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:400 850;font-display:swap;src:url('fraunces.woff2') format('woff2');}
+@font-face{font-family:'Fraunces';font-style:italic;font-weight:400 850;font-display:swap;src:url('fraunces-italic.woff2') format('woff2');}
+@font-face{font-family:'DM Sans';font-style:normal;font-weight:400 750;font-display:swap;src:url('dm-sans.woff2') format('woff2');}
+@font-face{font-family:'Caveat';font-style:normal;font-weight:500 700;font-display:swap;src:url('caveat.woff2') format('woff2');}
+@font-face{font-family:'Hindi';font-style:normal;font-weight:400 600;font-display:swap;src:url('hindi.woff2') format('woff2');unicode-range:U+0900-097F,U+A8E0-A8FF,U+1CD0-1CFF,U+200C-200D,U+20B9;}

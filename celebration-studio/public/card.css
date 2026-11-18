@@ -1,0 +1,1445 @@
+.paper-card,
+.paper-card *,
+.theatre,
+.theatre *,
+.itinerary,
+.itinerary * {
+  box-sizing: border-box;
+}
+.paper-card {
+  position: relative;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 22%, #fff);
+  background: var(--card-paper, #fcf3e8);
+  color: var(--card-ink, #723449);
+  text-align: center;
+  box-shadow: 0 8px 27px #4b362a12;
+}
+.paper-art {
+  position: relative;
+  aspect-ratio: 2.8;
+  overflow: hidden;
+}
+.paper-art > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 55% 48%;
+}
+.paper-art > span,
+.ticket-art > span {
+  position: absolute;
+  bottom: 9px;
+  left: 13px;
+  color: #fff;
+  font:
+    650 8px/1.3 'DM Sans',
+    sans-serif;
+  letter-spacing: 0.14em;
+  background: #38252884;
+  padding: 4px 7px;
+  border-radius: 3px;
+}
+.paper-body {
+  position: relative;
+  padding: 24px clamp(18px, 4vw, 47px) 15px;
+  overflow-wrap: anywhere;
+}
+.paper-body:before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 23%, transparent);
+  pointer-events: none;
+}
+.paper-orn,
+.paper-coda {
+  opacity: 0.65;
+  font-family: Georgia, serif;
+}
+.paper-orn {
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.paper-body small,
+.ticket-face small,
+.itinerary > small {
+  font:
+    660 9px/1.5 'DM Sans',
+    'Hindi',
+    sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.paper-body h2,
+.ticket-face h1 {
+  font: 470 clamp(32px, 5vw, 57px) / 1.22 var(--card-font, Georgia, serif);
+  letter-spacing: -0.045em;
+  margin: 5px 0 12px;
+  overflow-wrap: anywhere;
+}
+.paper-body .letter-msg {
+  white-space: pre-line;
+  font:
+    400 15px/1.8 'DM Sans',
+    'Hindi',
+    sans-serif;
+  max-width: 53ch;
+  margin: 10px auto 13px;
+}
+.portrait {
+  display: block;
+  max-width: 170px;
+  max-height: 170px;
+  border-radius: 7px;
+  margin: 10px auto;
+  object-fit: contain;
+  border: 5px solid #fffaf2;
+  box-shadow: 0 3px 10px #31232217;
+}
+.sign {
+  font-size: 13px;
+}
+.sign b {
+  font-weight: 600;
+}
+.paper-meta {
+  border-top: 1px solid color-mix(in srgb, var(--card-ink) 23%, transparent);
+  padding-top: 11px;
+  margin-top: 16px;
+  font:
+    550 12px/1.6 'DM Sans',
+    'Hindi',
+    sans-serif;
+}
+.paper-coda {
+  font-size: 22px;
+  margin-top: 8px;
+}
+.theatre {
+  min-height: 100dvh;
+  color: var(--card-ink);
+  background: radial-gradient(ellipse at 15% 0, #ffffffb3, transparent 47%), var(--card-paper);
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.theatre-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px clamp(15px, 4vw, 60px);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-ink) 12%, transparent);
+}
+.theatre-tools > div {
+  display: flex;
+  gap: 6px;
+}
+.mini-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 500 21px/1 var(--serif, Georgia);
+  letter-spacing: -0.045em;
+}
+.mini-brand img {
+  width: 28px;
+}
+.guest-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 18px;
+}
+.ticket {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  max-width: 860px;
+  width: 100%;
+  min-height: 405px;
+  border: 1px solid color-mix(in srgb, var(--card-ink) 26%, transparent);
+  border-radius: 15px;
+  overflow: hidden;
+  background: var(--card-paper);
+  box-shadow: 0 20px 65px #5439271c;
+  animation: arrive 0.45s ease-out;
+}
+.ticket-art {
+  position: relative;
+}
+.ticket-art > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 60% center;
+}
+.ticket-art:after {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border: 1px solid #fffbdf80;
+  border-radius: 5px;
+}
+.ticket-art > span {
+  z-index: 1;
+  bottom: 22px;
+  left: 22px;
+}
+.ticket-face {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+}
+.ticket-face h1 {
+  margin: 0;
+}
+.ticket-face > p {
+  font-size: 13px;
+  margin: 8px 0 17px;
+}
+.open-card {
+  background: var(--card-ink);
+  color: white;
+  border-radius: 100px !important;
+}
+.scene-icon {
+  position: relative;
+  width: 105px;
+  height: 105px;
+  display: grid;
+  place-items: center;
+  margin: 9px 0;
+  perspective: 340px;
+}
+.scene-icon svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 4px #512e2017);
+}
+.scene-icon .flame {
+  animation: flame 0.85s ease-in-out alternate infinite;
+  transform-origin: 70px 73px;
+}
+.scene-icon .float,
+.scene-icon.balloon svg {
+  animation: float 3s ease-in-out infinite;
+}
+.lift,
+.burst,
+.float {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.unseal .lift {
+  animation: lift 0.47s ease forwards;
+}
+.unseal .burst,
+.unseal .float,
+.unseal .flame {
+  animation: bloom 0.47s ease forwards;
+}
+.unseal .scene-icon.scratch {
+  opacity: 0;
+  transition: opacity 0.44s;
+}
+.scene-icon canvas {
+  position: absolute;
+  width: 83%;
+  height: 60%;
+  border-radius: 5px;
+  touch-action: none;
+  cursor: crosshair;
+}
+.guest-letter {
+  width: min(590px, 100%);
+  animation: arrive 0.4s ease-out;
+}
+.itinerary {
+  margin: 16px 0;
+  border: 1px solid #ddcfc2;
+  border-radius: 11px;
+  overflow-wrap: anywhere;
+  padding: 21px;
+  background: #fffdf8;
+  color: #493c36;
+}
+.itinerary > small {
+  color: #987650;
+}
+.itinerary h3 {
+  font:
+    500 26px/1.2 'Fraunces',
+    'Hindi',
+    Georgia,
+    serif;
+  letter-spacing: -0.04em;
+  margin: 5px 0 10px;
+}
+.itinerary h4 {
+  font-size: 13px;
+  margin: 17px 0 4px;
+}
+.itinerary > p {
+  margin: 5px 0;
+  color: #70655e;
+  font-size: 14px;
+}
+.itinerary ul {
+  padding-left: 19px;
+  line-height: 1.8;
+}
+.itinerary video {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  margin: 9px 0 0;
+  border-radius: 7px;
+}
+.countdown {
+  text-align: center;
+  font:
+    650 13px/1.6 'DM Sans',
+    'Hindi',
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  padding: 13px;
+  background: #fff9ed;
+  border: 1px solid #d8c9b8;
+  border-radius: 7px;
+  margin-top: 15px;
+}
+.guest-actions {
+  justify-content: center;
+  margin-top: 15px;
+}
+.theatre-end {
+  text-align: center;
+  font-size: 9px;
+  padding: 14px;
+  color: inherit;
+  opacity: 0.7;
+}
+.preview-hint,
+.reply-status {
+  font-size: 12px;
+  margin: 13px 0;
+}
+.reply-status:empty {
+  display: none;
+}
+.confetti-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  overflow: hidden;
+  pointer-events: none;
+}
+.confetti-fx i {
+  position: absolute;
+  top: -17px;
+  width: 6px;
+  height: 11px;
+  border-radius: 2px;
+  animation: fall 3s linear both;
+}
+.guest-letter .rsvp-form {
+  margin-top: 13px;
+}
+.rsvp-form .btn {
+  margin-top: 4px;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes lift {
+  to {
+    transform: translateY(-19px) rotateX(65deg);
+    opacity: 0.25;
+  }
+}
+@keyframes bloom {
+  to {
+    transform: scale(1.65) rotate(-9deg);
+    opacity: 0;
+  }
+}
+@keyframes flame {
+  to {
+    transform: scale(0.92, 1.08);
+  }
+}
+@keyframes float {
+  50% {
+    transform: translateY(-5px) rotate(3deg);
+  }
+}
+@keyframes fall {
+  to {
+    transform: translate(var(--drift), 105vh) rotate(450deg);
+  }
+}
+@media (max-width: 620px) {
+  .ticket {
+    max-width: 410px;
+    min-height: 0;
+    grid-template-columns: 1fr;
+  }
+  .ticket-art {
+    height: clamp(145px, 24vh, 200px);
+  }
+  .ticket-art > img {
+    object-position: 50% 50%;
+  }
+  .ticket-face {
+    padding: 20px 16px 25px;
+  }
+  .scene-icon {
+    width: 76px;
+    height: 76px;
+  }
+  .mini-brand {
+    font-size: 17px;
+  }
+  .mini-brand img {
+    width: 23px;
+  }
+  .theatre-tools {
+    padding: 12px;
+  }
+  .theatre-tools .btn {
+    font-size: 10px;
+  }
+  .guest-stage {
+    padding: 18px 14px;
+  }
+  .paper-body {
+    padding: 18px 20px 12px;
+  }
+  .paper-body .letter-msg {
+    font-size: 14px;
+  }
+  .itinerary {
+    padding: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theatre *,
+  .scene-icon * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .confetti-fx {
+    display: none;
+  }
+}
+
+/* Six-leaf invitation books. The same stationery is embedded in the HTML keepsake. */
+.book-leaf {
+  --page-ink: var(--card-ink);
+  --page-paper: var(--card-paper);
+  --rule: color-mix(in srgb, var(--page-ink) 27%, transparent);
+  --wash: color-mix(in srgb, var(--page-ink) 5%, var(--page-paper));
+  --surface: color-mix(in srgb, white 56%, var(--page-paper));
+  --letter: 'DM Sans', Hindi, Arial, sans-serif;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  background: var(--page-paper);
+  background-image: var(--stock, none);
+  color: var(--page-ink);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  box-shadow: 0 8px 29px #44362c16;
+  font: 14px/1.65 var(--letter);
+}
+.book-leaf * {
+  box-sizing: border-box;
+}
+.book-leaf[data-function='birthday'] {
+  --stock: radial-gradient(#b86a8023 1px, transparent 1.8px);
+  background-size: 13px 13px;
+}
+.book-leaf[data-function='wedding'] {
+  --stock: repeating-linear-gradient(45deg, #b3894110 0 1px, transparent 1px 8px);
+}
+.book-leaf[data-function='engagement'] {
+  --stock: radial-gradient(ellipse at 15% 10%, #dfb96b45, transparent 55%);
+}
+.book-leaf[data-function='anniversary'] {
+  --stock: repeating-linear-gradient(0deg, transparent 0 4px, #a7814320 5px);
+}
+.book-leaf[data-function='diwali'] {
+  --stock: radial-gradient(ellipse at 50% 70%, #eaba4d36, transparent 65%);
+}
+.book-leaf[data-function='holi'] {
+  --stock:
+    radial-gradient(ellipse at 5% 90%, #4bbcb32e, transparent 42%),
+    radial-gradient(ellipse at 100% 0%, #e3769c44, transparent 50%);
+}
+.book-leaf[data-function='raksha-bandhan'] {
+  --stock: repeating-linear-gradient(90deg, #ba784118 0 1px, transparent 1px 6px);
+}
+.book-leaf[data-function='baby-shower'] {
+  --stock:
+    radial-gradient(circle at 15% 0%, #d6b7c967, transparent 44%),
+    radial-gradient(circle at 90% 80%, #9abeb755, transparent 45%);
+}
+.book-leaf[data-function='housewarming'] {
+  --stock: repeating-linear-gradient(125deg, #60896616 0 1px, transparent 1px 12px);
+}
+.book-leaf[data-function='festival-party'] {
+  --stock: linear-gradient(130deg, #a45aa529, transparent 42%, #6ed4cc33);
+}
+.book-leaf[data-function='karwa-chauth'] {
+  --stock: radial-gradient(ellipse at 85% 10%, #dfb6b958, transparent 45%);
+}
+.book-leaf[data-function='new-year'] {
+  --stock: radial-gradient(#bd945330 1px, transparent 1.6px);
+  background-size: 13px 13px;
+}
+.book-leaf[data-function='christmas'] {
+  --stock: repeating-linear-gradient(-45deg, #548a7420 0 2px, transparent 2px 10px);
+}
+.book-leaf[data-edition='folio'] {
+  border-radius: 2px;
+  border-left: 6px solid var(--card-accent);
+  box-shadow:
+    3px 4px 0 var(--surface),
+    4px 5px 0 var(--rule);
+  --surface: #fff8e9;
+}
+.book-leaf[data-edition='nocturne'],
+.book-leaf[data-function='festival-party'][data-edition='signature'] {
+  --page-ink: #fff0d8;
+  --page-paper: var(--card-dark);
+  --surface: color-mix(in srgb, var(--card-dark) 87%, #e9bf82);
+  --wash: color-mix(in srgb, var(--card-dark) 92%, #e9bf82);
+  --rule: #d9b77267;
+  border-color: #b99459;
+}
+.leaf-folio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--rule);
+  font: 650 9px/1.5 var(--letter);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: var(--wash);
+}
+.leaf-folio b {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cover-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  min-height: 335px;
+}
+.cover-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--rule);
+  background: var(--wash);
+  overflow: hidden;
+}
+.cover-art img {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  object-fit: cover;
+}
+.cover-art b {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  font: 500 17px Georgia;
+  width: 27px;
+  height: 27px;
+  border: 1px solid #c09e6e;
+  background: #fff4df;
+  color: #876435;
+  border-radius: 100%;
+}
+.cover-title {
+  align-self: center;
+  text-align: center;
+  padding: 27px 15px;
+}
+.cover-title small,
+.leaf-heading > small,
+.venue-slip > small,
+.program-slip > small,
+.set-list > small,
+.menu-card > small,
+.rite-grid small {
+  font: 650 10px/1.6 var(--letter);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.cover-title small {
+  display: inline-block;
+  border-block: 1px solid var(--rule);
+  padding: 4px 1px;
+}
+.cover-title h2,
+.leaf-heading h2 {
+  font: 470 clamp(28px, 4vw, 54px) / 1.16 var(--card-font, Georgia, serif);
+  letter-spacing: -0.045em;
+  margin: 12px 0;
+}
+.cover-title p,
+.leaf-heading p {
+  font-size: 14px;
+  margin: 5px 0;
+}
+.cover-sign {
+  margin-top: 18px;
+  font-size: 12px;
+}
+.cover-tags {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 13px;
+}
+.cover-tags span {
+  border: 1px solid var(--rule);
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+}
+.cover-title .portrait {
+  max-width: min(112px, 70%);
+  max-height: 110px;
+  object-fit: contain;
+  border-radius: 48% 48% 6px 6px;
+}
+.book-leaf[data-edition='folio'] .cover-grid {
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+.book-leaf[data-edition='folio'] .cover-art {
+  border: 0;
+  border-bottom: 2px dashed var(--rule);
+  height: 148px;
+}
+.book-leaf[data-edition='folio'] .cover-art img {
+  object-position: center;
+}
+.book-leaf[data-edition='folio'] .cover-title {
+  padding: 19px 7% 29px;
+  text-align: left;
+}
+.book-leaf[data-edition='folio'] .cover-tags {
+  justify-content: start;
+}
+.book-leaf[data-edition='folio'] .portrait {
+  float: right;
+  margin: 2px 0 4px 10px;
+  border-radius: 1px;
+  transform: rotate(3deg);
+}
+.book-leaf[data-edition='nocturne'] .cover-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px;
+}
+.book-leaf[data-edition='nocturne'] .cover-art {
+  width: min(305px, 80%);
+  height: 140px;
+  border: 1px solid var(--rule);
+  border-radius: 130px 130px 3px 3px;
+}
+.book-leaf[data-edition='nocturne'] .cover-title {
+  padding: 16px 4px 5px;
+}
+.book-leaf[data-function='wedding'] .portrait,
+.book-leaf[data-function='engagement'] .portrait {
+  border-radius: 80px 80px 4px 4px;
+  outline: 1px solid #b99056;
+}
+.book-leaf[data-function='anniversary'] .portrait,
+.book-leaf[data-function='raksha-bandhan'] .portrait {
+  border-radius: 0;
+  transform: rotate(-3deg);
+  border-bottom-width: 10px;
+}
+.leaf-inner {
+  padding: clamp(17px, 3.5vw, 36px);
+}
+.leaf-heading {
+  text-align: center;
+  position: relative;
+  max-width: 38em;
+  margin: 0 auto 18px;
+}
+.chapter-mark {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 6px;
+  width: 37px;
+  height: 37px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  font: 22px/1 Georgia;
+  background: var(--surface);
+}
+.leaf-heading h2 {
+  font-size: clamp(26px, 3.6vw, 43px);
+  margin: 5px 0;
+}
+.leaf-heading p {
+  font-size: 13px;
+  opacity: 0.91;
+}
+.leaf-content {
+  display: flow-root;
+  min-width: 0;
+}
+.book-leaf[data-edition='folio'] .leaf-heading {
+  text-align: left;
+  border-bottom: 1px dashed var(--rule);
+  padding-bottom: 14px;
+}
+.book-leaf[data-edition='folio'] .chapter-mark {
+  float: right;
+  margin: 0 0 5px 8px;
+  border-radius: 2px;
+  transform: rotate(8deg);
+}
+.book-leaf[data-edition='nocturne'] .leaf-inner {
+  margin: 8px;
+  border: 1px solid var(--rule);
+}
+.book-leaf[data-function='festival-party'] .leaf-heading {
+  text-align: left;
+}
+.book-leaf[data-function='festival-party'] .chapter-mark {
+  float: right;
+  border-radius: 3px;
+}
+.written-note,
+.letter-msg,
+.album-inscription,
+.wish-wall blockquote,
+.ledger-list li,
+.track-list li,
+.timeline-list li,
+.venue-slip p,
+.menu-card li,
+.printed-link a {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.written-note,
+.album-inscription {
+  margin: 8px 0;
+  font-size: 14px;
+}
+.album-inscription {
+  text-align: center;
+  font-style: italic;
+}
+.host-letter,
+.story-opening {
+  border: 1px solid var(--rule);
+  padding: 12px 22px 18px;
+  text-align: center;
+  margin: 14px 0 0;
+  background: var(--surface);
+}
+.host-letter > div {
+  font: 45px/0.9 Georgia;
+  color: var(--card-accent);
+  height: 25px;
+}
+.host-letter p {
+  margin: 5px 0;
+  font-size: 15px;
+  line-height: 1.85;
+}
+.host-letter cite {
+  display: block;
+  margin-top: 9px;
+  font: italic 18px/1.4 var(--card-font, Georgia);
+}
+.story-opening {
+  border-inline: 0;
+  background: transparent;
+  margin: 0 0 12px;
+}
+.family-spread,
+.rite-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.family-spread > div,
+.rite-grid > div {
+  padding: 14px 12px;
+  border: 1px solid var(--rule);
+  text-align: center;
+  background: var(--surface);
+  border-radius: 55px 55px 3px 3px;
+}
+.family-spread h3,
+.rite-grid h3,
+.introduction h3,
+.response h3 {
+  font: 500 24px/1.3 var(--card-font, Georgia);
+  letter-spacing: -0.035em;
+  margin: 4px 0;
+}
+.family-spread .written-note {
+  font-size: 13px;
+}
+.family-spread > div > span {
+  font: italic 15px Georgia;
+  color: var(--card-accent);
+}
+.rite-grid > div {
+  border-radius: 4px;
+  text-align: left;
+  border-top: 3px solid var(--card-accent);
+}
+.rite-grid small {
+  font-size: 8px;
+}
+.wish-wall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: center;
+}
+.wish-wall blockquote {
+  position: relative;
+  flex: 1 1 120px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--card-accent);
+  padding: 12px 11px;
+  margin: 0;
+  font: italic 17px/1.5 var(--card-font, Georgia);
+  text-align: center;
+}
+.wish-wall i {
+  display: block;
+  font: 16px Georgia;
+  color: var(--card-accent);
+}
+.chapter-seal {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border: 3px double var(--card-accent);
+  border-radius: 50%;
+  margin: 8px auto;
+  font: 34px Georgia;
+}
+.chapter-seal i {
+  font-style: normal;
+}
+.seal-caption,
+.introduction,
+.reveal-object {
+  text-align: center;
+}
+.reveal-object details {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  max-width: 440px;
+  margin: 14px auto;
+  padding: 13px 16px;
+}
+.reveal-object summary {
+  cursor: pointer;
+  font-weight: 650;
+  list-style: none;
+}
+.reveal-object summary span {
+  font-size: 16px;
+  color: var(--card-accent);
+}
+.reveal-object details[open] summary span {
+  display: none;
+}
+.reveal-object .written-note {
+  border-top: 1px dashed var(--rule);
+  padding-top: 14px;
+}
+.kind-thread .chapter-seal {
+  border: 5px double #ba753e;
+  background: repeating-conic-gradient(#d39958 0deg 12deg, #f2cc84 12deg 24deg);
+  color: #803e34;
+}
+.kind-promise .chapter-seal {
+  transform: rotate(-10deg);
+  border: 4px double #b49357;
+  color: #b49357;
+}
+.kind-cake .chapter-seal {
+  border-style: dashed;
+  background: #f9dfbf;
+  color: #914a63;
+}
+.ledger-list,
+.track-list,
+.timeline-list {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+.ledger-list li,
+.track-list li,
+.timeline-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 2px;
+  border-bottom: 1px dashed var(--rule);
+}
+.ledger-list i,
+.track-list i,
+.timeline-list i {
+  font: italic 18px var(--card-font, Georgia);
+  opacity: 0.78;
+}
+.timeline-list {
+  padding: 0 8px;
+  border-left: 2px solid var(--card-accent);
+}
+.timeline-list li {
+  position: relative;
+  padding: 11px 14px;
+}
+.timeline-list li:before {
+  position: absolute;
+  left: -14px;
+  top: 17px;
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--card-accent);
+}
+.lamp-row {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 16px;
+  margin: 28px 0 8px;
+}
+.lamp-row i {
+  display: block;
+  position: relative;
+  width: 26px;
+  height: 13px;
+  border-radius: 8% 8% 50% 50%;
+  border-top: 3px solid #d4a854;
+  background: #a95736;
+}
+.lamp-row b {
+  position: absolute;
+  left: 9px;
+  bottom: 12px;
+  width: 8px;
+  height: 15px;
+  border-radius: 85% 10% 70% 40%;
+  background: #8c793f;
+  opacity: 0.4;
+}
+.lamp-row.lit b {
+  opacity: 1;
+  background: #ffc555;
+  box-shadow: 0 0 11px #e6953599;
+  animation: flame 0.8s ease-in-out infinite alternate;
+}
+.ritual-button,
+.powder-picks button,
+.album-controls button {
+  border: 1px solid var(--rule);
+  border-radius: 99px;
+  padding: 5px 11px;
+  font: 600 12px var(--letter);
+  color: var(--page-ink);
+  cursor: pointer;
+  background: var(--surface);
+}
+.ritual-button {
+  display: block;
+  margin: 10px auto;
+}
+.colour-program {
+  border-left: 5px solid var(--gulal);
+  background: color-mix(in srgb, var(--gulal) 12%, var(--surface));
+  padding: 14px;
+}
+.powder-picks {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.powder-picks button {
+  color: white;
+  background: var(--powder);
+  border: 2px solid transparent;
+}
+.powder-picks button[aria-pressed='true'] {
+  outline: 2px solid var(--powder);
+  outline-offset: 1px;
+}
+.menu-card {
+  text-align: center;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 15px 18px 19px;
+  border: 3px double var(--rule);
+  background: var(--surface);
+}
+.menu-card > div {
+  font: 24px Georgia;
+  color: var(--card-accent);
+}
+.menu-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font: italic 18px/1.6 var(--card-font, Georgia);
+}
+.set-list {
+  color: #ffeace;
+  background: var(--card-dark);
+  border-radius: 6px;
+  padding: 15px 20px;
+  border-left: 4px solid var(--card-accent);
+}
+.track-list li {
+  border-color: #fff2;
+}
+.track-list i {
+  color: #f2bb8f;
+  font-variant-numeric: tabular-nums;
+}
+.venue-slip,
+.program-slip,
+.response {
+  margin-top: 14px;
+  padding: 15px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+.venue-slip {
+  border-left: 4px solid var(--card-accent);
+}
+.venue-slip > small,
+.venue-slip strong {
+  display: block;
+}
+.venue-slip > strong {
+  font: 510 23px/1.45 var(--card-font, Georgia);
+  margin: 6px 0;
+}
+.venue-slip p {
+  margin: 3px 0;
+}
+.map-link,
+.printed-link a {
+  display: inline-block;
+  margin-top: 5px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.program-slip small {
+  font-size: 10px;
+}
+.profile-print {
+  display: block;
+  max-width: 175px;
+  max-height: 190px;
+  border: 6px solid var(--surface);
+  border-radius: 60px 60px 10px 10px;
+  margin: 5px auto 10px;
+}
+.album-flyleaf {
+  background: var(--wash);
+  border: 1px dashed var(--rule);
+  text-align: center;
+  padding: 20px 12px;
+}
+.album-flyleaf p {
+  font-size: 12px;
+}
+.chapter-album {
+  max-width: 540px;
+  margin: 12px auto;
+}
+.chapter-album figure {
+  padding: 9px;
+  margin: 8px 0;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  box-shadow: 0 2px 7px #52352115;
+}
+.chapter-album figure[hidden] {
+  display: none;
+}
+.chapter-album figure img,
+.chapter-album figure video {
+  display: block;
+  width: 100%;
+  height: clamp(150px, 33vh, 300px);
+  object-fit: contain;
+  background: var(--wash);
+}
+.chapter-album figcaption {
+  padding: 6px 3px 1px;
+  font-size: 12px;
+}
+.chapter-album figcaption b {
+  margin-right: 8px;
+  color: var(--card-accent);
+}
+.album-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 9px;
+  font-size: 11px;
+}
+.album-controls button {
+  min-width: 36px;
+  min-height: 32px;
+  font-size: 16px;
+}
+.film-ticket {
+  border: 1px dashed var(--rule);
+  padding: 13px;
+}
+.book-toolbar,
+.page-turns,
+.offline-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.book-toolbar {
+  margin-bottom: 11px;
+}
+.book-toolbar > span,
+.page-turns > span,
+.book-toolbar label {
+  font:
+    600 10px/1.4 'DM Sans',
+    Hindi,
+    sans-serif;
+}
+.book-toolbar > span {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.book-toolbar select {
+  display: inline-block;
+  width: auto;
+  max-width: min(42vw, 215px);
+  color: var(--card-ink);
+  background: #fffaf1;
+  border: 1px solid #d9c7b6;
+  border-radius: 5px;
+  padding: 5px;
+  font:
+    500 12px/1.5 'DM Sans',
+    Hindi,
+    sans-serif;
+}
+.guest-book {
+  width: min(700px, 100%);
+  min-width: 0;
+}
+.guest-book > .book-leaf {
+  animation: page-arrive 0.28s ease-out;
+}
+.page-turns {
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-ink) 20%, transparent);
+}
+.page-turns .btn {
+  min-width: 88px;
+}
+.page-turns .primary,
+.response .primary {
+  background: var(--card-ink);
+  border-color: var(--card-ink);
+  color: white;
+}
+.guest-actions .btn {
+  font-size: 12px;
+  padding: 7px 12px;
+  min-height: 35px;
+}
+.theatre .response {
+  color: #4b3833;
+  background: #fffbf4;
+}
+.response > p {
+  font-size: 12px;
+  margin: 4px 0;
+}
+.theatre-nocturne {
+  background: radial-gradient(ellipse at 10% 0%, #ffffff88, transparent 60%), var(--card-paper);
+}
+.theatre-tools > div {
+  flex-wrap: wrap;
+  justify-content: end;
+}
+.theatre-tools .language {
+  font-family: 'DM Sans', Hindi, sans-serif;
+}
+.printed-link {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  font-size: 12px;
+}
+.printed-link img {
+  image-rendering: pixelated;
+  max-width: 30%;
+  height: auto;
+}
+.offline-nav {
+  padding: 12px 0;
+}
+.preview-frame .cover-grid {
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+.preview-frame .cover-art {
+  height: 137px;
+  border: 0;
+}
+.preview-frame .cover-art img {
+  object-fit: cover;
+}
+.preview-frame .cover-title {
+  padding: 16px 12px;
+}
+.preview-frame .cover-title h2,
+.preview-frame .leaf-heading h2 {
+  font-size: 30px;
+}
+.preview-frame .leaf-inner {
+  padding: 18px;
+}
+.preview-frame .cover-title .portrait {
+  max-height: 83px;
+  max-width: 100px;
+}
+.preview-frame .book-leaf[data-edition='nocturne'] .cover-art {
+  height: 110px;
+}
+.preview-frame .chapter-album figure img,
+.preview-frame .chapter-album figure video {
+  height: 170px;
+}
+@keyframes page-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(9px);
+  }
+}
+@media (max-width: 620px) {
+  .cover-grid {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .cover-art {
+    height: 160px;
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cover-art img {
+    object-position: center;
+  }
+  .cover-title {
+    padding: 19px 14px;
+  }
+  .cover-title .portrait {
+    max-height: 90px;
+  }
+  .leaf-inner {
+    padding: 17px;
+  }
+  .leaf-heading h2 {
+    font-size: 29px;
+  }
+  .book-toolbar select {
+    max-width: 46vw;
+  }
+  .theatre-tools .mini-brand {
+    max-width: 38%;
+  }
+  .theatre-tools .btn {
+    padding: 6px 8px;
+  }
+  .book-leaf .family-spread h3,
+  .book-leaf .rite-grid h3 {
+    font-size: 19px;
+  }
+  .guest-actions {
+    gap: 5px;
+  }
+  .guest-actions .btn {
+    font-size: 10px;
+    padding: 6px 9px;
+  }
+  .response .two {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .response .field {
+    margin: 8px 0;
+  }
+  .plate-go {
+    font-size: 10px;
+  }
+}
+@media print {
+  .book-sheet {
+    break-after: page;
+    margin: 0;
+  }
+  .book-sheet:last-child {
+    break-after: auto;
+  }
+  .offline-nav,
+  .album-controls {
+    display: none;
+  }
+  .book-leaf {
+    overflow: visible;
+    box-shadow: none !important;
+  }
+  .chapter-album figure {
+    break-inside: avoid;
+  }
+  .chapter-album figure img {
+    height: auto;
+    max-height: 185px;
+  }
+  .book-sheet .leaf-inner {
+    padding: 18px;
+  }
+  .printed-link img {
+    width: 96px;
+  }
+  .book-sheet .cover-grid {
+    min-height: 340px;
+  }
+  .book-sheet .cover-art {
+    min-height: 140px;
+  }
+  .book-sheet .host-letter {
+    break-inside: avoid;
+  }
+  .book-sheet .book-leaf[data-edition='nocturne'] {
+    print-color-adjust: exact;
+  }
+  .book-sheet a {
+    color: inherit;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .book-leaf *,
+  .guest-book > .book-leaf {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+/* Keep the plate centred even in a short proof frame (SVG intrinsic ratios otherwise
+   grow the implicit grid track to the full image height). */
+.cover-art > img {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+.preview-frame .cover-art {
+  height: clamp(145px, 15vw, 212px);
+}
+.theatre[data-function='birthday'] {
+  background:
+    radial-gradient(circle at 8% 19%, #e6ac7e45 0 7px, transparent 8px),
+    radial-gradient(circle at 94% 67%, #cb8fa74a 0 10px, transparent 11px),
+    linear-gradient(132deg, var(--card-paper), #f6dfd4);
+}
+.theatre[data-function='wedding'] {
+  background:
+    repeating-linear-gradient(120deg, #ab8b4b0c 0 1px, transparent 1px 9px),
+    radial-gradient(ellipse at 50% 40%, #fff9e9, var(--card-paper) 60%, #ddc2a5);
+}
+.theatre[data-function='engagement'],
+.theatre[data-function='anniversary'] {
+  background:
+    radial-gradient(ellipse at 10% 90%, #d4b38755, transparent 55%),
+    radial-gradient(ellipse at 95% 5%, #eabfb767, transparent 50%), var(--card-paper);
+}
+.theatre[data-function='holi'] {
+  background:
+    radial-gradient(ellipse at 0 20%, #e9a2b789, transparent 46%),
+    radial-gradient(ellipse at 100% 85%, #80bfb18a, transparent 50%), var(--card-paper);
+}
+.theatre[data-function='baby-shower'] {
+  background:
+    radial-gradient(ellipse at 0 80%, #c2d9c9, transparent 52%),
+    radial-gradient(ellipse at 100% 5%, #f0c7cb, transparent 50%), var(--card-paper);
+}
+.theatre[data-function='diwali'],
+.theatre[data-function='festival-party'],
+.theatre.theatre-nocturne {
+  color: #f9ebd9;
+  background:
+    radial-gradient(
+      ellipse at 0 100%,
+      color-mix(in srgb, var(--card-accent) 30%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(ellipse at 100% 0%, #ffffff14, transparent 40%), var(--card-dark);
+}
+.theatre[data-function='festival-party'] {
+  background:
+    linear-gradient(130deg, #e36ba52c, transparent 50%, #64c6bd25),
+    repeating-linear-gradient(0deg, transparent 0 22px, #d6c3e90a 22px 23px), var(--card-dark);
+}
+.theatre .ticket,
+.theatre .countdown,
+.theatre-tools .btn,
+.theatre .guest-actions .btn,
+.page-turns .plain {
+  color: var(--card-ink);
+}
