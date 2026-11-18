@@ -17,7 +17,7 @@ Personal templates are stored only in this browser, not published to everybody�
 
 ### Switch between studios
 
-On [Birthday Wishes](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/), **Dashboard** in the top navigation opens **Celebration Studio → My invitations**. There, **Open Birthday Wishes** takes you back and **My birthday wishes** opens your saved wish cards directly. The six original greeting-card designs and their wish links are separate from the 100 birthday *invitation* templates; no drafts need to be copied or converted.
+On [Birthday Wishes](https://abhishekagrahari307-max.github.io/Tools/birthday-wishes/), **Dashboard** in the top navigation opens **Celebration Studio → My invitations**. There, **Open Birthday Wishes** takes you back and **My birthday wishes** opens your saved wish cards directly. The six original greeting-card designs and their wish links are separate from the 100 birthday _invitation_ templates; no drafts need to be copied or converted. A second, independent row on the dashboard opens [Wishlys](../wishlys-studio/README.md), the illustrated birthday _letter_ studio. It has its own storage, guest links and keepsake; nothing is shared with Wishcraft or with your invitation drafts.
 
 ### What travels with a link?
 

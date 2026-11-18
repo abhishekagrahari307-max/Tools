@@ -23,10 +23,10 @@ async function fixture() {
     if (p.endsWith('/')) p += 'index.html';
     if (
       (p.startsWith('/Tools/') &&
-        ['index.html', 'celebration-studio/index.html', 'birthday-wishes/index.html'].includes(
+        ['index.html', 'celebration-studio/index.html', 'birthday-wishes/index.html', 'wishlys-studio/index.html'].includes(
           p.slice(7),
         )) ||
-      /^\/Tools\/celebration-studio\/public\/[\w./-]+$/.test(p)
+      /^\/Tools\/(?:celebration-studio\/public|wishlys-studio)\/[\w./-]+$/.test(p)
     ) {
       try {
         const body = await fs.readFile(path.join(root, p.slice(7)));

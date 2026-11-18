@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#fbf8f1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      name="description"
+      content="Make a birthday letter with illustrated stationery, a photo album and a melody. Send a guest link, no login needed."
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Wishlys — Birthday Letter Studio</title>
+    <link rel="icon" href="mark.svg" />
+    <link rel="stylesheet" href="../celebration-studio/public/assets/fonts.css" />
+    <link rel="stylesheet" href="stationery.css" />
+    <link rel="stylesheet" href="studio.css" />
+    <script type="module" src="studio.js"></script>
+  </head>
+  <body>
+    <div id="workspace">
+      <a class="skip" href="#desk">Skip to content</a>
+      <header class="bar">
+        <div class="shell nav">
+          <a class="brand" href="#/" aria-label="Wishlys birthday letter studio"
+            ><span class="wordmark">Wishlys<span aria-hidden="true">✳</span></span
+            ><span class="submark">BIRTHDAY<br />LETTER STUDIO</span></a
+          >
+          <nav aria-label="Workspaces">
+            <a href="#/letters">My letters</a
+            ><a class="dashboard-link" href="../celebration-studio/#/dashboard">Dashboard ↗</a>
+          </nav>
+        </div>
+      </header>
+      <main id="desk" tabindex="-1">
+        <div class="shell loading">Opening the birthday letter desk…</div>
+      </main>
+      <footer class="desk-footer">
+        <div class="shell">
+          <span>WISHLYS &nbsp; / &nbsp; BIRTHDAY CORRESPONDENCE</span
+          ><a href="../celebration-studio/#/dashboard">Celebration Dashboard ↗</a>
+        </div>
+      </footer>
+    </div>
+    <div id="shade" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+        <button class="close" aria-label="Close">×</button>
+        <p class="overline">WISHLYS &nbsp; / &nbsp; OUTGOING POST</p>
+        <h2 id="dialog-title" tabindex="-1"></h2>
+        <div id="dialog-body"></div>
+      </section>
+    </div>
+    <noscript
+      >Please enable JavaScript to edit and open Wishlys birthday letters.
+      <a href="../celebration-studio/#/dashboard">Back to Dashboard</a>.</noscript
+    >
+  </body>
+</html>
