@@ -41,11 +41,18 @@ const fontMap = {
 export const editionOf = (d) =>
   ['folio', 'nocturne'].includes(d.design.edition) ? d.design.edition : 'signature';
 export function vars(d) {
-  const [ink, paper, accent, dark] = eventOf(d.occasion).colors,
+  const [ink, paper, eventAccent, eventDark] = eventOf(d.occasion).colors,
     p = state.catalog.palettes[d.palette] || state.catalog.palettes.wine,
+    accent = p[3] || eventAccent,
+    dark =
+      p[4] ||
+      (d.palette === d.design.palette ? eventDark : `color-mix(in srgb,${eventDark} 30%,${p[1]})`),
     signature =
-      !!d.design.occasion && editionOf(d) === 'signature' && d.palette === d.design.palette;
-  return `--card-ink:${signature ? ink : p[1]};--card-paper:${signature ? paper : p[2]};--card-accent:${accent};--card-dark:${d.palette === d.design.palette ? dark : `color-mix(in srgb,${dark} 30%,${p[1]})`};--card-font:${fontMap[d.font] || fontMap.serif}`;
+      !d.design.print &&
+      !!d.design.occasion &&
+      editionOf(d) === 'signature' &&
+      d.palette === d.design.palette;
+  return `--card-ink:${signature ? ink : p[1]};--card-paper:${signature ? paper : p[2]};--card-accent:${accent};--card-dark:${dark};--card-font:${fontMap[d.font] || fontMap.serif}`;
 }
 export function personal(d, lang) {
   const e = eventOf(d.occasion),
@@ -229,7 +236,7 @@ export function chapter(
     lang = d.language || 'hi',
     media = {},
     mode = 'preview',
-    cover = art(d.design),
+    cover = art(d.design, d.palette),
     slug = '',
     qr = '',
   } = {},

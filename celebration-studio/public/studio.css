@@ -2043,3 +2043,184 @@ dialog::backdrop {
 .reply-handoff .actions { justify-content: start; }
 [data-contact-fields] { border-left: 3px solid var(--line); padding-left: 12px; }
 .export-contact { overflow-wrap: anywhere; }
+
+/* Shared desk and the personal print library (Pages edition). */
+.desk-bridge {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 22px clamp(17px, 3vw, 32px);
+  margin: 18px 0 24px;
+  background: linear-gradient(110deg, #fcf6eb, #f8eff6);
+  border: 1px solid #e3d2d1;
+  border-radius: 14px;
+}
+.bridge-seal {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 3px double #ad8a9e;
+  color: #865770;
+  font:
+    32px Georgia,
+    serif;
+}
+.desk-bridge h2,
+.shelf-empty h3 {
+  font: 480 28px/1.2 var(--serif);
+  margin: 5px 0;
+}
+.desk-bridge p,
+.template-foot,
+.shelf-empty p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.bridge-actions {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.shelf-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 17px 0 8px;
+  padding-block: 9px;
+  border-block: 1px solid var(--line);
+  scroll-margin-top: 12px;
+}
+.shelf-tools .chips {
+  margin: 0;
+}
+.shelf-tools .chips b {
+  font-size: 10px;
+  font-weight: 550;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 20px;
+}
+.template-search {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: #fffdfa;
+  padding: 7px 11px;
+  border-radius: 7px;
+  color: var(--tint);
+}
+.template-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: 13px var(--sans);
+}
+.shelf-pages {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 18px;
+}
+.shelf-pages label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.shelf-pages select,
+.template-workshop [data-proof-page] {
+  font: 550 12px var(--sans);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px;
+  color: var(--ink);
+  background: #fffdfa;
+}
+.shelf-head a {
+  flex-shrink: 0;
+}
+.shelf-empty {
+  grid-column: 1/-1;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 30px 15px;
+}
+.shelf-empty .btn {
+  margin-top: 14px;
+}
+.personal-tile {
+  min-width: 0;
+}
+.personal-tile h3 {
+  overflow-wrap: anywhere;
+}
+.personal-tile > button {
+  margin-top: 4px;
+}
+.template-form {
+  min-width: 0;
+  padding: clamp(17px, 3vw, 30px);
+}
+.template-form .actions {
+  margin-top: 15px;
+}
+.template-form .error:empty {
+  display: none;
+}
+.template-foot {
+  padding: 12px 18px;
+}
+@media (max-width: 650px) {
+  .desk-bridge {
+    grid-template-columns: auto 1fr;
+    gap: 9px 13px;
+  }
+  .bridge-actions {
+    grid-column: 1/-1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  .bridge-seal {
+    width: 42px;
+    height: 42px;
+    font-size: 23px;
+  }
+  .desk-bridge h2 {
+    font-size: 23px;
+  }
+  .shelf-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .shelf-head {
+    flex-wrap: wrap;
+  }
+  .template-search input {
+    min-height: 22px;
+  }
+  .shelf-pages .btn {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 380px) {
+  /* The brand already links home; keep the Dashboard target clear on narrow phones. */
+  .nav nav[aria-label='Studio'] a[href='#/'] {
+    display: none;
+  }
+  .desk-actions .btn {
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

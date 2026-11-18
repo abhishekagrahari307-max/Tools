@@ -191,17 +191,24 @@ async function download(page, context, dir, selector) {
     const occasions = await host.$$eval('[data-occasion]', (els) =>
         els.map((e) => e.dataset.occasion),
       ),
-      plates = new Set();
+      entries = new Set();
     for (const id of occasions) {
       await route(host, '/studio/' + id, `.function-room[data-studio="${id}"]`);
-      const images = await host.$$eval('.edition-face img', async (els) => {
-        await Promise.all(els.map((el) => el.decode()));
-        return els.map((el) => el.src);
+      assert.equal(await get(host, '[data-scope="library"] b'), '100');
+      // Every printed template must have a selectable route, not just a counter.
+      for (let page = 0; page < 9; page++) {
+        if (page) await host.select('.shelf-pages select', String(page));
+        const hrefs = await host.$$eval('.edition-card', (els) => els.map((a) => a.hash));
+        assert.equal(hrefs.length, page === 8 ? 4 : 12);
+        hrefs.forEach((hash) => entries.add(hash));
+      }
+      await host.$eval('.edition-card:last-child img', (img) => {
+        img.loading = 'eager';
+        return img.decode();
       });
-      assert.equal(images.length, 3);
-      images.forEach((v) => plates.add(v));
-      await click(host, '.edition-card');
+      await click(host, '.edition-card:last-child');
       await host.waitForSelector('.program-editor');
+      assert.equal((await host.$$('[data-key="template"] option')).length, 100);
       for (let i = 0; i < 6; i++) {
         await host.select('[data-edit-page]', String(i));
         assert.equal(
@@ -210,7 +217,7 @@ async function download(page, context, dir, selector) {
         );
       }
     }
-    assert.equal(plates.size, 39);
+    assert.equal(entries.size, 1300);
     await route(host, '/new/diwali-nocturne', '.program-editor[data-studio="diwali"]');
     await set(host, '[data-key="person"]', 'दीपोत्सव');
     await set(host, '[data-key="host"]', 'The host');
@@ -415,10 +422,11 @@ async function download(page, context, dir, selector) {
     await guest.goto(base + '#/i/v1.bad');
     await guest.waitForSelector('.gate h1');
     assert.equal(await get(guest, '.gate h1'), 'Invitation unavailable');
+    await require('./templates.cjs')({ browser, guest, base, click, set });
     await require('./share-recovery.cjs')({ browser, guest, base, png, click, set });
     assert.deepEqual(errors, []);
     console.log(
-      'PASS: /Tools/ homepage + original Garima route; 13 studios / 39 plates / 78 proofs; login-free device draft, reload, photo and film → decoded QR → independent mobile guest, album, language, Maps, 6-page PDF → addressed WhatsApp & email handoff → returned reply imported by host, 3→2 without duplicates; full HTML with local video; old link survives edits/deletion. No API requests.',
+      'PASS: /Tools/ homepage + original Garima route; 13 studios / 1,300 selectable templates / 78 proofs; login-free device draft, reload, photo and film → decoded QR → independent mobile guest, album, language, Maps, 6-page PDF → addressed WhatsApp & email handoff → returned reply imported by host, 3→2 without duplicates; full HTML with local video; old link survives edits/deletion. No API requests.',
     );
   } finally {
     await browser.close();

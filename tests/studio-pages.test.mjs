@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import { state, designOf } from '../celebration-studio/public/shared.js';
+import { state, designOf, designsFor, art } from '../celebration-studio/public/shared.js';
 import {
   startCard,
   newID,
@@ -15,22 +15,110 @@ import {
   httpsMedia,
   contacts,
 } from '../celebration-studio/public/pages/links.js';
-state.catalog = JSON.parse(
+import { editionsV1 } from '../celebration-studio/public/pages/editions-v1.js';
+import {
+  addPreset,
+  listPresets,
+  deletePreset,
+  readPreset,
+  cardFromPreset,
+} from '../celebration-studio/public/pages/presets.js';
+import { createHash } from 'node:crypto';
+const seed = JSON.parse(
   readFileSync(new URL('../celebration-studio/public/pages/catalog-v1.json', import.meta.url)),
 );
+state.catalog = editionsV1(seed);
 const id = newID(),
   card = () => ({ ...startCard(designOf('wedding-nocturne')), person: 'आशा', host: 'A & K' });
 
-test('39 real editions share the six-chapter catalog; empty deltas recover the original defaults', () => {
+test('each of 13 occasions has exactly 100 distinct, reproducible templates, including its original three', () => {
+  assert.equal(seed.templates.length, 39);
   assert.equal(state.catalog.occasions.length, 13);
-  assert.equal(state.catalog.templates.length, 39);
-  for (const d of state.catalog.templates) {
-    const c = { ...startCard(d), person: 'गेस्ट 🎉' };
-    const token = makeInvite(id, c, {});
-    assert.ok(token.length < 200);
-    const result = readInvite(unpack(token));
-    assert.deepEqual(result.data, c);
-    assert.equal(state.catalog.occasions.find((e) => e.id === d.occasion).pages.length, 6);
+  assert.deepEqual(editionsV1(seed), state.catalog);
+  const codes = new Set(),
+    plates = new Set();
+  for (const e of state.catalog.occasions) {
+    const ts = designsFor(e.id);
+    assert.equal(ts.length, 100);
+    assert.equal(new Set(ts.map((t) => t.name)).size, 100);
+    assert.deepEqual(
+      ts.slice(0, 3),
+      seed.templates.filter((t) => t.occasion === e.id),
+    );
+    assert.equal(e.pages.length, 6);
+    for (const t of ts) {
+      codes.add(t.code);
+      const image = art(t);
+      assert(image.startsWith('data:image/svg+xml;'));
+      plates.add(createHash('sha256').update(image).digest('hex'));
+      const d = { ...startCard(t), person: 'गेस्ट 🎉' };
+      for (const [key, menu] of Object.entries({
+        palette: 'palettes',
+        opening: 'openings',
+        font: 'fonts',
+        music: 'music',
+      }))
+        assert(Object.hasOwn(state.catalog[menu], d[key]), t.code + ' ' + key);
+      const token = makeInvite(id, d, {});
+      assert.ok(token.length < 200);
+      assert.deepEqual(readInvite(unpack(token)).data, d);
+    }
+  }
+  assert.equal(codes.size, 1300);
+  assert.equal(plates.size, 1300);
+});
+test('a personal template is reusable but its private key and label never become a guest dependency', () => {
+  const values = new Map();
+  globalThis.localStorage = {
+    get length() {
+      return values.size;
+    },
+    key: (i) => [...values.keys()][i],
+    setItem: (k, v) => values.set(k, v),
+    getItem: (k) => values.get(k) ?? null,
+    removeItem: (k) => values.delete(k),
+  };
+  try {
+    values.set('wishcraft.v1.drafts', 'unrelated');
+    values.set('celebration.pages.preset.v1.badrecord0000000', 'not JSON');
+    const base = 'diwali-v1-garden-citron',
+      v = {
+        base,
+        name: '  Only on my phone  ',
+        palette: 'press-lapis',
+        font: 'hand',
+        opening: 'diya',
+        music: 'festive',
+        language: 'hi',
+        message: 'दीप जलाएँ।',
+        email: 'private@example.test',
+      };
+    assert.throws(() => addPreset({ ...v, name: '   ' }));
+    assert.throws(() => addPreset({ ...v, font: 'toString' }));
+    assert.throws(() => addPreset({ ...v, base: 'nonexistent' }));
+    const p = addPreset(v);
+    assert.equal(readPreset(p.id).name, 'Only on my phone');
+    assert.deepEqual(listPresets('diwali'), [p]);
+    assert.deepEqual(listPresets('birthday'), []);
+    const d = cardFromPreset(readPreset(p.id)),
+      other = cardFromPreset(p);
+    d.person = 'Party';
+    assert.equal(other.person, '');
+    assert.equal(d.email, '');
+    const token = makeInvite(id, d, {});
+    const raw = unpack(token);
+    assert.equal(raw[1], base);
+    assert(!JSON.stringify(raw).includes(p.id));
+    assert(!JSON.stringify(raw).includes(p.name));
+    deletePreset(p.id);
+    assert.throws(() => readPreset(p.id));
+    assert.deepEqual(listPresets('diwali'), []);
+    const result = readInvite(raw);
+    assert.deepEqual(result.data, d);
+    assert.equal(result.data.message, 'दीप जलाएँ।');
+    assert.equal(values.get('wishcraft.v1.drafts'), 'unrelated');
+  } finally {
+    delete globalThis.localStorage;
   }
 });
 test('guest copy is self-contained, bilingual, versioned and excludes device IDs, unused contact & replies', () => {
