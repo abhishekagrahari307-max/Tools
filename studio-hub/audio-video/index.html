@@ -10049,6 +10049,9 @@ function renderVwatermark(){
       const txt = ($('#wtxt').value || '').trim();
       if (!txt) throw new Error('Type the watermark text first');
       const font = await loadWatermarkFont();
+      /* without the TTF, drawtext cannot run inside the wasm FS — fail with a
+         readable message instead of letting ffmpeg complain about a missing file */
+      if (!font) throw new Error('Could not load the text font. Pick the Image watermark tab, or reload the page and try again.');
       const colour = $('#wcol').value;
       return {
         pre: async () => {
