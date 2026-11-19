@@ -31,7 +31,7 @@ file failed instead of showing an empty grid.
 
 Nothing is a stub, but the engines differ, so this is worth knowing before testing:
 
-- **Pure DSP (Web Audio sample maths)** — trim, merge, mix, split, fade, pitch, speed, EQ,
+- **Pure DSP (Web Audio sample maths)** — trim, merge, mix, split, fade, pitch shift, speed, EQ,
   compressor, normalizer, denoise, vocal removal, stereo, silence, BPM, reverse, ringtone,
   podcast. Export is WAV directly and MP3 through the bundled LAME encoder.
 - **Canvas + MediaRecorder** — quick video trim, merge, crop, resize, speed, filter, slideshow,
@@ -47,18 +47,41 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
 
 ## Changes in this revision
 
-- FFmpeg engine added (self-hosted, no CDN) with four tools: Video Compressor, Colour & Stabilise,
-  Subtitle Editor and GIF Maker Pro. The loader builds the wasm URL through the core's base64
-  `mainScriptUrlOrBlob` payload — without it the engine cannot find its own wasm.
+**Audio engine audit (every audio tool run against signals with known answers).** The test harness
+pulls the page's *real* functions out of `audio-video/index.html` and measures them, so what it
+finds is what ships:
 
-- Tool counts now agree everywhere (59 audio/video + 43 image/PDF = 102) instead of 55/56/98.
-- Pixora: split into shell + `vendor/` + `engines/`; skeleton grid so the page never looks empty;
-  tool-card text raised from 9–10 px to 11–14 px for mobile readability.
-- Three tools added with a shared engine: `encodeAudio()` (MP3/WAV/OGG/M4A/WebM) and
-  `recordVideoAdvanced()` (size, fps, bitrate, fit, crop, rotate, speed) behind
-  **Audio Converter**, **Video Converter** and **Video Resizer**.
-- `tests/pipeline.test.mjs` drives those pipelines with stubbed canvas/MediaRecorder/media clock
-  and asserts a frame is drawn, progress reaches 100%, the output size is honoured and errors reject.
+- **BPM Finder** — rewritten. It used to take the median gap between envelope peaks: 140 BPM read
+  as 143, 90 BPM read as 182, a steady tone read 150 and white noise read 171. Now it learns onset
+  strength against a 10 ms envelope, scores a proper beat grid from 60–200 BPM in 0.5 BPM steps,
+  picks the tempo octave (a 174 BPM track no longer halves to 87) and returns **no beat found**
+  instead of a number for drones, noise and silence. Shown with a high/medium/low confidence word.
+  5 minutes of audio analyses in under half a second.
+- **Pitch & Speed** — the two sliders were multiplied into a single resample ratio, so pitch also
+  changed the speed (and +12 st at 2× came out identical to no change at all). Speed is resampling,
+  pitch is a two-head grain shifter that keeps the play time: 440 Hz +12 st → 874 Hz at the same
+  2.00 s, −12 st → 220 Hz, 2× → 1.00 s.
+- **Noise Remover** — the overlap-add divided by a near-zero window weight, so the first ~50 ms of
+  every file blew up to 3.9× full scale (a loud click) and the last 2048 samples were never
+  written at all. Rewritten with a centred, zero-padded STFT and a 12 % spectral floor: on a
+  hiss-plus-tone file the noise floor falls 17 dB at the default 1.6× strength (19 dB at 2×) while
+  the tone stays within 1 %.
+- **Audio Analyzer** — measured only the left channel and guessed loudness as `RMS + 1.2`. It now
+  scans every channel, reports a gated (400 ms blocks, −70 dB gate) LUFS estimate and counts
+  clipped samples, so a half-silent or clipping file is no longer reported as clean.
+- **Mixer** — a 44.1 kHz track mixed into the 48 kHz output buffer played 8.8 % sharp; both tracks
+  are resampled to the output rate first.
+- **Vocal Remover** — mono files were refused outright, which also disabled "Keep Vocal"; mono is
+  upmixed and the tool explains what it can do with it.
+- **Text to Speech** — a browser without `speechSynthesis` (Firefox on some Linux builds) threw a
+  `ReferenceError` and left a blank panel. It now renders and says which browsers work.
+- **Crashes** — `sliceBuf()` threw when the start point was past the end of the file, and
+  `resampleLinear()` returned NaN for an empty buffer. Both clamp now.
+
+Earlier in this line of work: the FFmpeg engine (self-hosted, no CDN) added Video Compressor,
+Colour & Stabilise, Subtitle Editor and GIF Maker Pro; the loader builds the wasm URL through the
+core's base64 `mainScriptUrlOrBlob` payload — without it the engine cannot find its own wasm.
+Tool counts agree everywhere (63 audio/video + 43 image/PDF = 106) instead of 55/56/98.
 
 ## Tests
 
@@ -67,9 +90,18 @@ npm install      # jsdom, only for the headless pipeline test
 npm test
 ```
 
+- `tests/audio-dsp.test.mjs` — numerical checks: extracts the shipped DSP and proves FFT/ifft
+  round-trip and peak bin, window shape, denoise attenuation without a head transient, resample
+  duration/pitch/channels, tempo accuracy at 70/90/100/120/128/140/174 BPM *and* refusal on
+  silence, drones and noise, silence detection, merge across sample rates, mix headroom, splice
+  length and continuity, pitch shift accuracy, the analyser's dBFS/LUFS maths, WAV header bytes and
+  a fuzz pass over empty/1-sample/clipped buffers.
+- `tests/pipeline.test.mjs` — the export paths with stubbed canvas/MediaRecorder/media clock, and a
+  walk of all 66 routes that fails if any tool throws while building its panel.
+- `tests/ffmpeg.test.mjs` — real encodes through the vendored wasm (CRF shrink, colour/rotate/
+  deshake/crop chain, mute, Devanagari subtitle burn-in, GIF palette, loudnorm MP3, error paths).
 - `tests/site.test.mjs` — every local link resolves, no page loads a remote script, Pixora keeps
-  its engines on disk, the affiliate library stays gone, the three new tools stay wired.
-- `tests/pipeline.test.mjs` — the export paths described above (skips itself if jsdom is absent).
+  its engines on disk, the affiliate library stays gone, the new tools stay wired.
 
 ## Notes
 

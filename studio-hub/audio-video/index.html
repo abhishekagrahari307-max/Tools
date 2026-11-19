@@ -1364,7 +1364,7 @@ function wavBlob(buf){
   return new Blob([ab],{type:'audio/wav'});
 }
 function resampleLinear(buf,targetSR){
-  if(buf.sampleRate===targetSR) return buf;
+  if(buf.sampleRate===targetSR || !buf.length) return buf;
   const nc=buf.numberOfChannels;
   /* output length must scale with the rate ratio or the duration/pitch changes;
      channel count must be preserved (was: forced stereo, mono right channel silent) */
@@ -1374,6 +1374,39 @@ function resampleLinear(buf,targetSR){
     const d=buf.getChannelData(c), o=out.getChannelData(c);
     const ratio=buf.sampleRate/targetSR;
     for(let i=0;i<o.length;i++){ const t=i*ratio, i0=Math.floor(t), i1=Math.min(d.length-1,i0+1), f=t-i0; o[i]=d[i0]*(1-f)+d[i1]*f; }
+  }
+  return out;
+}
+
+/* time-scale by resampling: doubles as the Speed control (pitch follows, like tape) */
+function resampleSpeed(buf,speed){
+  const sr=buf.sampleRate, nc=buf.numberOfChannels;
+  const outLen=Math.max(1, Math.round(buf.length/Math.max(.01,speed)));
+  const out=AC().createBuffer(nc,outLen,sr);
+  for(let c=0;c<nc;c++){
+    const d=buf.getChannelData(c), o=out.getChannelData(c);
+    const r=buf.length/outLen;
+    for(let i=0;i<outLen;i++){ const t=i*r, i0=Math.floor(t), i1=Math.min(d.length-1,i0+1), f=t-i0; o[i]=d[i0]*(1-f)+d[i1]*f; }
+  }
+  return out;
+}
+/* grain-based pitch shift: moves the pitch by `ratio` and keeps the length.
+   Two read heads sweep the source at `ratio` while drifting back one grain; the
+   head about to jump is crossfaded out with a raised cosine (no click, no comb). */
+function pitchShiftGrain(buf,ratio){
+  const sr=buf.sampleRate, nc=buf.numberOfChannels;
+  if(!(ratio>0)||Math.abs(ratio-1)<1e-6) return buf;
+  const out=AC().createBuffer(nc,buf.length,sr);
+  const g=Math.max(64, Math.min(Math.floor(.05*sr), Math.floor(buf.length/4)||64));
+  const drift=ratio-1;
+  for(let c=0;c<nc;c++){
+    const d=buf.getChannelData(c), o=out.getChannelData(c);
+    const rd=p=>{ const a=Math.floor(p), f=p-a; const i0=Math.max(0,Math.min(d.length-1,a)), i1=Math.max(0,Math.min(d.length-1,a+1)); return d[i0]*(1-f)+d[i1]*f; };
+    for(let i=0;i<o.length;i++){
+      const phA=((i*drift)%g+g)%g, phB=((phA+g/2)%g);
+      const wA=.5-.5*Math.cos(2*Math.PI*phA/g);
+      o[i]=rd(i+phA-g)*wA + rd(i+phB-g)*(1-wA);
+    }
   }
   return out;
 }
@@ -1412,8 +1445,11 @@ function mp3Blob(buf,kbps=160){
   }catch(err){ console.warn('mp3 encode failed',err); return null; }
 }
 function sliceBuf(buf,a,b){
-  const sr=buf.sampleRate, i0=Math.max(0,Math.floor(a*sr));
-  const n=Math.min(buf.length-i0,Math.max(1,Math.ceil(Math.max(0,b-a)*sr)));
+  const sr=buf.sampleRate;
+  /* clamp the start into the file: a start past the end used to ask for a
+     negative length and throw */
+  const i0=Math.min(buf.length-1, Math.max(0, Math.floor(a*sr)));
+  const n=Math.max(1, Math.min(buf.length-i0, Math.max(1, Math.ceil(Math.max(0,b-a)*sr))));
   const out=AC().createBuffer(buf.numberOfChannels,n,sr);
   for(let c=0;c<buf.numberOfChannels;c++) out.getChannelData(c).set(buf.getChannelData(c).subarray(i0,i0+n));
   return out;
@@ -3439,12 +3475,16 @@ function renderMix(){
   function mixData(){
     if(!(S.A&&S.B)) return null;
     const c=AC();
-    const total=Math.max(S.A.buf.length,S.B.buf.length);
+    /* both tracks are resampled to the output context rate first — mixing a
+       44.1 kHz track straight into a 48 kHz buffer played it 8.8% sharp */
+    const A=resampleLinear(S.A.buf,c.sampleRate), B=resampleLinear(S.B.buf,c.sampleRate);
+    const total=Math.max(A.length,B.length);
     const L=new Float32Array(total), R=new Float32Array(total);
-    [S.A,S.B].forEach(it=>{
-      const d0=it.buf.getChannelData(0), d1=it.buf.numberOfChannels>1?it.buf.getChannelData(1):d0;
-      for(let i=0;i<d0.length;i++){ L[i]+=d0[i]*it.gain; R[i]+=d1[i]*it.gain; }
-    });
+    const add=(buf,gain)=>{
+      const d0=buf.getChannelData(0), d1=buf.numberOfChannels>1?buf.getChannelData(1):d0;
+      for(let i=0;i<d0.length;i++){ L[i]+=d0[i]*gain; R[i]+=d1[i]*gain; }
+    };
+    add(A,S.A.gain); add(B,S.B.gain);
     /* two tracks at up to 200% each easily exceed full scale: pull the whole
        mix down proportionally instead of hard-clipping on export */
     let peak=0;
@@ -4025,17 +4065,20 @@ async function denoiseBuffer(buf,strength,onProg){
   const sr=buf.sampleRate, nc=buf.numberOfChannels;
   const frame=2048, hop=512, half=frame/2;
   const win=hann(frame);
-  const nFrames=Math.max(1,Math.ceil(buf.length/hop)); /* cover the tail; frame reads below are zero-padded */
+  /* weighted overlap-add over a centred (zero-padded) signal, so frame f covers
+     [f*hop-half, f*hop+half) and no sample is left out at the head or the tail */
+  const nFrames=Math.max(1,Math.ceil((buf.length+frame)/hop));
   const noise=new Float32Array(half+1);
   const re0=new Float32Array(frame), im0=new Float32Array(frame);
   let pf=0;
   const maxPf=Math.max(1,Math.floor(.5*sr/hop));
+  const at=(d,i)=>(i>=0&&i<d.length?d[i]:0);
   for(let f=0;f<maxPf&&f<nFrames;f++){
-    const pos=f*hop;
+    const c0=f*hop;
     for(let c=0;c<nc;c++){
       const d=buf.getChannelData(c);
       re0.fill(0); im0.fill(0);
-      for(let i=0;i<frame;i++) re0[i]=(pos+i<d.length?d[pos+i]:0)*win[i];
+      for(let i=0;i<frame;i++) re0[i]=at(d,c0-half+i)*win[i];
       fft(re0,im0);
       for(let k=0;k<=half;k++) noise[k]+=Math.hypot(re0[k],im0[k]);
     }
@@ -4043,35 +4086,42 @@ async function denoiseBuffer(buf,strength,onProg){
   }
   const norm=Math.max(1,pf*nc);
   for(let k=0;k<=half;k++) noise[k]/=norm;
-  const outLen=buf.length+frame;
   const sums=[], wsums=[];
-  for(let c=0;c<nc;c++){ sums.push(new Float32Array(outLen)); wsums.push(new Float32Array(outLen)); }
+  for(let c=0;c<nc;c++){ sums.push(new Float32Array(buf.length)); wsums.push(new Float32Array(buf.length)); }
   const re=new Float32Array(frame), im=new Float32Array(frame);
   const yieldEvery=Math.max(1,(nFrames/25)|0);
   for(let f=0;f<nFrames;f++){
-    const pos=f*hop;
+    const c0=f*hop;
     for(let c=0;c<nc;c++){
       const d=buf.getChannelData(c);
       re.fill(0); im.fill(0);
-      for(let i=0;i<frame;i++) re[i]=(pos+i<d.length?d[pos+i]:0)*win[i];
+      for(let i=0;i<frame;i++) re[i]=at(d,c0-half+i)*win[i];
       fft(re,im);
       for(let k=0;k<=half;k++){
         const mag=Math.hypot(re[k],im[k]);
-        const nmag=mag>noise[k]*strength?mag-noise[k]*strength:noise[k]*.02;
-        const s=mag>1e-9?nmag/mag:0;
-        re[k]*=s; im[k]*=s;
+        /* floor is 12% of the learned profile (was 2%, which left a faint hiss) */
+        const nmag=Math.max(mag-noise[k]*strength, noise[k]*.12);
+        const s2=mag>1e-9?nmag/mag:0;
+        re[k]*=s2; im[k]*=s2;
         if(k>0&&k<half){ re[frame-k]=re[k]; im[frame-k]=-im[k]; }
       }
       ifft(re,im);
       const s32=sums[c], w32=wsums[c];
-      for(let i=0;i<frame;i++){ const w2=win[i]*win[i]; s32[pos+i]+=re[i]*win[i]; w32[pos+i]+=w2; }
+      for(let i=0;i<frame;i++){
+        const j=c0-half+i;
+        if(j<0||j>=buf.length) continue;
+        s32[j]+=re[i]*win[i];
+        w32[j]+=win[i]*win[i];
+      }
     }
     if(f%yieldEvery===0){ if(onProg) onProg(f/nFrames); await sleep(0); }
   }
   const out=AC().createBuffer(nc,buf.length,sr);
+  /* only trust the overlap-add where the analysis windows actually overlapped */
+  const MINW=.2*win[half]*win[half];
   for(let c=0;c<nc;c++){
     const o=out.getChannelData(c), s32=sums[c], w32=wsums[c];
-    for(let i=0;i<buf.length;i++){ const w=w32[i]; o[i]=w>1e-6?s32[i]/w:0; }
+    for(let i=0;i<buf.length;i++){ const w=w32[i]; o[i]=w>MINW?s32[i]/w:0; }
   }
   if(onProg) onProg(1);
   return out;
@@ -5136,7 +5186,7 @@ function renderReverse(){
 /* ================= PITCH & SPEED ================= */
 function renderPitch(){
   const S={buf:null,name:'',proc:null, speed:1, pitch:0};
-  page.innerHTML=toolPage('Pitch & Speed','Change speed & pitch independently. Speed uses resampling — pitch uses OfflineAudioContext playbackRate. 0.5× to 2×.',
+  page.innerHTML=toolPage('Pitch & Speed','Change speed and pitch independently — speed by resampling, pitch by grain-based pitch shifting. 0.5×–2× speed, ±12 semitones.',
    `<div class="panel">${dropHtml('Tap to choose an audio file','or drag & drop here')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="row between"><div class="file-row" style="flex:1;min-width:230px;border:0;padding:0;gap:10px"><div class="file-ic">${IC.clock}</div><div class="file-meta"><div class="fm-n"><span id="fn"></span></div><div class="fm-s"><span id="fs"></span></div></div></div><button class="btn ghost small" id="chg">Change file</button></div>
@@ -5152,15 +5202,11 @@ function renderPitch(){
   function draw(){ if(S.proc) drawPeaks(cv,S.proc.getChannelData(0),{color:'#22d3ee'}); else if(S.buf) drawPeaks(cv,S.buf.getChannelData(0),{color:'#7d8fd6'}); }
   async function process(){
     if(!S.buf) return;
-    const speed=S.speed * Math.pow(2, S.pitch/12);
-    const ratio=1/speed;
-    const outLen=Math.max(1, Math.round(S.buf.length*ratio));
-    const out=AC().createBuffer(S.buf.numberOfChannels, outLen, S.buf.sampleRate);
-    for(let c=0;c<S.buf.numberOfChannels;c++){
-      const d=S.buf.getChannelData(c), o=out.getChannelData(c);
-      const r=S.buf.length/outLen;
-      for(let i=0;i<outLen;i++){ const t=i*r, i0=Math.floor(t), i1=Math.min(d.length-1,i0+1), f=t-i0; o[i]=d[i0]*(1-f)+d[i1]*f; }
-    }
+    /* speed = resampling (pitch follows, like tape); pitch = grain shift that keeps
+       the play time. The two used to be multiplied into one ratio, so moving the
+       pitch slider also changed the speed (and +12 st at 2x cancelled out). */
+    const tempo=resampleSpeed(S.buf, S.speed);
+    const out=pitchShiftGrain(tempo, Math.pow(2, S.pitch/12));
     S.proc=out; $('#durInfo').textContent=fmtTime(S.buf.duration)+' → '+fmtTime(out.duration); draw();
   }
   async function load(f){
@@ -5308,10 +5354,7 @@ function renderVocal(){
   const cv=$('#wc');
   function draw(){ const b=S.mode==='inst'?S.inst:S.vocal; if(b) drawPeaks(cv,b.getChannelData(0),{color: S.mode==='inst' ? '#22d3ee' : '#e879f9'}); else if(S.buf) drawPeaks(cv,S.buf.getChannelData(0),{color:'#7d8fd6'}); }
   function separate(buf){
-    if(buf.numberOfChannels<2){
-      toast('Need stereo file — mono has no centre to cancel');
-      return {inst:buf, vocal:buf};
-    }
+    if(buf.numberOfChannels<2) return {inst:buf, vocal:buf};
     const len=buf.length, sr=buf.sampleRate;
     const inst=AC().createBuffer(2,len,sr), vocal=AC().createBuffer(2,len,sr);
     const L=buf.getChannelData(0), R=buf.numberOfChannels>1?buf.getChannelData(1):L;
@@ -5324,7 +5367,21 @@ function renderVocal(){
     }
     return {inst, vocal};
   }
-  async function load(f){ try{ const buf=await decodeFile(f); S.buf=buf; S.name=f.name; S.inst=null; S.vocal=null; $('#fn').textContent=f.name; $('#fs').textContent=fmtTime(buf.duration)+' · '+(buf.numberOfChannels>1?'stereo':'mono'); $('#work').hidden=false; requestAnimationFrame(draw);}catch(e){toast("Couldn't decode "+f.name);} }
+  async function load(f){ try{
+    let buf=await decodeFile(f);
+    /* a mono file was blocked with "need stereo" — yet "Keep Vocal" is just the
+       centre, which for mono is the file itself: upmix so the tool always works */
+    let upmixed=false;
+    if(buf.numberOfChannels<2){
+      const m=AC().createBuffer(2,buf.length,buf.sampleRate);
+      m.getChannelData(0).set(buf.getChannelData(0)); m.getChannelData(1).set(buf.getChannelData(0));
+      buf=m; upmixed=true;
+    }
+    S.buf=buf; S.name=f.name; S.inst=null; S.vocal=null;
+    $('#fn').textContent=f.name;
+    $('#fs').textContent=fmtTime(buf.duration)+(upmixed?' · mono file (Keep Vocal returns the original)':' · stereo');
+    $('#work').hidden=false; requestAnimationFrame(draw);
+  }catch(e){toast("Couldn't decode "+f.name);} }
   attachDrop($('#dz'),fs=>load(fs[0]));
   $('#chg').onclick=()=>{ const i=$('#dz input'); if(i) i.click(); };
   $$('[data-m]').forEach(ch=>ch.onclick=()=>{ S.mode=ch.dataset.m; $$('[data-m]').forEach(c=>c.classList.toggle('on',c===ch)); draw(); });
@@ -5359,34 +5416,87 @@ function renderBpm(){
       for(let x=0;x<w;x+=step){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
     }
   }
-  function detectBPM(buf){
+  function tempoOf(buf){
     const ch=buf.getChannelData(0), sr=buf.sampleRate;
-    const step=Math.max(1, Math.round(sr/100));
-    const env=[];
-    for(let i=0;i<ch.length;i+=step){
-      let sum=0; const end=Math.min(ch.length, i+step);
-      for(let j=i;j<end;j++) sum+=ch[j]*ch[j];
-      env.push(Math.sqrt(sum/(end-i)));
+    const fps=100, step=Math.max(1, Math.round(sr/fps));
+    const n=Math.floor(ch.length/step);
+    if(n<64) return {bpm:0,rel:0};
+    const env=new Float64Array(n);
+    let meanEnv=0;
+    for(let i=0;i<n;i++){
+      let s=0; const a=i*step, e=Math.min(ch.length,a+step);
+      for(let j=a;j<e;j++) s+=ch[j]*ch[j];
+      env[i]=Math.sqrt(s/Math.max(1,e-a)); meanEnv+=env[i];
     }
-    for(let i=1;i<env.length-1;i++) env[i]=(env[i-1]+env[i]+env[i+1])/3;
-    const peaks=[];
-    for(let i=1;i<env.length-1;i++) if(env[i]>env[i-1]&&env[i]>env[i+1]&&env[i]>0.08) peaks.push(i);
-    if(peaks.length<4) return 0;
-    const intervals=[];
-    for(let i=1;i<peaks.length;i++) intervals.push(peaks[i]-peaks[i-1]);
-    intervals.sort((a,b)=>a-b);
-    const med=intervals[Math.floor(intervals.length/2)];
-    if(!med) return 0;
-    const bpm= 60 / (med*step/sr);
-    let b=bpm;
-    while(b<60) b*=2;
-    while(b>200) b/=2;
-    return Math.round(b);
+    meanEnv/=n;
+    if(!(meanEnv>1e-5)) return {bpm:0,rel:0};                      /* digital silence */
+    /* onset strength: positive change of the envelope, normalised so a steady
+       tone/noise (constant level) produces almost nothing */
+    const flux=new Float64Array(n);
+    for(let i=1;i<n;i++) flux[i]=Math.max(0, env[i]-env[i-1])/(meanEnv+1e-9);
+    let peak=0;
+    for(let i=0;i<n;i++) if(flux[i]>peak) peak=flux[i];
+    if(peak<0.05) return {bpm:0,rel:0};                            /* no rhythm at all */
+    /* comb (beat-grid) scoring: works when the true beat spacing is not a whole
+       number of 10 ms frames, which plain autocorrelation smears away */
+    const minBpm=60, maxBpm=200, stepBpm=0.5;
+    let best=-1, bestBpm=0, sum=0, cnt=0;
+    const scores=[];
+    for(let bpm=minBpm; bpm<=maxBpm+1e-9; bpm+=stepBpm){
+      const lag=60*fps/bpm;
+      const off0=Math.floor(lag);
+      let top=0;
+      for(let off=0; off<off0; off++){
+        let acc=0, beats=0;
+        for(let i=off; i<n; i+=lag){
+          const k=Math.round(i);
+          const v=Math.max(flux[k]||0, flux[k-1]||0, flux[k+1]||0);
+          acc+=v; beats++;
+        }
+        if(beats>0 && acc/beats>top) top=acc/beats;
+      }
+      const w = bpm<78 ? .8 : 1;
+      scores.push(top*w);
+      sum+=top*w; cnt++;
+      if(top*w>best){ best=top*w; bestBpm=bpm; }
+    }
+    if(!(best>0)) return {bpm:0,rel:0};
+    const avg=sum/Math.max(1,cnt);
+    if(best/avg<1.45) return {bpm:0,rel:best/avg};                        /* aperiodic: noise, drone, speech */
+    /* tempo-octave fix: a beat grid at half the tempo also fires on every beat,
+       so if doubling still scores nearly as high, prefer the faster pulse */
+    const scoreAt=bpm=>{
+      const lag=60*fps/bpm, off0=Math.floor(lag);
+      let top=0;
+      for(let off=0; off<off0; off++){
+        let acc=0, beats=0;
+        for(let i=off; i<n; i+=lag){
+          const k=Math.round(i);
+          acc+=Math.max(flux[k]||0, flux[k-1]||0, flux[k+1]||0); beats++;
+        }
+        if(beats>0 && acc/beats>top) top=acc/beats;
+      }
+      return top;
+    };
+    let bpm=bestBpm, s0=scoreAt(bpm);
+    while(bpm*2<=200 && scoreAt(bpm*2)>=0.8*s0){ bpm*=2; s0=scoreAt(bpm); }
+    while(bpm<60) bpm*=2;
+    while(bpm>200) bpm/=2;
+    return {bpm:Math.round(bpm), rel:best/avg};
   }
+  const detectBPM=buf=>tempoOf(buf).bpm;
   async function load(f){ try{ const buf=await decodeFile(f); S.buf=buf; S.name=f.name; S.bpm=0; $('#fn').textContent=f.name; $('#fs').textContent=fmtTime(buf.duration); $('#work').hidden=false; $('#bpmv').textContent='— BPM'; requestAnimationFrame(draw);}catch(e){toast("Couldn't decode "+f.name);} }
   attachDrop($('#dz'),fs=>load(fs[0]));
   $('#chg').onclick=()=>{ const i=$('#dz input'); if(i) i.click(); };
-  $('#auto').onclick=()=>{ if(!S.buf) return; S.bpm=detectBPM(S.buf); $('#bpmv').textContent=S.bpm? S.bpm+' BPM' : 'Could not detect'; draw(); if(S.bpm) toast('Detected '+S.bpm+' BPM'); };
+  $('#auto').onclick=()=>{
+    if(!S.buf) return;
+    const t=tempoOf(S.buf);
+    S.bpm=t.bpm;
+    const conf = t.rel>=3 ? 'high' : t.rel>=2 ? 'medium' : 'low';
+    $('#bpmv').textContent = t.bpm ? t.bpm+' BPM · '+conf+' confidence' : 'No steady beat found';
+    draw();
+    toast(t.bpm? 'Detected '+t.bpm+' BPM' : 'No steady beat — try Tap tempo');
+  };
   $('#tap').onclick=()=>{
     const now=performance.now();
     taps.push(now);
@@ -5518,15 +5628,34 @@ function renderAnalyzer(){
       <div class="wave-wrap mt"><canvas id="wc"></canvas></div>
     </div>`);
   const cv=$('#wc'), spec=$('#spec');
+  /* measures every channel on an interleaved grid: the old version only looked at
+     the left channel, so a file with a silent or clipped right channel reported clean */
   function analyze(buf){
-    let peak=0, sum=0;
-    const ch=buf.getChannelData(0);
-    for(let i=0;i<ch.length;i++){ const a=Math.abs(ch[i]); if(a>peak) peak=a; sum+=ch[i]*ch[i]; }
-    const rms=Math.sqrt(sum/ch.length);
+    const nc=buf.numberOfChannels, n=buf.length;
+    const chans=[]; for(let c=0;c<nc;c++) chans.push(buf.getChannelData(c));
+    let peak=0, sum=0, cnt=0;
+    for(let i=0;i<n;i++) for(let c=0;c<nc;c++){ const v=chans[c][i]; const a=v<0?-v:v; if(a>peak) peak=a; sum+=v*v; cnt++; }
+    const rms=Math.sqrt(sum/Math.max(1,cnt));
     const dbPeak= 20*Math.log10(peak||1e-9);
     const dbRms= 20*Math.log10(rms||1e-9);
-    const lufs=dbRms+1.2;
-    return {peak, rms, dbPeak, dbRms, lufs};
+    /* K-weighted-ish loudness: an RMS pass over BS.1770-style 400 ms blocks with a
+       -70 dB gate, instead of the old flat RMS + 1.2 dB guess */
+    const bs=Math.max(1,Math.round(.4*buf.sampleRate));
+    let absSum=0, blocks=0, loudSum=0;
+    for(let s0=0;s0<n;s0+=bs){
+      const s1=Math.min(n,s0+bs);
+      let acc=0, k=0;
+      for(let i=s0;i<s1;i++) for(let c=0;c<nc;c++){ acc+=chans[c][i]*chans[c][i]; k++; }
+      const bRms=Math.sqrt(acc/Math.max(1,k));
+      if(bRms>0) absSum+=bRms;
+      if(bRms>Math.pow(10,-70/20)){ loudSum+=bRms*bRms; blocks++; }
+    }
+    const loudRms=blocks?Math.sqrt(loudSum/blocks):rms;
+    /* -0.691 is the BS.1770 offset; the result is a gated loudness estimate in LUFS */
+    const lufs=-0.691 + 10*Math.log10(Math.max(1e-12,loudRms));
+    let clip=0;
+    for(let c=0;c<nc;c++){ const d=chans[c]; for(let i=1;i<n;i++) if(d[i]<=-0.999||d[i]>=0.999) clip++; }
+    return {peak, rms, dbPeak, dbRms, lufs, clip, channels:nc};
   }
   function draw(){
     if(!S.buf) return;
@@ -5555,7 +5684,8 @@ function renderAnalyzer(){
       $('#stats').innerHTML=`
         <div class="viz-meter"><div class="vm-l">PEAK</div><div class="vm-v">${an.dbPeak.toFixed(1)} dB</div><div class="vm-l">${(an.peak*100).toFixed(1)}% ${an.peak>0.99?' — CLIPPING':''}</div></div>
         <div class="viz-meter"><div class="vm-l">RMS</div><div class="vm-v">${an.dbRms.toFixed(1)} dB</div></div>
-        <div class="viz-meter"><div class="vm-l">LOUDNESS ~</div><div class="vm-v">${an.lufs.toFixed(1)} LUFS</div></div>
+        <div class="viz-meter"><div class="vm-l">LOUDNESS</div><div class="vm-v">${an.lufs.toFixed(1)} LUFS</div><div class="vm-l">gated RMS estimate</div></div>
+        <div class="viz-meter"><div class="vm-l">CLIPPING</div><div class="vm-v">${an.clip? an.clip+' samples':'none'}</div><div class="vm-l">${an.channels} channel${an.channels>1?'s':''}</div></div>
         <div class="viz-meter"><div class="vm-l">DURATION</div><div class="vm-v">${fmtTime(buf.duration)}</div><div class="vm-l">${buf.length} samples</div></div>
         <div class="viz-meter"><div class="vm-l">FILE</div><div class="vm-v" style="font-size:14px;word-break:break-all">${esc(f.name)}</div><div class="vm-l">${fmtSize(f.size)}</div></div>
         <div class="viz-meter"><div class="vm-l">FORMAT</div><div class="vm-v" style="font-size:14px">${buf.numberOfChannels} ch · ${buf.sampleRate} Hz</div></div>`;
@@ -6668,7 +6798,10 @@ function renderLoopmaker(){
 /* ================= TEXT TO SPEECH ================= */
 function renderTts(){
   const S={text:'Hello from Audio & Video Editor Pro — your files never leave this device.', voice:null, rate:1, pitch:1};
-  const voices = ()=> speechSynthesis.getVoices();
+  /* Firefox on Linux can ship without speechSynthesis: the route used to throw a
+     ReferenceError and render a blank panel instead of a clear message */
+  const ttsOK = typeof window!=='undefined' && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance==='function';
+  const voices = ()=> ttsOK ? window.speechSynthesis.getVoices() : [];
   page.innerHTML=toolPage('Text to Speech','Type text → natural voice (Web Speech API) → preview & export WAV (recorded via MediaRecorder).',
    `<div class="panel">
       <label class="lbl">Text</label><textarea class="inp" id="txt" style="width:100%;min-height:110px;resize:vertical" placeholder="Type something...">${esc(S.text)}</textarea>
@@ -6685,23 +6818,30 @@ function renderTts(){
     sel.innerHTML=vs.map((v,i)=>`<option value="${i}">${esc(v.name)} (${v.lang})${v.default?' — default':''}</option>`).join('') || '<option>Loading...</option>';
     if(vs.length) S.voice=vs[0];
   }
-  loadVoices(); speechSynthesis.onvoiceschanged=loadVoices;
+  loadVoices();
+  if(!ttsOK){
+    $('#status').textContent='Not supported in this browser';
+    $('#voice').innerHTML='<option>Use Chrome or Edge for system voices</option>';
+    $('#speak').disabled=true; $('#stop').disabled=true;
+    toast('This browser has no speech-synthesis engine — try Chrome or Edge');
+  } else window.speechSynthesis.onvoiceschanged=loadVoices;
   $('#voice').onchange=e=>{ const vs=voices(); S.voice=vs[+e.target.value]||null; };
   $('#rate').oninput=e=>{ S.rate=+e.target.value; $('#ratev').textContent=S.rate.toFixed(1); };
   $('#pitch').oninput=e=>{ S.pitch=+e.target.value; $('#pitchv').textContent=S.pitch.toFixed(1); };
   $('#speak').onclick=()=>{
+    if(!ttsOK) return;
     const txt=$('#txt').value.trim()||S.text;
     if(!txt) return;
-    speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(txt);
+    window.speechSynthesis.cancel();
+    const u=new window.SpeechSynthesisUtterance(txt);
     if(S.voice) u.voice=S.voice;
     u.rate=S.rate; u.pitch=S.pitch;
     u.onstart=()=>$('#status').textContent='Speaking...';
     u.onend=()=>$('#status').textContent='Done';
-    speechSynthesis.speak(u);
+    window.speechSynthesis.speak(u);
     toast('Speaking...');
   };
-  $('#stop').onclick=()=>{ speechSynthesis.cancel(); $('#status').textContent='Stopped'; };
+  $('#stop').onclick=()=>{ if(!ttsOK) return; window.speechSynthesis.cancel(); $('#status').textContent='Stopped'; };
 }
 
 /* ================= SPEECH TO TEXT ================= */
@@ -8273,7 +8413,7 @@ function renderTimelinePro(){
     // Try real Web Speech if available and user wants live
     if('webkitSpeechRecognition' in window && confirm('Real mic se captions generate kare? (Allow mic)')) {
       try{
-        const rec=new webkitSpeechRecognition(); rec.continuous=false; rec.lang='en-IN'; rec.interimResults=false;
+        const rec=new window.webkitSpeechRecognition(); rec.continuous=false; rec.lang='en-IN'; rec.interimResults=false;
         rec.onresult=e=>{ const txt=e.results[0][0].transcript; tracks[4].clips=[{id:'c'+Date.now(), name:txt, dur:3, start:currentTime, color:'#1d4ed8', text:txt}]; drawAll(); toast('🎤 Captions: '+txt); };
         rec.start(); toast('🎤 Listening... bolo');
       }catch(e){}

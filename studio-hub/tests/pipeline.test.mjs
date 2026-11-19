@@ -181,6 +181,40 @@ if (JSDOM) test('audio and video export pipelines actually run', async (t) => {
     }
   });
 
+  /* A tool that throws while it builds its panel leaves a blank page — this walks
+     the whole route table (not just three routes) and fails on any exception. */
+  await t.test('no route throws while rendering', async () => {
+    const seen = [];
+    const onErr = (e) => seen.push(`${e.message || e.error}`);
+    w.addEventListener('error', onErr);
+    const routes = w.eval('Object.keys(routes)');
+    const blank = [];
+    for (const r of routes) {
+      const before = seen.length;
+      w.location.hash = '#' + r;
+      await new Promise((res) => setTimeout(res, 40));
+      const html = w.document.getElementById('page').innerHTML;
+      if (html.length < 300) blank.push(`${r} (${html.length} chars)`);
+      if (seen.length > before) blank.push(`${r} threw: ${seen[seen.length - 1]}`);
+    }
+    w.removeEventListener('error', onErr);
+    assert.deepEqual(blank, [], 'these routes failed to render');
+  });
+
+  await t.test('text to speech degrades cleanly when the browser has no voice engine', async () => {
+    const saved = Object.getOwnPropertyDescriptor(w, 'speechSynthesis');
+    try {
+      delete w.speechSynthesis;              /* Firefox-on-Linux case */
+      w.location.hash = '#tts';
+      await new Promise((res) => setTimeout(res, 80));
+      const html = w.document.getElementById('page').innerHTML;
+      assert.ok(html.length > 300, 'TTS panel must still render');
+      assert.match(html, /Not supported|speech/i, 'the panel must explain the missing engine');
+    } finally {
+      if (saved) Object.defineProperty(w, 'speechSynthesis', saved);
+    }
+  });
+
   w.close();
   server.close();
 });
