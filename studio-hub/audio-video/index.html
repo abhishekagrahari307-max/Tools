@@ -9,8 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Audio & Video Editor — 59 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
-<title>Audio & Video Editor — 59 Tools | Trim, Mix, Studio & Video Suite</title>
+<meta name="description" content="Audio & Video Editor — 63 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
+<title>Audio & Video Editor — 63 Tools | Trim, Mix, Studio & Video Suite</title>
 <style>
 /* ============================================================
    AUDIO EDITOR — Design System v2 (upgraded)
@@ -1307,6 +1307,10 @@ const TOOLS=[
   {id:'vspeed',nm:'Video Speed',      cat:'video', ic:'clock',    c:['#59391f','#3d2514'], icc:'#fbbf24', ds:'Speed up or slow down video & audio together — 0.25× to 4×', go:'vspeed'},
   {id:'vreverse',nm:'Reverse Video',  cat:'video', ic:'rev',      c:['#3d1d5e','#2a1345'], icc:'#e879f9', ds:'Play video backwards with reversed audio — canvas renderer', go:'vreverse'},
   {id:'vgif',  nm:'Video to GIF',     cat:'video', ic:'file',     c:['#0d3f66','#0a2947'], icc:'#22d3ee', ds:'Convert any video clip into animated GIF — set FPS & size', go:'vgif'},
+  {id:'vffcompress', nm:'Video Compressor', cat:'video', ic:'bolt',   c:['#312e81','#1e1b4b'], icc:'#a5b4fc', ds:'True x264 compression with CRF control — rebuilds the file frame by frame (FFmpeg)', go:'vffcompress', crown:1},
+  {id:'vcolor', nm:'Colour & Stabilise', cat:'video', ic:'sliders', c:['#155e75','#0c4a6e'], icc:'#67e8f9', ds:'Exposure, contrast, saturation, sharpness and shake removal via FFmpeg eq/deshake filters', go:'vcolor'},
+  {id:'vsubedit', nm:'Subtitle Editor', cat:'video', ic:'layers',   c:['#4c1d95','#2e1065'], icc:'#c4b5fd', ds:'Write or import SRT, preview on the video, then burn real subtitles with libass', go:'vsubedit'},
+  {id:'vgifff', nm:'GIF Maker Pro',     cat:'video', ic:'video',  c:['#7f1d1d','#450a0a'], icc:'#fca5a5', ds:'Palette-optimised GIFs from any clip — sharp 256-colour output, not dithered', go:'vgifff'},
   {id:'aconv',  nm:'Audio Converter',  cat:'edit', ic:'music',   c:['#083344','#0e7490'], icc:'#22d3ee', ds:'MP3 ⇄ WAV ⇄ OGG ⇄ M4A ⇄ WebM — re-encode audio in the browser with a quality slider', go:'aconv'},
   {id:'vconv',  nm:'Video Converter',  cat:'video', ic:'video',   c:['#1e3a8a','#1e40af'], icc:'#60a5fa', ds:'Re-encode video to MP4 or WebM at the size, frame rate and bitrate you choose', go:'vconv'},
   {id:'vresize',nm:'Video Resizer',    cat:'video', ic:'layers',  c:['#3f2d1a','#7c2d12'], icc:'#fbbf24', ds:'9:16 reels, 1:1 posts, 16:9 YouTube — resize with fit or fill, then export', go:'vresize'},
@@ -9042,6 +9046,566 @@ function renderVresize(){
   $('#dl').onclick=()=>{ if(S.out) downloadBlob(S.out,`${safeName(S.file.name)}-${S.fw}x${S.fh}.${S.ext}`); };
 }
 
+/* ================= FFMPEG ENGINE (wasm) =================
+   Self-hosted FFmpeg 5.1.4 (libx264, libx265, libvpx, aac, libmp3lame, libopus,
+   libvorbis, libass, freetype, zimg). The core is not a CDN download: it lives in
+   ./ffmpeg/core/ and is fetched only the first time a tool that needs it runs.
+
+   Difference from the canvas pipeline above: canvas decoding is real time and
+   re-encodes whatever the browser can show; FFmpeg decodes frame by frame and
+   applies real filters (deshake, eq/curves, subtitles, x264 at a chosen CRF).
+   That means it is faster than real time for short clips but heavier to start. */
+
+const FF = {
+  core: null,          // resolved module
+  loading: null,       // promise while loading
+  url: 'ffmpeg/core/'
+};
+
+function ffmpegAvailable(){ return typeof WebAssembly === 'object' && typeof Worker === 'function'; }
+
+/* load (once) and return the core module */
+function loadFFmpeg(onStatus){
+  if (FF.core) return Promise.resolve(FF.core);
+  if (FF.loading) return FF.loading;
+  if (!ffmpegAvailable()) return Promise.reject(new Error('This browser has no WebAssembly support, so the FFmpeg engine cannot run.'));
+
+  onStatus && onStatus('Loading the FFmpeg engine (~31 MB, cached after the first run)…');
+  const base = new URL(FF.url, document.baseURI);
+  const coreURL = new URL('ffmpeg-core.js', base).href;
+  const wasmURL = new URL('ffmpeg-core.wasm', base).href;
+  // The core resolves its .wasm through locateFile(), which reads the base64 payload
+  // after '#' in mainScriptUrlOrBlob. Without it the wasm URL cannot be resolved.
+  const payload = coreURL + '#' + btoa(JSON.stringify({ wasmURL, workerURL: '' }));
+  FF.loading = import(coreURL)
+    .then(mod => {
+      const create = mod.default || mod;
+      return create({
+        mainScriptUrlOrBlob: payload,
+        print: () => {},
+        printErr: () => {}
+      });
+    })
+    .then(core => {
+      FF.core = core;
+      FF.loading = null;
+      return core;
+    })
+    .catch(err => {
+      FF.loading = null;
+      throw new Error('The FFmpeg engine could not start (' + (err && err.message ? err.message : 'unknown error') + '). Open this page over http(s) and try again.');
+    });
+  return FF.loading;
+}
+
+/* run a command; collects ffmpeg's own log lines for error reporting */
+async function ffRun(args, onProgress, onLog){
+  const core = await loadFFmpeg(onStatus => onLog && onLog(onStatus));
+  const lines = [];
+  core.setLogger(entry => {
+    const line = entry && entry.message ? entry.message : String(entry);
+    lines.push(line);
+    onLog && onLog(line);
+  });
+  core.setProgress(d => { if (onProgress) onProgress(clamp(d.progress, 0, 1)); });
+  core.setTimeout(-1);
+  let rc = 0;
+  try { rc = core.exec(...args); }
+  catch (e) { rc = -1; lines.push('exec threw: ' + (e && e.message)); }
+  core.reset();
+  if (rc !== 0) {
+    const useful = lines.filter(l => /error|invalid|unable|not found|failed|no such/i.test(l)).slice(-3).join(' ');
+    throw new Error('FFmpeg stopped' + (rc > 0 ? ' with code ' + rc : '') + (useful ? ': ' + useful.slice(0, 300) : '. Check the input file or the options.'));
+  }
+  return lines;
+}
+
+/* write a File/Uint8Array into the virtual FS */
+async function ffPut(name, data, onLog){
+  const core = await loadFFmpeg(l => onLog && onLog(l));
+  const bytes = data instanceof Uint8Array ? data : new Uint8Array(await data.arrayBuffer());
+  core.FS.writeFile(name, bytes);
+  return bytes.length;
+}
+async function ffGet(name){
+  const core = await loadFFmpeg();
+  const data = core.FS.readFile(name);
+  core.FS.unlink(name);
+  return data;
+}
+async function ffClean(names){
+  try {
+    const core = await loadFFmpeg();
+    names.forEach(n => { try { core.FS.unlink(n); } catch (e) {} });
+  } catch (e) {}
+}
+
+/* ---------------- command builders (pure, unit-testable) ---------------- */
+function buildVideoExport(o = {}){
+  const args = ['-hide_banner', '-nostdin', '-y', '-i', o.input || 'in.mp4'];
+  if (o.start != null || o.end != null) {
+    if (o.start != null) args.push('-ss', String(o.start));
+    if (o.end != null) args.push('-to', String(o.end));
+  }
+  const filters = [];
+  if (o.crop) {
+    filters.push(`crop=iw*${o.crop.w}:ih*${o.crop.h}:iw*${o.crop.x}:ih*${o.crop.y}`);
+  }
+  if (o.rotate) filters.push(`rotate=${o.rotate}*PI/180`);
+  if (o.flipH || o.flipV) filters.push(o.flipH && o.flipV ? 'hflip,vflip' : (o.flipH ? 'hflip' : 'vflip'));
+  if (o.deshake) filters.push('deshake=rx=32:ry=32:edge=mirror');
+  if (o.brightness || o.contrast || o.saturation || o.gamma) {
+    filters.push(`eq=brightness=${o.brightness || 0}:contrast=${o.contrast || 1}:saturation=${o.saturation || 1}:gamma=${o.gamma || 1}`);
+  }
+  if (o.sharp) filters.push(`unsharp=5:5:${o.sharp}:5:5:0`);
+  if (o.width) {
+    const h = o.height || -2;
+    filters.push(`scale=${o.width}:${h}${o.fit === 'pad' ? ':force_original_aspect_ratio=decrease,pad=' + o.width + ':' + (o.height || o.width) + ':(ow-iw)/2:(oh-ih)/2:black' : ''}`);
+    filters.push('setsar=1');
+  }
+  if (o.subtitleFile) filters.push(`subtitles=${o.subtitleFile}`);
+  if (filters.length) args.push('-vf', filters.join(','));
+  if (o.speed && o.speed !== 1) {
+    args.push('-filter:a', `atempo=${clamp(o.speed, 0.5, 2)}`);
+  }
+  if (o.fps) args.push('-r', String(o.fps));
+  args.push('-c:v', o.encoder || 'libx264');
+  args.push('-preset', o.preset || 'veryfast');
+  if (o.crf != null) args.push('-crf', String(o.crf));
+  else if (o.bitrate) args.push('-b:v', String(o.bitrate));
+  args.push('-pix_fmt', 'yuv420p');
+  if (o.mute || o.audio === false) args.push('-an');
+  else if (o.audioCodec !== false) args.push('-c:a', o.audioCodec || 'aac', '-b:a', o.audioBitrate || '160k');
+  args.push(o.output || 'out.mp4');
+  return args;
+}
+
+function buildAudioExport(o = {}){
+  const args = ['-hide_banner', '-nostdin', '-y', '-i', o.input || 'in.wav'];
+  if (o.start != null) args.push('-ss', String(o.start));
+  if (o.end != null) args.push('-to', String(o.end));
+  const filters = [];
+  if (o.gain && o.gain !== 1) filters.push(`volume=${o.gain}`);
+  if (o.normalize) filters.push('loudnorm=I=-16:TP=-1.5:LRA=11');
+  if (o.speed && o.speed !== 1) filters.push(`atempo=${clamp(o.speed, 0.5, 2)}`);
+  if (o.fadeIn) filters.push(`afade=t=in:st=0:d=${o.fadeIn}`);
+  if (o.fadeOut && o.duration) filters.push(`afade=t=out:st=${Math.max(0, o.duration - o.fadeOut)}:d=${o.fadeOut}`);
+  if (filters.length) args.push('-af', filters.join(','));
+  if (o.sampleRate) args.push('-ar', String(o.sampleRate));
+  if (o.channels) args.push('-ac', String(o.channels));
+  if (o.bitrate) args.push('-b:a', o.bitrate);
+  args.push(o.output || 'out.mp3');
+  return args;
+}
+
+function buildGifExport(o = {}){
+  const vf = ['fps=' + (o.fps || 12), 'scale=' + (o.width || 480) + ':-1:flags=lanczos'];
+  return ['-hide_banner', '-nostdin', '-y', '-i', o.input || 'in.mp4',
+    ...(o.start != null ? ['-ss', String(o.start)] : []),
+    ...(o.end != null ? ['-to', String(o.end)] : []),
+    '-vf', vf.join(','), '-loop', '0', o.output || 'out.gif'];
+}
+
+/* ---------------- shared UI helpers ---------------- */
+function ffStatusBar(el, label){
+  const wrap = document.createElement('div');
+  wrap.className = 'prog mt';
+  wrap.id = el;
+  wrap.hidden = true;
+  wrap.innerHTML = '<i></i>';
+  return wrap;
+}
+function setFFProgress(root, p, label){
+  if (!root) return;
+  root.hidden = false;
+  const bar = root.querySelector('i');
+  if (bar) bar.style.width = (clamp(p, 0, 1) * 100).toFixed(1) + '%';
+  const text = root.nextElementSibling;
+  if (text && text.classList.contains('ff-status')) text.textContent = label || 'Working…';
+}
+
+/* pick a sane output name */
+function ffOutName(file, suffix, ext){
+  return safeName(file && file.name ? file.name : 'clip') + (suffix || '') + '.' + ext;
+}
+
+/* ---------------- FFmpeg Compressor ---------------- */
+function renderVffcompress(){
+  const S = { file: null, info: null, out: null, ext: '' };
+  page.innerHTML = toolPage('Video Compressor (FFmpeg)',
+    'Real H.264 encoding with x264 — pick a CRF or a target size and the file is rebuilt frame by frame, not re-recorded. Handles long clips faster than the canvas recorder and keeps the audio track.',
+    `<div class="panel">${dropHtml('Tap to choose a video','mp4, mov, mkv, webm — anything FFmpeg reads','dzv')}</div>
+     <div class="panel mt" id="work" hidden>
+       <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+       <div class="row wrap mt" id="meta"></div>
+       <div class="grid2 mt">
+         <div><label class="lbl">Quality <span id="crfv">28 (balanced)</span></label>
+           <input type="range" class="slider" id="crf" min="18" max="34" step="1" value="28"></div>
+         <div><label class="lbl">Resolution</label><select class="inp" id="size">
+           <option value="orig">Keep original</option><option value="1080">1080p</option>
+           <option value="720">720p</option><option value="480">480p</option>
+         </select></div>
+         <div><label class="lbl">Speed preset</label><select class="inp" id="preset">
+           <option value="ultrafast">Fastest</option><option value="veryfast" selected>Fast</option>
+           <option value="medium">Balanced</option><option value="slow">Smallest file</option>
+         </select></div>
+         <div><label class="lbl">Container</label><select class="inp" id="fmt">
+           <option value="mp4">MP4 (H.264 + AAC)</option><option value="webm">WebM (VP9 + Opus)</option>
+         </select></div>
+       </div>
+       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview</button>
+         <div class="spacer"></div><button class="btn primary" id="exp">${IC.bolt} Compress</button></div>
+       ${ffStatusBar('bar')}<div class="ff-status mt" style="font-size:12px;color:var(--muted)"></div>
+       <div class="row mt" id="result" hidden>
+         <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div>
+           <div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+         <button class="btn primary" id="dl">${IC.download} Download</button></div>
+     </div>`);
+  const pv = $('#pv'), bar = $('#bar');
+  async function load(f){
+    try{
+      const info = await loadVideoFile(f);
+      S.file = f; S.info = info;
+      pv.src = info.url; pv.playbackRate = 1;
+      $('#work').hidden = false; $('#result').hidden = true;
+      $('#meta').innerHTML = `<span class="chip small">${info.w}×${info.h}</span><span class="chip small">${fmtTime(info.dur)}</span><span class="chip small">${fmtSize(f.size)}</span>`;
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'), fs => load(fs[0]), 'video/*');
+  $('#crf').oninput = e => {
+    const v = +e.target.value;
+    $('#crfv').textContent = v + (v <= 22 ? ' (high)' : v <= 28 ? ' (balanced)' : ' (small)');
+  };
+  $('#prev').onclick = () => pv.play();
+  $('#exp').onclick = async () => {
+    if (!S.file) return;
+    const btn = $('#exp'); btn.disabled = true;
+    const fmt = $('#fmt').value, crf = $('#crf').value;
+    const size = $('#size').value;
+    setFFProgress(bar, 0, 'Starting FFmpeg…');
+    try{
+      await ffPut('in' + (S.file.name.match(/\.[a-z0-9]+$/i) ? S.file.name.match(/\.[a-z0-9]+$/i)[0] : '.mp4'), S.file, l => l && setFFProgress(bar, 0, l));
+      const out = 'out.' + fmt;
+      const args = buildVideoExport({
+        input: 'in' + (S.file.name.match(/\.[a-z0-9]+$/i) ? S.file.name.match(/\.[a-z0-9]+$/i)[0] : '.mp4'),
+        output: out, crf, preset: $('#preset').value,
+        encoder: fmt === 'webm' ? 'libvpx-vp9' : 'libx264',
+        audioCodec: fmt === 'webm' ? 'libopus' : 'aac',
+        width: size === 'orig' ? null : Number(size),
+        height: size === 'orig' ? null : undefined
+      });
+      if (fmt === 'webm') args.splice(args.indexOf('-crf') + 2, 0, '-b:v', '0');
+      await ffRun(args, p => setFFProgress(bar, p, 'Encoding… ' + Math.round(p * 100) + '%'));
+      const data = await ffGet(out);
+      S.out = new Blob([data], { type: fmt === 'webm' ? 'video/webm' : 'video/mp4' });
+      S.ext = fmt;
+      setFFProgress(bar, 1, 'Done');
+      $('#rn').textContent = ffOutName(S.file, '-compressed', fmt);
+      $('#rs').textContent = `${fmtSize(S.out.size)} (was ${fmtSize(S.file.size)}) · ${Math.max(0, Math.round((1 - S.out.size / S.file.size) * 100))}% smaller`;
+      $('#result').hidden = false;
+      await ffClean(['in' + (S.file.name.match(/\.[a-z0-9]+$/i) ? S.file.name.match(/\.[a-z0-9]+$/i)[0] : '.mp4')]);
+    }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'Compression failed'); }
+    finally{ btn.disabled = false; }
+  };
+  $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, ffOutName(S.file, '-compressed', S.ext)); };
+}
+
+/* ---------------- Colour & Stabilise ---------------- */
+function renderVcolor(){
+  const S = { file: null, info: null, filters: {}, out: null, ext: '' };
+  page.innerHTML = toolPage('Colour & Stabilise',
+    'Correct exposure, contrast, saturation and sharpness, or smooth out camera shake. Every slider is applied by FFmpeg’s real filters (eq, unsharp, deshake), not a CSS overlay.',
+    `<div class="panel">${dropHtml('Tap to choose a video','mp4, mov, mkv, webm','dzv')}</div>
+     <div class="panel mt" id="work" hidden>
+       <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+       <div class="grid2 mt">
+         <div><label class="lbl">Brightness <span id="bv">0</span></label><input type="range" class="slider" id="b" min="-0.4" max="0.4" step="0.02" value="0"></div>
+         <div><label class="lbl">Contrast <span id="cv">1.00</span></label><input type="range" class="slider" id="c" min="0.6" max="1.8" step="0.02" value="1"></div>
+         <div><label class="lbl">Saturation <span id="sv">1.00</span></label><input type="range" class="slider" id="s" min="0" max="2" step="0.02" value="1"></div>
+         <div><label class="lbl">Gamma <span id="gv">1.00</span></label><input type="range" class="slider" id="g" min="0.5" max="2" step="0.02" value="1"></div>
+         <div><label class="lbl">Sharpness <span id="shv">0.00</span></label><input type="range" class="slider" id="sh" min="0" max="2" step="0.1" value="0"></div>
+       </div>
+       <label class="lbl row mt" style="gap:10px;text-transform:none;letter-spacing:0">
+         <input type="checkbox" id="shake"> Stabilise (crop-and-shake-remove)</label>
+       <div class="grid2 mt">
+         <div><label class="lbl">Rotate</label><select class="inp" id="rot">
+           <option value="0">None</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option>
+         </select></div>
+         <div><label class="lbl">Quality</label><select class="inp" id="crf">
+           <option value="20">High</option><option value="23" selected>Good</option><option value="28">Small file</option>
+         </select></div>
+       </div>
+       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview (unfiltered)</button>
+         <div class="spacer"></div><button class="btn primary" id="exp">${IC.bolt} Apply &amp; export</button></div>
+       ${ffStatusBar('bar')}<div class="ff-status mt" style="font-size:12px;color:var(--muted)"></div>
+       <div class="row mt" id="result" hidden>
+         <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div>
+           <div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+         <button class="btn primary" id="dl">${IC.download} Download</button></div>
+     </div>`);
+  const pv = $('#pv'), bar = $('#bar');
+  async function load(f){
+    try{
+      const info = await loadVideoFile(f);
+      S.file = f; S.info = info;
+      pv.src = info.url; $('#work').hidden = false; $('#result').hidden = true;
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'), fs => load(fs[0]), 'video/*');
+  const bind = (id, out, fmt) => {
+    $(id).oninput = e => {
+      const v = +e.target.value;
+      $(out).textContent = fmt === 'f2' ? v.toFixed(2) : String(v);
+      // live CSS approximation on the preview so the slider feels responsive
+      const b = +$('#b').value, c = +$('#c').value, s = +$('#s').value;
+      pv.style.filter = `brightness(${1 + b}) contrast(${c}) saturate(${s})`;
+    };
+  };
+  bind('#b', '#bv'); bind('#c', '#cv', 'f2'); bind('#s', '#sv', 'f2'); bind('#g', '#gv', 'f2'); bind('#sh', '#shv', 'f2');
+  $('#prev').onclick = () => pv.play();
+  $('#exp').onclick = async () => {
+    if (!S.file) return;
+    const btn = $('#exp'); btn.disabled = true;
+    setFFProgress(bar, 0, 'Starting FFmpeg…');
+    const ext = (S.file.name.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    try{
+      await ffPut('in' + ext, S.file);
+      const args = buildVideoExport({
+        input: 'in' + ext, output: 'out.mp4',
+        brightness: +$('#b').value, contrast: +$('#c').value, saturation: +$('#s').value,
+        gamma: +$('#g').value, sharp: +$('#sh').value,
+        deshake: $('#shake').checked, rotate: +$('#rot').value || 0,
+        crf: +$('#crf').value
+      });
+      await ffRun(args, p => setFFProgress(bar, p, 'Rendering… ' + Math.round(p * 100) + '%'));
+      const data = await ffGet('out.mp4');
+      S.out = new Blob([data], { type: 'video/mp4' }); S.ext = 'mp4';
+      setFFProgress(bar, 1, 'Done');
+      $('#rn').textContent = ffOutName(S.file, '-graded', 'mp4');
+      $('#rs').textContent = fmtSize(S.out.size);
+      $('#result').hidden = false;
+      await ffClean(['in' + ext]);
+    }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'Export failed'); }
+    finally{ btn.disabled = false; }
+  };
+  $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, ffOutName(S.file, '-graded', 'mp4')); };
+}
+
+/* ---------------- Subtitle Editor (SRT/ASS burn-in) ---------------- */
+function renderVsubtitles(){
+  const S = { file: null, info: null, cues: [], out: null };
+  page.innerHTML = toolPage('Subtitle Editor',
+    'Write or paste subtitles, preview them on the video, then burn them in with FFmpeg’s libass renderer — a real hard-subtitled MP4 that plays anywhere.',
+    `<div class="panel">${dropHtml('Tap to choose a video','mp4, mov, webm','dzv')}</div>
+     <div class="panel mt" id="work" hidden>
+       <div class="av-wrap mt" style="position:relative"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video>
+         <div id="cueOv" style="position:absolute;left:0;right:0;bottom:8%;text-align:center;pointer-events:none"></div></div>
+       <div class="row mt wrap">
+         <button class="btn ghost small" id="addCue">${IC.plus} Add subtitle</button>
+         <button class="btn ghost small" id="importSrt">Import .srt</button>
+         <div class="spacer"></div><span class="chip small" id="cueCount">0 subtitles</span>
+       </div>
+       <div id="cueList" class="mt"></div>
+       <div class="grid2 mt">
+         <div><label class="lbl">Font size</label><input type="range" class="slider" id="fs" min="12" max="40" step="1" value="22"></div>
+         <div><label class="lbl">Text colour</label><input type="color" class="inp" id="col" value="#ffffff" style="height:44px;padding:4px"></div>
+       </div>
+       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview</button>
+         <div class="spacer"></div><button class="btn primary" id="exp">${IC.bolt} Burn in &amp; export MP4</button></div>
+       ${ffStatusBar('bar')}<div class="ff-status mt" style="font-size:12px;color:var(--muted)"></div>
+       <div class="row mt" id="result" hidden>
+         <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div>
+           <div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+         <button class="btn primary" id="dl">${IC.download} Download</button></div>
+     </div>`);
+  const pv = $('#pv'), bar = $('#bar');
+  const fmtStamp = t => {
+    const m = Math.floor(t / 60), s = (t % 60);
+    return String(m).padStart(2, '0') + ':' + (s < 10 ? '0' : '') + s.toFixed(1);
+  };
+  function drawList(){
+    const list = $('#cueList');
+    if (!S.cues.length){ list.innerHTML = '<div class="empty">No subtitles yet — add one, or import an .srt file.</div>'; }
+    else {
+      list.innerHTML = S.cues.map((c, i) => `
+        <div class="row mt" style="gap:8px;align-items:center">
+          <input class="inp" style="width:86px" value="${c.start.toFixed(1)}" data-k="start" data-i="${i}" title="start (s)">
+          <input class="inp" style="width:86px" value="${c.end.toFixed(1)}" data-k="end" data-i="${i}" title="end (s)">
+          <input class="inp" style="flex:1;min-width:140px" value="${esc(c.text)}" data-k="text" data-i="${i}" placeholder="Subtitle text">
+          <button class="btn ghost small" data-del="${i}" aria-label="Delete">${IC.rev}</button>
+        </div>`).join('');
+    }
+    $('#cueCount').textContent = S.cues.length + (S.cues.length === 1 ? ' subtitle' : ' subtitles');
+  }
+  async function load(f){
+    try{
+      const info = await loadVideoFile(f);
+      S.file = f; S.info = info;
+      pv.src = info.url; $('#work').hidden = false; $('#result').hidden = true;
+      if (!S.cues.length) S.cues.push({ start: 0, end: Math.min(2, info.dur), text: 'Your first subtitle' });
+      drawList();
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'), fs => load(fs[0]), 'video/*');
+  $('#addCue').onclick = () => {
+    const start = S.info ? clamp(pv.currentTime, 0, S.info.dur) : 0;
+    S.cues.push({ start, end: start + 2, text: '' });
+    drawList();
+  };
+  $('#cueList').addEventListener('input', e => {
+    const el = e.target.closest('[data-k]'); if (!el) return;
+    const i = +el.dataset.i, k = el.dataset.k;
+    S.cues[i][k] = k === 'text' ? el.value : Number(el.value) || 0;
+  });
+  $('#cueList').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del){ S.cues.splice(+del.dataset.del, 1); drawList(); }
+  });
+  $('#importSrt').onclick = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.srt,text/plain';
+    inp.onchange = async () => {
+      const txt = await inp.files[0].text();
+      S.cues = parseSrt(txt);
+      drawList();
+      toast('Imported ' + S.cues.length + ' subtitles');
+    };
+    inp.click();
+  };
+  pv.ontimeupdate = () => {
+    const t = pv.currentTime;
+    const cue = S.cues.find(c => t >= c.start && t <= c.end);
+    $('#cueOv').innerHTML = cue ? `<span style="background:rgba(0,0,0,.62);color:${$('#col').value};padding:2px 8px;border-radius:6px;font-size:${$('#fs').value}px">${esc(cue.text)}</span>` : '';
+  };
+  $('#prev').onclick = () => pv.play();
+  $('#exp').onclick = async () => {
+    if (!S.file) return;
+    if (!S.cues.length) return toast('Add at least one subtitle first');
+    const btn = $('#exp'); btn.disabled = true;
+    setFFProgress(bar, 0, 'Starting FFmpeg…');
+    const ext = (S.file.name.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    try{
+      await ffPut('in' + ext, S.file);
+      const srt = buildSrt(S.cues);
+      await ffPut('subs.srt', new TextEncoder().encode(srt));
+      const size = Number($('#fs').value) * 2;               // srt font size is in pixels-ish
+      const colour = $('#col').value.replace('#', '&H');
+      const style = `FontSize=${size},PrimaryColour=&H${colour.slice(1)}${colour.slice(0, 1)}&,Outline=2,Shadow=0,MarginV=28`;
+      const args = ['-hide_banner', '-nostdin', '-y', '-i', 'in' + ext,
+        '-vf', `subtitles=subs.srt:force_style='${style}'`,
+        '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac', '-b:a', '160k', 'out.mp4'];
+      await ffRun(args, p => setFFProgress(bar, p, 'Burning subtitles… ' + Math.round(p * 100) + '%'));
+      const data = await ffGet('out.mp4');
+      S.out = new Blob([data], { type: 'video/mp4' });
+      setFFProgress(bar, 1, 'Done');
+      $('#rn').textContent = ffOutName(S.file, '-subtitled', 'mp4');
+      $('#rs').textContent = fmtSize(S.out.size);
+      $('#result').hidden = false;
+      await ffClean(['in' + ext, 'subs.srt']);
+    }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'Export failed'); }
+    finally{ btn.disabled = false; }
+  };
+  $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, ffOutName(S.file, '-subtitled', 'mp4')); };
+}
+
+/* ---------------- SRT helpers (pure) ---------------- */
+function srtTime(t){
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60);
+  const ms = Math.round((t - Math.floor(t)) * 1000);
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)},${pad(ms, 3)}`;
+}
+function buildSrt(cues){
+  return cues.map((c, i) =>
+    `${i + 1}\n${srtTime(c.start)} --> ${srtTime(Math.max(c.start + 0.2, c.end))}\n${String(c.text || '').replace(/\r?\n/g, ' ')}\n`
+  ).join('\n');
+}
+function parseSrt(text){
+  const out = [];
+  const blocks = String(text).replace(/\r/g, '').split(/\n\n+/);
+  for (const block of blocks) {
+    const lines = block.split('\n').filter(Boolean);
+    if (lines.length < 2) continue;
+    const timeLine = lines.find(l => l.includes('-->'));
+    if (!timeLine) continue;
+    const [a, b] = timeLine.split('-->').map(s => s.trim());
+    const toSec = s => {
+      const m = s.match(/(\d+):(\d+):(\d+)[,.](\d+)/);
+      return m ? (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000 : 0;
+    };
+    const text = lines.slice(lines.indexOf(timeLine) + 1).join(' ');
+    out.push({ start: toSec(a), end: toSec(b), text });
+  }
+  return out;
+}
+
+/* ---------------- GIF Maker (FFmpeg, palette) ---------------- */
+function renderVgifff(){
+  const S = { file: null, info: null, out: null };
+  page.innerHTML = toolPage('GIF Maker (FFmpeg)',
+    'A proper palette-optimised GIF: FFmpeg builds a 256-colour palette from your clip, so the result is sharp instead of dithered.',
+    `<div class="panel">${dropHtml('Tap to choose a video','mp4, mov, webm','dzv')}</div>
+     <div class="panel mt" id="work" hidden>
+       <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+       <div class="grid2 mt">
+         <div><label class="lbl">Start (s) <span id="sv">0</span></label><input type="range" class="slider" id="start" min="0" max="60" step="0.1" value="0"></div>
+         <div><label class="lbl">Length (s) <span id="lv">3</span></label><input type="range" class="slider" id="len" min="0.5" max="20" step="0.5" value="3"></div>
+         <div><label class="lbl">Width <span id="wv">480</span></label><input type="range" class="slider" id="w" min="160" max="960" step="20" value="480"></div>
+         <div><label class="lbl">Frame rate <span id="fv">12</span></label><input type="range" class="slider" id="fps" min="5" max="25" step="1" value="12"></div>
+       </div>
+       <div class="row mt"><div class="spacer"></div><button class="btn primary" id="exp">${IC.bolt} Make GIF</button></div>
+       ${ffStatusBar('bar')}<div class="ff-status mt" style="font-size:12px;color:var(--muted)"></div>
+       <div class="panel mt" id="result" hidden><img id="previewGif" alt="GIF preview" style="max-width:100%;border-radius:12px">
+         <div class="row mt"><div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div>
+           <div class="spacer"></div><button class="btn primary" id="dl">${IC.download} Download GIF</button></div></div>
+     </div>`);
+  const pv = $('#pv'), bar = $('#bar');
+  async function load(f){
+    try{
+      const info = await loadVideoFile(f);
+      S.file = f; S.info = info;
+      pv.src = info.url; $('#work').hidden = false; $('#result').hidden = true;
+      $('#start').max = String(Math.max(1, Math.floor(info.dur)));
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'), fs => load(fs[0]), 'video/*');
+  ['start:sv','len:lv','w:wv','fps:fv'].forEach(pair => {
+    const [id, out] = pair.split(':');
+    $('#' + id).oninput = e => { $('#' + out).textContent = e.target.value; };
+  });
+  $('#exp').onclick = async () => {
+    if (!S.file) return;
+    const btn = $('#exp'); btn.disabled = true;
+    setFFProgress(bar, 0, 'Starting FFmpeg…');
+    const ext = (S.file.name.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    try{
+      await ffPut('in' + ext, S.file);
+      const start = +$('#start').value, len = +$('#len').value;
+      const w = +$('#w').value, fps = +$('#fps').value;
+      await ffRun(['-hide_banner','-nostdin','-y','-i','in'+ext,
+        '-ss', String(start), '-t', String(len),
+        '-vf', `fps=${fps},scale=${w}:-1:flags=lanczos,palettegen=max_colors=256`, 'palette.png'],
+        p => setFFProgress(bar, p * 0.5, 'Building palette…'));
+      await ffRun(['-hide_banner','-nostdin','-y','-i','in'+ext,'-i','palette.png',
+        '-ss', String(start), '-t', String(len),
+        '-lavfi', `fps=${fps},scale=${w}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3`,
+        '-loop','0','out.gif'], p => setFFProgress(bar, 0.5 + p * 0.5, 'Rendering GIF…'));
+      const data = await ffGet('out.gif');
+      S.out = new Blob([data], { type: 'image/gif' });
+      setFFProgress(bar, 1, 'Done');
+      const url = URL.createObjectURL(S.out);
+      $('#previewGif').src = url;
+      $('#rn').textContent = ffOutName(S.file, '', 'gif');
+      $('#rs').textContent = fmtSize(S.out.size);
+      $('#result').hidden = false;
+      await ffClean(['in' + ext, 'palette.png']);
+    }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'GIF failed'); }
+    finally{ btn.disabled = false; }
+  };
+  $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, ffOutName(S.file, '', 'gif')); };
+}
+
 const routes={
   home:renderHome, studio:renderStudio, trim:renderTrim, merge:renderMerge, mix:renderMix,
   split:renderSplit, insert:renderInsert, boost:renderBoost, ringtone:renderRingtone,
@@ -9050,6 +9614,7 @@ const routes={
   reverse:renderReverse, pitch:renderPitch, silence:renderSilence, fade:renderFade,
   vocal:renderVocal, bpm:renderBpm, stereo:renderStereo, equalizer:renderEqualizer, analyzer:renderAnalyzer,
   aconv:renderAconv, vconv:renderVconv, vresize:renderVresize,
+  vffcompress:renderVffcompress, vcolor:renderVcolor, vsubedit:renderVsubtitles, vgifff:renderVgifff,
   video:renderVideoHub, vtrim:renderVtrim, vmerge:renderVmerge, vmute:renderVmute, vadd:renderVadd, vfilter:renderVfilter, vcrop:renderVcrop, vspeed:renderVspeed, vreverse:renderVreverse, vgif:renderVgif, vcompress:renderVcompress, screen:renderScreen, webcam:renderWebcam,
   podcast:renderPodcast, loopmaker:renderLoopmaker, tts:renderTts, stt:renderStt, vizpro:renderVizpro, beat:renderBeat, vslideshow:renderVslideshow, vsubs:renderVsubs, vthumb:renderVthumb, vintro:renderVintro, vmeme:renderVmeme, templates:renderTemplates,
   vemoji:renderVemoji, vtextanim:renderVtextanim, veffectlab:renderVeffectlab, vtransitions:renderVtransitions,

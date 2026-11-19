@@ -59,7 +59,7 @@ test('audio & video studio stays a single dependency-free file', () => {
   const html = read('audio-video/index.html');
   assert.ok(!/from '\.\/js\//.test(html), 'reference to a pipeline module that is not shipped');
   const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
-  assert.match(title, /59 Tools/, 'the page title should state the current tool count');
+  assert.match(title, /63 Tools/, 'the page title should state the current tool count');
   assert.ok(!/images\.unsplash\.com|picsum\.photos/.test(html), 'demo artwork must be self-contained');
   assert.ok(statSync(join(root, 'audio-video/index.html')).size < 1_500_000, 'page grew unexpectedly');
 });
@@ -96,11 +96,11 @@ test('external affiliate library is gone', () => {
 
 test('the three converter/resizer tools are wired into the audio & video studio', () => {
   const html = read('audio-video/index.html');
-  for (const id of ['aconv', 'vconv', 'vresize']) {
+  for (const id of ['aconv', 'vconv', 'vresize', 'vffcompress', 'vcolor', 'vsubedit', 'vgifff']) {
     assert.ok(html.includes(`id:'${id}'`) || html.includes(`id: '${id}'`), `${id} is missing from the tool catalogue`);
     assert.ok(new RegExp(`${id}\\s*:\\s*render`).test(html), `${id} has no route`);
   }
-  for (const fn of ['encodeAudio', 'recordVideoAdvanced', 'pickVideoMime']) {
+  for (const fn of ['encodeAudio', 'recordVideoAdvanced', 'pickVideoMime', 'loadFFmpeg', 'buildVideoExport', 'buildSrt']) {
     assert.ok(html.includes(`function ${fn}`), `${fn} helper is missing`);
   }
 });
