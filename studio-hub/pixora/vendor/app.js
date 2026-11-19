@@ -65,12 +65,15 @@ function changeFilter(filter){stateApp.filter=filter;stateApp.showAll=filter!=='
 
 
 function closeSidebar(){$('#sidebar').classList.remove('open');$('#sideScrim').classList.remove('show')}
+/* deep link from the Studio Hub search: #tool-<id> opens that tool directly */
+function openFromHash(){var m=/^#tool-([a-z0-9-]+)$/i.exec(location.hash||'');if(!m)return false;var t=TOOLS.find(function(x){return x.id===m[1]});if(!t)return false;openTool(t.id);return true}
 function nav(target){closeSidebar();if(target==='editor'){showEditor();return}showHome();if(target==='image'||target==='pdf'||target==='video'){setNavActive(target);changeFilter(target);setTimeout(()=>$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'}),20)}else{setNavActive('home');changeFilter('all');window.scrollTo({top:0,behavior:'smooth'})}}
 $$('[data-nav]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();nav(b.dataset.nav)}));
 $('#menuBtn').addEventListener('click',()=>{$('#sidebar').classList.add('open');$('#sideScrim').classList.add('show')});$('#sideScrim').addEventListener('click',closeSidebar);
 $('#exploreBtn').addEventListener('click',()=>$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'}));
 $$('.tab').forEach(b=>b.addEventListener('click',()=>{changeFilter(b.dataset.filter);setNavActive(['image','pdf','video'].includes(b.dataset.filter)?b.dataset.filter:'home')}));
-function toggleAll(){stateApp.showAll=stateApp.filter==='all'?!stateApp.showAll:true;stateApp.filter='all';renderCards();if(!stateApp.showAll)$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'})}
+function toggleAll(){stateApp.showAll=stateApp.filter==='all'?!stateApp.showAll:true;stateApp.filter='all';renderCards();
+openFromHash();window.addEventListener('hashchange',function(){if(!openFromHash())return});if(!stateApp.showAll)$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'})}
 $('#toggleAll').addEventListener('click',toggleAll);$('#toggleAllTop').addEventListener('click',toggleAll);
 $('#toolsGrid').addEventListener('click',e=>{const btn=e.target.closest('[data-tool]');if(btn)openTool(btn.dataset.tool)});
 

@@ -3,16 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#080e28">
 <title>Studio Hub — Audio, Video, Image & PDF tools that never upload your files</title>
 <meta name="description" content="One private creative suite in your browser: a 68-tool audio & video editor plus a 43-tool image, PDF & design studio. Nothing is uploaded, nothing loads from a CDN.">
 <meta property="og:title" content="Studio Hub — private audio, video, image & PDF tools">
-<meta property="og:description" content="98 tools that run entirely on your device. No uploads, no accounts, no CDN.">
+<meta property="og:description" content="111 tools that run entirely on your device. No uploads, no accounts, no CDN.">
+<meta property="og:url" content="https://abhishekagrahari307-max.github.io/Tools/studio-hub/">
 <meta property="og:type" content="website">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon.svg">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="assets/hub.css">
+<link rel="stylesheet" href="assets/hub.css?v=3">
+<link rel="stylesheet" href="assets/hub-search.css?v=3">
 </head>
 <body>
 
@@ -21,7 +24,14 @@
     <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="url(#bg)"/><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366f1"/><stop offset="1" stop-color="#22b8f0"/></linearGradient></defs><path d="M16 26v12M26 18v28M34 10v44M44 18v28M52 26v12" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>
     <span>Studio<b>Hub</b></span>
   </a>
-  <nav class="topnav">
+  <label class="hub-search" for="hubSearch">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+    <input id="hubSearch" type="search" placeholder="Search 111 tools…" autocomplete="off" aria-label="Search every tool in both studios">
+  </label>
+  <button class="topnav-toggle" id="navToggle" aria-expanded="false" aria-controls="topnav" aria-label="Open navigation">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <nav class="topnav" id="topnav">
     <a href="#apps">Apps</a>
     <a href="#status">Status</a><a href="#privacy">Privacy</a>
     <a href="audio-video/">Audio &amp; Video</a>
@@ -135,15 +145,125 @@
 </footer>
 
 <script>
+/* One theme for the whole site: the studios store theirs under 'ae-theme',
+   so the hub reads and writes both keys. A visitor who picked light in the
+   editor should not be dropped into a dark hub (or the other way round). */
 (function(){
-  var root = document.documentElement, key = 'studio-hub-theme';
-  var saved = null;
-  try { saved = localStorage.getItem(key); } catch (e) {}
-  if (saved === 'light') root.setAttribute('data-theme','light');
-  document.getElementById('themeToggle').addEventListener('click', function(){
-    var light = root.getAttribute('data-theme') === 'light';
-    if (light) root.removeAttribute('data-theme'); else root.setAttribute('data-theme','light');
-    try { localStorage.setItem(key, light ? 'dark' : 'light'); } catch (e) {}
+  var root = document.documentElement, key = 'studio-hub-theme', studioKey = 'ae-theme';
+  var read = function(k){ try { return localStorage.getItem(k); } catch (e) { return null; } };
+  var saved = read(key) || read(studioKey);
+  var sun = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>';
+  var moon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" fill="currentColor"/></svg>';
+  var btn = document.getElementById('themeToggle');
+  function paint(light){
+    if (light) root.setAttribute('data-theme','light'); else root.removeAttribute('data-theme');
+    btn.innerHTML = light ? moon : sun;              /* the icon shows what you switch TO */
+    btn.setAttribute('aria-pressed', String(light));
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', light ? '#eef1fb' : '#080e28');
+  }
+  paint(saved === 'light');
+  btn.addEventListener('click', function(){
+    var light = root.getAttribute('data-theme') !== 'light';
+    paint(light);
+    try { localStorage.setItem(key, light ? 'light' : 'dark'); localStorage.setItem(studioKey, light ? 'light' : 'dark'); } catch (e) {}
+  });
+})();
+</script>
+
+<script>
+/* ---------- Hub search: 111 tools, one box ----------
+   The index is generated from the two studios' own catalogues
+   (tests/hub-search.test.mjs keeps it in sync), so a tool that exists
+   is always findable and never 404s. */
+(function(){
+  var TOOLS = [{"n":"Trim","d":"Cut out just the part you need — drag the handles, preview, save as MP3 or WAV","s":"av","r":"trim","c":"edit"},{"n":"Multi-track Edit","d":"Pro multi-track studio: drag, split, trim, volume, fades, AI clean, undo/redo & mix it all","s":"av","r":"studio","c":"edit"},{"n":"Merge","d":"Join files back-to-back in any order into one continuous track","s":"av","r":"merge","c":"edit"},{"n":"Mix","d":"Play tracks together, set per-track volume, blend into one final mix","s":"av","r":"mix","c":"edit"},{"n":"Split","d":"Slice audio into segments at cut points, download each part","s":"av","r":"split","c":"edit"},{"n":"Insert","d":"Splice one file into another at an exact position — clean stitches","s":"av","r":"insert","c":"edit"},{"n":"Volume Booster","d":"Amplify up to +18 dB (or cut to -12 dB) with soft-clip protection, no distortion","s":"av","r":"boost","c":"edit"},{"n":"Ringtone Maker","d":"Any song into a perfect 30-second ringtone with smooth fades","s":"av","r":"ringtone","c":"edit"},{"n":"Reverse","d":"Play any audio backwards — instant reverse preview & export","s":"av","r":"reverse","c":"edit"},{"n":"Pitch & Speed","d":"Change speed & pitch 0.5× to 2× — chipmunk to deep voice, keep duration or not","s":"av","r":"pitch","c":"edit"},{"n":"Silence Remover","d":"Auto-detect & cut silent gaps — threshold & padding controls, perfect for podcasts","s":"av","r":"silence","c":"edit"},{"n":"Fade Studio","d":"Add smooth fade-in / fade-out with linear or exponential curves","s":"av","r":"fade","c":"edit"},{"n":"Video to MP3","d":"Extract the audio track from any video file, save as MP3 or WAV","s":"av","r":"v2a","c":"video"},{"n":"MP3 to Video","d":"Turn audio into an animated video with a live waveform visual","s":"av","r":"a2v","c":"video"},{"n":"Noise Remover","d":"Spectral subtraction cuts hiss, fan noise & 50/60 Hz hum","s":"av","r":"denoise","c":"proc"},{"n":"Voice Changer","d":"Real DSP voice effects — Chipmunk, Deep, Robot, Echo, Reverb, Phone","s":"av","r":"voice","c":"proc"},{"n":"Voice Recorder","d":"Record from your mic with a live level meter, export MP3 or WAV","s":"av","r":"rec","c":"record"},{"n":"Compressor","d":"Squash loud peaks, lift quiet parts — full threshold/ratio/attack control","s":"av","r":"comp","c":"proc"},{"n":"Effects Rack","d":"12 chainable effects — 8-band EQ, bass boost, reverb, echo, limiter, distortion, chorus, phaser & more","s":"av","r":"fx","c":"proc"},{"n":"Batch Converter","d":"Convert 10+ files to MP3 or WAV at once — auto-downloads as one ZIP","s":"av","r":"batch","c":"proc"},{"n":"Visualizer","d":"Live oscilloscope, spectrum analyzer, VU meter & clip detection while you preview","s":"av","r":"viz","c":"proc"},{"n":"Vocal Remover","d":"AI-style centre-cancel karaoke — remove vocals or keep only vocals","s":"av","r":"vocal","c":"proc"},{"n":"BPM Finder","d":"Detect tempo in BPM — auto analyse + tap tempo, beat grid display","s":"av","r":"bpm","c":"proc"},{"n":"Stereo Tools","d":"Swap L/R, mono mix, invert phase, widen stereo & balance","s":"av","r":"stereo","c":"proc"},{"n":"10-Band EQ","d":"Professional 10-band equalizer with presets — shape tone & export","s":"av","r":"equalizer","c":"proc"},{"n":"Audio Analyzer","d":"Deep audio info: peak, RMS, loudness, spectrum & format details","s":"av","r":"analyzer","c":"proc"},{"n":"Video Trimmer","d":"Trim video to exact start/end — frame-accurate preview, keep audio","s":"av","r":"vtrim","c":"video"},{"n":"Video Merger","d":"Join multiple videos back-to-back into one MP4/WebM","s":"av","r":"vmerge","c":"video"},{"n":"Mute / Extract","d":"Mute video audio or extract audio track — one tap","s":"av","r":"vmute","c":"video"},{"n":"Add Audio to Video","d":"Replace or mix background music over any video — sync preview","s":"av","r":"vadd","c":"video"},{"n":"Video Filters","d":"Cinematic filters: grayscale, sepia, vintage, blur & contrast — live preview","s":"av","r":"vfilter","c":"video"},{"n":"Crop & Rotate","d":"Crop, rotate 90°/180°, flip & scale video — live canvas preview","s":"av","r":"vcrop","c":"video"},{"n":"Video Speed","d":"Speed up or slow down video & audio together — 0.25× to 4×","s":"av","r":"vspeed","c":"video"},{"n":"Reverse Video","d":"Play video backwards with reversed audio — canvas renderer","s":"av","r":"vreverse","c":"video"},{"n":"Video to GIF","d":"Convert any video clip into animated GIF — set FPS & size","s":"av","r":"vgif","c":"video"},{"n":"Video Compressor","d":"True x264 compression with CRF control — rebuilds the file frame by frame (FFmpeg)","s":"av","r":"vffcompress","c":"video"},{"n":"Colour & Stabilise","d":"Exposure, contrast, saturation, sharpness and shake removal via FFmpeg eq/deshake filters","s":"av","r":"vcolor","c":"video"},{"n":"Subtitle Editor","d":"Write or import SRT, preview on the video, then burn real subtitles with libass","s":"av","r":"vsubedit","c":"video"},{"n":"GIF Maker Pro","d":"Palette-optimised GIFs from any clip — sharp 256-colour output, not dithered","s":"av","r":"vgifff","c":"video"},{"n":"Video Rotator","d":"Rotate 90/180/270 or mirror — real frames, true portrait output (FFmpeg)","s":"av","r":"vrotate","c":"video"},{"n":"Slow Motion","d":"0.25×–0.9× with optional motion interpolation for smooth in-between frames","s":"av","r":"vslowmo","c":"video"},{"n":"Watermark","d":"Burn a logo or a text stamp into the pixels — FFmpeg overlay, survives re-uploads","s":"av","r":"vwatermark","c":"video"},{"n":"Audio Extractor","d":"Video → MP3 320k / WAV / M4A with FFmpeg, even for clips the browser cannot play","s":"av","r":"vextractaudio","c":"video"},{"n":"Thumbnail Maker","d":"Grab any frame as PNG/JPEG, upscale to a 1280×720 or 1080×1920 cover with a caption","s":"av","r":"vthumbnailff","c":"video"},{"n":"Audio Converter","d":"MP3 ⇄ WAV ⇄ OGG ⇄ M4A ⇄ WebM — re-encode audio in the browser with a quality slider","s":"av","r":"aconv","c":"edit"},{"n":"Video Converter","d":"Re-encode video to MP4 or WebM at the size, frame rate and bitrate you choose","s":"av","r":"vconv","c":"video"},{"n":"Video Resizer","d":"9:16 reels, 1:1 posts, 16:9 YouTube — resize with fit or fill, then export","s":"av","r":"vresize","c":"video"},{"n":"Video Compressor","d":"Shrink video file size by re-encoding — choose quality 480p/720p","s":"av","r":"vcompress","c":"video"},{"n":"Screen Recorder","d":"Record your screen + mic — perfect for tutorials, save as MP4","s":"av","r":"screen","c":"record"},{"n":"Webcam Recorder","d":"Record from camera & mic with filters — save as WebM/MP4","s":"av","r":"webcam","c":"record"},{"n":"Podcast Studio","d":"One-tap podcast chain: silence cut + normalize + intro/outro + export MP3","s":"av","r":"podcast","c":"edit"},{"n":"Loop Maker","d":"Make perfect loops — set BPM, bars, crossfade loop points, preview seamless","s":"av","r":"loopmaker","c":"edit"},{"n":"Text to Speech","d":"Type text → natural AI-like voice (Web Speech API) → preview & export WAV","s":"av","r":"tts","c":"proc"},{"n":"Speech to Text","d":"Mic or file → live transcript (Web Speech API) → copy / download TXT","s":"av","r":"stt","c":"proc"},{"n":"Visualizer Pro","d":"5 pro visualizer templates: bars, circle, waveform, particles, neon — export video","s":"av","r":"vizpro","c":"proc"},{"n":"Beat Maker","d":"Step sequencer drum machine: kick/snare/hihat, BPM, swing, export loop","s":"av","r":"beat","c":"proc"},{"n":"Slideshow Maker","d":"Images → video slideshow: Ken Burns zoom, music, transitions, 1080p export","s":"av","r":"vslideshow","c":"video"},{"n":"Subtitle Adder","d":"Add timed subtitles: SRT import or manual, style, position, burn-in export","s":"av","r":"vsubs","c":"video"},{"n":"Thumbnail Maker","d":"Extract frame at time, add title, logo, filters → export JPG/PNG 1280×720","s":"av","r":"vthumb","c":"video"},{"n":"Intro Maker","d":"5 intro templates: bold, glitch, neon, minimal, cinematic — text → 6s video","s":"av","r":"vintro","c":"video"},{"n":"Meme Maker","d":"Top/bottom text, font, stroke, position — image or video → meme export","s":"av","r":"vmeme","c":"video"},{"n":"Emoji & Stickers","d":"Add emoji & 40+ stickers to video: drag, resize, animate (bounce/spin/fade) — A-Z","s":"av","r":"vemoji","c":"video"},{"n":"Text Animator","d":"Animated text: typewriter, slide, fade, bounce, glitch, neon — font, color, emoji inline","s":"av","r":"vtextanim","c":"video"},{"n":"Effect Lab 20+","d":"20+ effects: blur, pixelate, glitch, vintage, HDR, tilt-shift — intensity + mix","s":"av","r":"veffectlab","c":"video"},{"n":"Transitions Pack","d":"12 transitions for merges & slideshows: fade, slide, zoom, wipe, glitch, spin — duration control","s":"av","r":"vtransitions","c":"video"},{"n":"Timeline Pro","d":"CapCut-style multi-track: music/text/video layers, playhead, Split/Trim/Speed/Filter/FX — screenshot exact","s":"av","r":"timelinepro","c":"video"},{"n":"A-Z Master Chart","d":"Complete A-Z research chart: 26 letters, 100+ features, every tool linked — searchable","s":"av","r":"azchart","c":"template"},{"n":"Templates Gallery","d":"Ready-made templates: Podcast, Reel 9:16, YouTube Intro, Meme, Slideshow — one tap load","s":"av","r":"templates","c":"template"},{"n":"Design editor","d":"Create something beautiful with layers, text and shapes.","s":"pix","r":"editor","c":"pix"},{"n":"Compress image","d":"Compress and resize photos with flexible presets.","s":"pix","r":"compress-image","c":"pix"},{"n":"Merge PDF","d":"Bring multiple PDF documents together.","s":"pix","r":"merge-pdf","c":"pix"},{"n":"Resize image","d":"Resize one or many photos for any purpose.","s":"pix","r":"resize-image","c":"pix"},{"n":"Images to PDF","d":"Turn your pictures into a single PDF.","s":"pix","r":"image-pdf","c":"pix"},{"n":"PDF to images","d":"Save pages as JPG or PNG images.","s":"pix","r":"pdf-image","c":"pix"},{"n":"Crop image","d":"Frame your picture to the perfect ratio.","s":"pix","r":"crop-image","c":"pix"},{"n":"Convert photos","d":"Convert one or many photos to JPG, PNG or WebP.","s":"pix","r":"convert-image","c":"pix"},{"n":"Compress video","d":"Reduce video resolution and bitrate locally.","s":"pix","r":"compress-video","c":"pix"},{"n":"Photos to video","d":"Turn a set of photos into a silent slideshow.","s":"pix","r":"slideshow","c":"pix"},{"n":"Extract PDF pages","d":"Keep just the pages you need.","s":"pix","r":"split-pdf","c":"pix"},{"n":"Passport photo","d":"Make photos in common ID dimensions.","s":"pix","r":"passport","c":"pix"},{"n":"Image effects","d":"Adjust brightness, contrast, color and blur.","s":"pix","r":"filters-image","c":"pix"},{"n":"Image to text (OCR)","d":"Recognize printed English and Hindi from photos.","s":"pix","r":"ocr-image","c":"pix"},{"n":"OCR scanned PDF","d":"Extract text or make scanned pages searchable.","s":"pix","r":"ocr-pdf","c":"pix"},{"n":"Compress PDF · keep text","d":"Optimize a PDF without rasterizing its pages.","s":"pix","r":"optimize-pdf","c":"pix"},{"n":"Password protect PDF","d":"Add an AES-256 open password to a PDF.","s":"pix","r":"protect-pdf","c":"pix"},{"n":"Unlock PDF","d":"Remove PDF encryption using a known password.","s":"pix","r":"unlock-pdf","c":"pix"},{"n":"PDF to Word · text only","d":"Export selectable PDF text to an editable DOCX.","s":"pix","r":"pdf-docx","c":"pix"},{"n":"Word text to PDF","d":"Create a simple PDF from DOCX paragraph text.","s":"pix","r":"docx-pdf","c":"pix"},{"n":"Circle crop","d":"Crop a photo into a transparent circle.","s":"pix","r":"circle-crop","c":"pix"},{"n":"Favicon / ICO maker","d":"Create a multi-size icon from your image.","s":"pix","r":"favicon","c":"pix"},{"n":"Compress PDF","d":"Reduce scanned PDFs by rasterizing pages.","s":"pix","r":"compress-pdf","c":"pix"},{"n":"Rotate & flip image","d":"Rotate or mirror a picture in one click.","s":"pix","r":"rotate-image","c":"pix"},{"n":"Watermark image","d":"Add your own text watermark to a photo.","s":"pix","r":"watermark-image","c":"pix"},{"n":"Photo collage","d":"Arrange multiple photos into a neat grid.","s":"pix","r":"collage","c":"pix"},{"n":"Signature maker","d":"Draw and download a transparent signature.","s":"pix","r":"signature","c":"pix"},{"n":"Border & corners","d":"Add a border and softly rounded corners.","s":"pix","r":"border-image","c":"pix"},{"n":"Image color picker","d":"Pick an exact color from an image.","s":"pix","r":"color-picker","c":"pix"},{"n":"Split image","d":"Slice an image into a downloadable grid.","s":"pix","r":"split-image","c":"pix"},{"n":"Rotate PDF","d":"Turn selected pages to the right orientation.","s":"pix","r":"rotate-pdf","c":"pix"},{"n":"Watermark PDF","d":"Add a text watermark to your document.","s":"pix","r":"watermark-pdf","c":"pix"},{"n":"Page numbers","d":"Add page numbers to a PDF document.","s":"pix","r":"number-pdf","c":"pix"},{"n":"Sign PDF","d":"Add a drawn visual signature to a PDF.","s":"pix","r":"sign-pdf","c":"pix"},{"n":"Add image to PDF","d":"Place an image or stamp on a PDF page.","s":"pix","r":"stamp-pdf","c":"pix"},{"n":"Fill PDF form","d":"Fill existing PDF text fields and checkboxes.","s":"pix","r":"form-pdf","c":"pix"},{"n":"Delete PDF pages","d":"Remove unwanted pages from a PDF.","s":"pix","r":"delete-pdf","c":"pix"},{"n":"Reorder PDF pages","d":"Change the page order in a document.","s":"pix","r":"reorder-pdf","c":"pix"},{"n":"Crop PDF pages","d":"Adjust the visible margins of PDF pages.","s":"pix","r":"crop-pdf","c":"pix"},{"n":"Pages per sheet","d":"Fit two or four PDF pages onto one sheet.","s":"pix","r":"nup-pdf","c":"pix"},{"n":"Resize PDF pages","d":"Fit pages to A4, Letter, A3 or A5.","s":"pix","r":"resize-pdf","c":"pix"},{"n":"PDF to text","d":"Extract selectable text to a plain text file.","s":"pix","r":"pdf-text","c":"pix"},{"n":"Text to PDF","d":"Turn typed English or Hindi text into a PDF.","s":"pix","r":"text-pdf","c":"pix"}];
+  var dest = function(t){ return t.s === 'av' ? 'audio-video/#' + t.r : 'pixora/#tool-' + t.r; };
+  var input = document.getElementById('hubSearch');
+  var box = document.getElementById('hubResults');
+  var nav = document.getElementById('topnav');
+  var toggle = document.getElementById('navToggle');
+  var panel = null, active = -1;
+
+  var esc = function(v){ return String(v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+  var mark = function(text, q){
+    if (!q) return esc(text);
+    var i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(text);
+    return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+  };
+  var search = function(q){
+    q = q.trim().toLowerCase();
+    if (!q) return [];
+    var hits = [];
+    for (var i = 0; i < TOOLS.length; i++){
+      var t = TOOLS[i], nm = t.n.toLowerCase(), ds = (t.d || '').toLowerCase();
+      var at = nm.indexOf(q);
+      if (at < 0) at = ds.indexOf(q);
+      if (at < 0) continue;
+      hits.push({ t: t, at: at, nameHit: nm.indexOf(q) >= 0, len: nm.length });
+    }
+    hits.sort(function(a, b){ return (b.nameHit - a.nameHit) || (a.t.n.length - b.t.n.length) || (a.at - b.at); });
+    return hits.slice(0, 24).map(function(h){ return h.t; });
+  };
+  var render = function(q){
+    if (!panel) return;
+    var hits = search(q);
+    if (!q.trim()){
+      panel.innerHTML = '<div class="hr-head">Type to search both studios</div>' +
+        '<div class="hr-empty">68 audio &amp; video tools + 43 image, PDF &amp; design tools.</div>';
+      return;
+    }
+    if (!hits.length){
+      panel.innerHTML = '<div class="hr-empty">No tool matches “' + esc(q.trim()) + '”. Try “video”, “pdf”, “compress” or “trim”.</div>';
+      return;
+    }
+    panel.innerHTML = '<div class="hr-head">' + hits.length + (hits.length === 24 ? '+' : '') + ' tool' + (hits.length === 1 ? '' : 's') + ' found</div>' +
+      hits.map(function(t){
+        var tag = t.s === 'av' ? 'Audio &amp; Video' : 'Image &amp; PDF';
+        return '<a href="' + dest(t) + '" data-hit>' +
+          '<span class="hr-ic">' + (t.s === 'av' ? '🎛' : '🖼') + '</span>' +
+          '<span class="hr-txt"><span class="hr-nm">' + mark(t.n, q.trim()) + '</span>' +
+          '<span class="hr-ds">' + mark(t.d || '', q.trim()) + '</span></span>' +
+          '<span class="hr-go">' + tag + '</span></a>';
+      }).join('');
+  };
+  var open = function(){
+    if (!panel){
+      /* anchored to the sticky top bar, so it drops from the search box on
+         both the one-row desktop bar and the two-row phone bar */
+      panel = document.createElement('div'); panel.className = 'hub-results'; panel.id = 'hubResults';
+      (document.querySelector('.topbar') || document.body).appendChild(panel);
+    }
+    render(input.value); panel.classList.add('show');
+  };
+  var close = function(){ if (panel) panel.classList.remove('show'); active = -1; };
+  if (input) input.addEventListener('focus', open);
+  if (input) input.addEventListener('input', function(){ open(); });
+  if (input) input.addEventListener('keydown', function(e){
+    if (!panel || !panel.classList.contains('show')) return;
+    var items = panel.querySelectorAll('[data-hit]');
+    if (e.key === 'Escape'){ close(); input.blur(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      if (!items.length) return;
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      for (var i = 0; i < items.length; i++) items[i].classList.toggle('active', i === active);
+      items[active].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && items.length){
+      e.preventDefault();
+      (items[active >= 0 ? active : 0]).click();
+    }
+  });
+  document.addEventListener('click', function(e){ if (input && !e.target.closest('.hub-search') && !e.target.closest('.hub-results')) close(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === '/' && document.activeElement !== input && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
+      e.preventDefault(); input.focus();
+    }
+  });
+  if (toggle && nav) toggle.addEventListener('click', function(){
+    var open2 = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(open2));
   });
 })();
 </script>

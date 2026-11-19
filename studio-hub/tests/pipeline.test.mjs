@@ -246,6 +246,48 @@ if (JSDOM) test('audio and video export pipelines actually run', async (t) => {
     assert.ok(out.longRun > out.ticks, 'a 3 minute project must have a longer ruler than an 8 s one');
   });
 
+  /* the aspect chip used to be decoration: it changed a label but the stage
+     stayed 16:9 and re-opening the studio forgot the choice */
+  await t.test('the aspect chip resizes the composite stage and is remembered', async () => {
+    const out = await evalIn(`
+      window.location.hash = '#timelinepro';
+      await new Promise(r => setTimeout(r, 180));
+      const stubBox = () => ({ width: 800, height: 300, left: 0, top: 0, right: 800, bottom: 300 });
+      document.getElementById('tlPreviewWrap').getBoundingClientRect = stubBox;
+      const chip = [...document.querySelectorAll('[data-aspect]')].find(b => b.dataset.aspect === '9:16');
+      chip.click();
+      await new Promise(r => setTimeout(r, 60));
+      const cv = document.getElementById('tlCanvas');
+      const box = { w: parseFloat(cv.style.width), h: parseFloat(cv.style.height),
+                    pixels: [cv.width, cv.height],
+                    on: chip.classList.contains('on'),
+                    exportSel: document.getElementById('exAspect').value,
+                    saved: localStorage.getItem('tl-aspect'),
+                    info: document.getElementById('tlPreviewInfo').textContent };
+      /* re-open the studio: the stored ratio must come back */
+      window.location.hash = '#home';
+      await new Promise(r => setTimeout(r, 120));
+      window.location.hash = '#timelinepro';
+      await new Promise(r => setTimeout(r, 180));
+      /* the rebuilt stage is a new element — give it the same measured box */
+      document.getElementById('tlPreviewWrap').getBoundingClientRect = stubBox;
+      window.__tlReframe();
+      const cv2 = document.getElementById('tlCanvas');
+      return { ...box, reopened: [parseFloat(cv2.style.width), parseFloat(cv2.style.height)],
+               reopenedChip: [...document.querySelectorAll('[data-aspect]')].find(b => b.dataset.aspect === '9:16').classList.contains('on') };`);
+    assert.ok(out.w > 0 && out.h > 0, 'the stage has no frame size');
+    assert.ok(out.h > out.w, `9:16 should be taller than wide, got ${out.w}x${out.h}`);
+    assert.ok(out.pixels[1] > out.pixels[0], 'the canvas backing store is still landscape');
+    assert.ok(out.on, 'the chip did not light up');
+    assert.equal(out.exportSel, '9:16', 'the export dialog should default to the picked ratio');
+    assert.equal(out.saved, '9:16', 'the ratio was not stored');
+    assert.match(out.info, /9:16/, 'the info chip still reports the old ratio');
+    /* values cross the jsdom realm boundary, so compare numbers, not array identity */
+    assert.ok(Math.abs(out.reopened[0] - out.w) < 0.6 && Math.abs(out.reopened[1] - out.h) < 0.6,
+      `the aspect was lost when the studio was re-opened (${out.reopened.join('x')} vs ${out.w}x${out.h})`);
+    assert.ok(out.reopenedChip, 'the chip did not restore its active state');
+  });
+
   await t.test('every route still renders', async () => {
     const routes = w.eval('Object.keys(routes)');
     assert.ok(routes.length >= 62, 'the studio should expose its full route table');
