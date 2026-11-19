@@ -9,8 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Audio & Video Editor — 56 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
-<title>Audio & Video Editor — 56 Tools | Trim, Mix, Studio & Video Suite</title>
+<meta name="description" content="Audio & Video Editor — 59 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
+<title>Audio & Video Editor — 59 Tools | Trim, Mix, Studio & Video Suite</title>
 <style>
 /* ============================================================
    AUDIO EDITOR — Design System v2 (upgraded)
@@ -194,6 +194,9 @@ h2.sec-title svg{width:22px;height:22px;color:var(--cyan);filter:drop-shadow(0 0
 .panel + .panel{margin-top:16px}
 .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .row.between{justify-content:space-between}
+.prog{height:10px;border-radius:999px;background:rgba(148,163,255,.16);overflow:hidden}
+.prog i{display:block;height:100%;width:0;border-radius:999px;background:var(--grad);transition:width .2s ease}
+.row.wrap{flex-wrap:wrap}
 .mt{margin-top:16px}
 .muted{color:var(--muted)}
 .dim{color:var(--dim)}
@@ -1304,6 +1307,9 @@ const TOOLS=[
   {id:'vspeed',nm:'Video Speed',      cat:'video', ic:'clock',    c:['#59391f','#3d2514'], icc:'#fbbf24', ds:'Speed up or slow down video & audio together — 0.25× to 4×', go:'vspeed'},
   {id:'vreverse',nm:'Reverse Video',  cat:'video', ic:'rev',      c:['#3d1d5e','#2a1345'], icc:'#e879f9', ds:'Play video backwards with reversed audio — canvas renderer', go:'vreverse'},
   {id:'vgif',  nm:'Video to GIF',     cat:'video', ic:'file',     c:['#0d3f66','#0a2947'], icc:'#22d3ee', ds:'Convert any video clip into animated GIF — set FPS & size', go:'vgif'},
+  {id:'aconv',  nm:'Audio Converter',  cat:'edit', ic:'music',   c:['#083344','#0e7490'], icc:'#22d3ee', ds:'MP3 ⇄ WAV ⇄ OGG ⇄ M4A ⇄ WebM — re-encode audio in the browser with a quality slider', go:'aconv'},
+  {id:'vconv',  nm:'Video Converter',  cat:'video', ic:'video',   c:['#1e3a8a','#1e40af'], icc:'#60a5fa', ds:'Re-encode video to MP4 or WebM at the size, frame rate and bitrate you choose', go:'vconv'},
+  {id:'vresize',nm:'Video Resizer',    cat:'video', ic:'layers',  c:['#3f2d1a','#7c2d12'], icc:'#fbbf24', ds:'9:16 reels, 1:1 posts, 16:9 YouTube — resize with fit or fill, then export', go:'vresize'},
   {id:'vcompress',nm:'Video Compressor',cat:'video', ic:'file',  c:['#0d4234','#0a2e24'], icc:'#34d399', ds:'Shrink video file size by re-encoding — choose quality 480p/720p', go:'vcompress'},
   {id:'screen',nm:'Screen Recorder',  cat:'record', ic:'video',    c:['#4a2c14','#35200e'], icc:'#fbbf24', ds:'Record your screen + mic — perfect for tutorials, save as MP4', crown:1, go:'screen'},
   {id:'webcam',nm:'Webcam Recorder',  cat:'record', ic:'video',    c:['#3d1d5e','#2a1345'], icc:'#e879f9', ds:'Record from camera & mic with filters — save as WebM/MP4', go:'webcam'},
@@ -8618,7 +8624,7 @@ function buildMenu(){
   const cats=['video','edit','proc','record','template'];
   let html='';
   html+=`<button data-go="home">${IC.home}<span>Home</span></button>`;
-  html+=`<button data-go="video" style="background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(34,211,238,.12));border-color:rgba(99,102,241,.35)">${IC.video}<span>Video Hub — 22 Tools</span></button>`;
+  html+=`<button data-go="video" style="background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(34,211,238,.12));border-color:rgba(99,102,241,.35)">${IC.video}<span>Video Hub — ${TOOLS.filter(t=>t.cat==='video').length} Tools</span></button>`;
   html+=`<button data-go="azchart" style="background:linear-gradient(135deg,rgba(14,165,233,.18),rgba(124,77,255,.12));border-color:rgba(14,165,233,.35)">${IC.layers}<span>A-Z Master Chart — Complete</span></button>`;
   html+=`<button data-go="studio">${IC.layers}<span>Multi-track Studio</span></button>`;
   html+=`<button data-go="outputs">${IC.folder}<span>Outputs</span></button>`;
@@ -8639,6 +8645,403 @@ function toggleMenu(force){
 }
 
 /* ================= router ================= */
+/* ================= CONVERT ENGINE (audio + video) =================
+   Shared by: Audio Converter, Video Converter, Video Resizer.
+   Everything runs on the device: Web Audio for sound, MediaRecorder over a
+   canvas for picture, LAME (bundled) for MP3.                              */
+
+/* pick the first container the browser can actually record */
+function pickVideoMime(pref){
+  const cands = pref==='mp4'
+    ? ['video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm']
+    : ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  for(const m of cands){ try{ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }catch(e){} }
+  return '';
+}
+function mimeExt(mime){ return /mp4/i.test(mime||'') ? 'mp4' : 'webm'; }
+
+/* audio buffer -> chosen format, returns {blob, ext} */
+async function encodeAudio(buf, fmt, kbps=192, onProgress){
+  const step = (p,label)=>onProgress&&onProgress(p,label);
+  switch(fmt){
+    case 'wav':
+      step(0.9,'Writing WAV…'); return {blob:wavBlob(buf), ext:'wav'};
+    case 'mp3':{
+      step(0.15,'Encoding MP3…');
+      const blob = await mp3BlobAsync(buf, kbps, p=>step(0.15+p*0.8,'Encoding MP3…'));
+      step(1,'MP3 ready'); return {blob, ext:'mp3'};
+    }
+    case 'ogg':{
+      step(0.2,'Encoding Ogg…');
+      const blob = await encodeWithAudioContext(buf, 'audio/ogg');
+      return {blob, ext:'ogg'};
+    }
+    default:{ /* m4a / aac / anything the browser can do */
+      step(0.2,'Encoding '+(fmt||'audio').toUpperCase()+'…');
+      const type = fmt==='m4a' ? 'audio/mp4' : (fmt==='aac' ? 'audio/aac' : 'audio/webm');
+      const blob = await encodeWithAudioContext(buf, type);
+      return {blob, ext: fmt==='m4a'?'m4a':(fmt==='aac'?'aac':'webm')};
+    }
+  }
+}
+
+/* encode a decoded buffer with MediaRecorder + a MediaStreamDestination.
+   Used for Ogg / M4A / WebM audio, where the browser's own encoder applies. */
+async function encodeWithAudioContext(buf, mime, onProgress){
+  const cands=[mime,'audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'];
+  let use='';
+  for(const m of cands){ try{ if(MediaRecorder.isTypeSupported(m)){ use=m; break; } }catch(e){} }
+  if(!use) throw new Error('This browser cannot encode '+mime+'. Try MP3 or WAV.');
+  const ac=AC(), dest=ac.createMediaStreamDestination();
+  const src=ac.createBufferSource(); src.buffer=buf; src.connect(dest); src.connect(ac.destination);
+  const rec=new MediaRecorder(dest.stream,{mimeType:use});
+  const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  const done=new Promise(r=>rec.onstop=r);
+  rec.start();
+  await src.start(0);
+  await new Promise(r=>src.onended=r);
+  try{rec.stop();}catch(e){}
+  await done;
+  return new Blob(chunks,{type:use});
+}
+
+/* video file -> canvas pipeline -> recorded blob.
+   opts: {start,end,fps,width,height,fit,crop,rotate,flipH,flipV,speed,filter,bitrate,audio,mime}   */
+function recordVideoAdvanced(file, opts, onProgress){
+  return new Promise(async (resolve, reject)=>{
+    const v=document.createElement('video');
+    const url=vidUrl(file);
+    v.src=url; v.playsInline=true; v.preload='auto';
+    const cleanup=()=>{ try{v.pause();}catch(e){} revokeVidUrl(url); };
+    const fail=m=>{ cleanup(); reject(new Error(m)); };
+    v.onerror=()=>fail('This browser could not open that video. Try MP4 (H.264) or WebM.');
+    await new Promise(r=>{ v.onloadedmetadata=r; });
+    if(!v.videoWidth) return fail('The video has no picture track.');
+
+    const dur = v.duration;
+    if(!isFinite(dur)||dur<=0) return fail('Could not read the video duration.');
+
+    // ---- output size
+    let outW, outH;
+    if(opts.width&&opts.height){ outW=opts.width; outH=opts.height; }
+    else{ outW=v.videoWidth; outH=v.videoHeight; }
+    outW=Math.round(outW/2)*2; outH=Math.round(outH/2)*2;
+
+    const cv=document.createElement('canvas');
+    cv.width=outW; cv.height=outH;
+    const ctx=cv.getContext('2d');
+
+    const fps = opts.fps||30;
+    const mime = opts.mime || pickVideoMime('webm');
+    const stream = cv.captureStream(fps);
+
+    // audio track: capture from the source element when we can
+    let extraAudio=null, extraUrl='';
+    if(opts.audio!==false){
+      try{
+        if(v.captureStream){
+          v.captureStream().getAudioTracks().forEach(t=>stream.addTrack(t));
+        }
+      }catch(e){ /* silent videos / unsupported */ }
+    }
+
+    const rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:opts.bitrate||4000000}
+                                         :{videoBitsPerSecond:opts.bitrate||4000000});
+    const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    const stopped=new Promise(r=>rec.onstop=r);
+
+    const start = opts.start!=null?opts.start:0;
+    const end   = opts.end!=null?opts.end:dur;
+    const span  = Math.max(0.2, end-start);
+    const speed = opts.speed||1;
+
+    if(opts.extraAudioBuf && opts.audio!==false){
+      try{
+        extraUrl=URL.createObjectURL(wavBlob(opts.extraAudioBuf));
+        extraAudio=document.createElement('audio'); extraAudio.src=extraUrl;
+        await extraAudio.play().catch(()=>{});
+        if(extraAudio.captureStream) extraAudio.captureStream().getAudioTracks().forEach(t=>stream.addTrack(t));
+      }catch(e){}
+    }
+
+    v.currentTime=start;
+    await new Promise(r=>{ if(v.readyState>=2) r(); else v.onseeked=()=>r(); });
+    v.playbackRate=speed;
+    rec.start(250);
+    await v.play().catch(()=>{});
+
+    let last=0, finished=false;
+    const totalOut = span/speed;
+    const draw=()=>{
+      if(finished) return;
+      const t=v.currentTime;
+      if(t>=end || v.ended){ finish(); return; }
+      const p=clamp((t-start)/span,0,1);
+      if(p-last>0.01){ last=p; onProgress&&onProgress(p,'Recording…'); }
+
+      ctx.save();
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,outW,outH);
+      ctx.filter=opts.filter||'none';
+      // rotation/flip around the centre
+      ctx.translate(outW/2,outH/2);
+      if(opts.flipH) ctx.scale(-1,1);
+      if(opts.flipV) ctx.scale(1,-1);
+      if(opts.rotate) ctx.rotate(opts.rotate*Math.PI/180);
+
+      let sw=v.videoWidth, sh=v.videoHeight, sx=0, sy=0;
+      if(opts.crop){
+        sx=Math.round(sw*opts.crop.x); sy=Math.round(sh*opts.crop.y);
+        sw=Math.round(sw*opts.crop.w); sh=Math.round(sh*opts.crop.h);
+      }
+      const rot=Math.abs(((opts.rotate||0)%180)/90)%2===1;
+      const boxW=rot?outH:outW, boxH=rot?outW:outH;
+      const scale = opts.fit==='stretch' ? 0 : Math.min(boxW/sw, boxH/sh);
+      const dw = opts.fit==='stretch'?boxW:sw*scale, dh = opts.fit==='stretch'?boxH:sh*scale;
+      ctx.drawImage(v, sx,sy,sw,sh, -dw/2, -dh/2, dw, dh);
+      ctx.restore();
+      requestAnimationFrame(draw);
+    };
+
+    const finish=()=>{
+      if(finished) return; finished=true;
+      try{v.pause();}catch(e){}
+      if(extraAudio){ try{extraAudio.pause();}catch(e){} }
+      try{rec.stop();}catch(e){}
+    };
+    // safety net for browsers that never fire 'ended' after a seek
+    const guard=setTimeout(finish, totalOut*1000+6000);
+
+    draw();
+    await stopped;
+    clearTimeout(guard);
+    if(extraUrl) revokeVidUrl(extraUrl);
+    onProgress&&onProgress(1,'Finishing…');
+    cleanup();
+    if(!chunks.length) return reject(new Error('The recording produced no data — try a shorter clip.'));
+    resolve({blob:new Blob(chunks,{type:mime||'video/webm'}), ext:mimeExt(mime), w:outW, h:outH});
+  });
+}
+
+/* ---------------- Audio Converter ---------------- */
+function renderAconv(){
+  const S={buf:null,name:'',out:null,ext:''};
+  page.innerHTML=toolPage('Audio Converter','Convert between MP3, WAV, OGG, M4A and WebM audio in the browser — nothing is uploaded. MP3 and WAV keep the original sample rate and channel count.',
+   `<div class="panel">${dropHtml('Tap to choose an audio file','mp3, wav, m4a, ogg, flac…','dz')}</div>
+    <div class="panel mt" id="work" hidden>
+      <div class="row between">
+        <div class="file-row" style="flex:1;min-width:220px;border:0;padding:0"><div class="file-ic">${IC.music}</div><div class="file-meta"><div class="fm-n"><span id="fn"></span></div><div class="fm-s"><span id="fs"></span></div></div></div>
+        <button class="btn ghost small" id="chg">Change file</button>
+      </div>
+      <div class="wave-wrap mt"><canvas id="wc"></canvas></div>
+      <div class="grid2 mt">
+        <div><label class="lbl">Output format</label><select class="inp" id="fmt">
+          <option value="mp3">MP3 — small, universal</option>
+          <option value="wav">WAV — lossless PCM</option>
+          <option value="ogg">OGG — open container</option>
+          <option value="m4a">M4A / AAC — Apple friendly</option>
+          <option value="webm">WebM audio</option>
+        </select></div>
+        <div><label class="lbl">MP3 quality <span id="kbpsv">192 kbps</span></label><input type="range" class="slider" id="kbps" min="64" max="320" step="32" value="192"></div>
+      </div>
+      <div class="row mt">
+        <button class="btn ghost" id="prev">${IC.play} Preview</button>
+        <div class="spacer"></div>
+        <button class="btn primary" id="conv">${IC.bolt} Convert</button>
+      </div>
+      <div class="prog mt" id="bar" hidden><i id="barfill"></i></div>
+      <div class="row mt" id="result" hidden>
+        <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div><div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+        <button class="btn primary" id="dl">${IC.download} Download</button>
+      </div>
+    </div>`);
+  const cv=$('#wc');
+  async function load(f){
+    try{
+      const buf=await decodeFile(f);
+      S.buf=buf; S.name=f.name;
+      $('#fn').textContent=f.name;
+      $('#fs').textContent=`${buf.numberOfChannels>1?'stereo':'mono'} · ${buf.sampleRate} Hz · ${fmtTime(buf.duration)}`;
+      $('#work').hidden=false;
+      drawPeaks(cv,buf.getChannelData(0),{color:'#22d3ee'});
+      $('#result').hidden=true; $('#bar').hidden=true;
+    }catch(e){ toast('Could not decode that file — it may be an unsupported codec'); }
+  }
+  attachDrop($('#dz'),fs=>load(fs[0]),'audio/*');
+  $('#chg').onclick=()=>$('#dz').click();
+  $('#kbps').oninput=e=>$('#kbpsv').textContent=e.target.value+' kbps';
+  $('#prev').onclick=()=>{ if(S.buf) playBuf(S.buf,$('#prev')); };
+  $('#conv').onclick=async()=>{
+    if(!S.buf) return;
+    const fmt=$('#fmt').value, kbps=+$('#kbps').value;
+    const base=safeName(S.name);
+    const btn=$('#conv'); btn.disabled=true; $('#bar').hidden=false;
+    const setP=p=>{ $('#barfill').style.width=(p*100).toFixed(0)+'%'; };
+    try{
+      const out=await encodeAudio(S.buf,fmt,kbps,(p,label)=>{ setP(p); if(label) toast(label,900); });
+      S.out=out.blob; S.ext=out.ext;
+      $('#rn').textContent=`${base}.${out.ext}`;
+      $('#rs').textContent=fmtSize(out.blob.size);
+      $('#result').hidden=false;
+      toast('Converted to '+out.ext.toUpperCase());
+    }catch(e){ toast(e.message||'Conversion failed'); }
+    finally{ btn.disabled=false; setTimeout(()=>{$('#bar').hidden=true;setP(0);},600); }
+  };
+  $('#dl').onclick=()=>{ if(S.out) downloadBlob(S.out, safeName(S.name)+'.'+S.ext); };
+}
+
+/* ---------------- Video Converter ---------------- */
+function renderVconv(){
+  const S={file:null,url:'',info:null,out:null,ext:''};
+  page.innerHTML=toolPage('Video Converter','Re-encode a video to MP4 or WebM at the size, frame rate and quality you pick. Preview is live; the download is produced on your device.',
+   `<div class="panel">${dropHtml('Tap to choose a video','mp4, webm, mov, m4v…','dzv')}</div>
+    <div class="panel mt" id="work" hidden>
+      <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+      <div class="row wrap mt" id="meta"></div>
+      <div class="grid2 mt">
+        <div><label class="lbl">Container</label><select class="inp" id="fmt">
+          <option value="mp4">MP4 — best compatibility</option>
+          <option value="webm">WebM — smaller, open</option>
+        </select></div>
+        <div><label class="lbl">Size</label><select class="inp" id="size">
+          <option value="orig">Keep original</option>
+          <option value="1080">1080p (1920 × 1080)</option>
+          <option value="720">720p (1280 × 720)</option>
+          <option value="480">480p (854 × 480)</option>
+          <option value="360">360p (640 × 360)</option>
+        </select></div>
+        <div><label class="lbl">Frame rate</label><select class="inp" id="fps">
+          <option value="24">24 fps</option><option value="30" selected>30 fps</option><option value="60">60 fps</option>
+        </select></div>
+        <div><label class="lbl">Quality <span id="qv">3.5 Mbps</span></label><input type="range" class="slider" id="q" min="500" max="8000" step="250" value="3500"></div>
+      </div>
+      <label class="lbl row mt" style="gap:10px;text-transform:none;letter-spacing:0"><input type="checkbox" id="keepAudio" checked> Keep the original audio track</label>
+      <div class="row mt">
+        <button class="btn ghost" id="prev">${IC.play} Preview</button>
+        <div class="spacer"></div>
+        <button class="btn primary" id="exp">${IC.bolt} Convert</button>
+      </div>
+      <div class="prog mt" id="bar" hidden><i id="barfill"></i></div>
+      <div class="row mt" id="result" hidden>
+        <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div><div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+        <button class="btn primary" id="dl">${IC.download} Download</button>
+      </div>
+    </div>`);
+  const pv=$('#pv');
+  async function load(f){
+    if(S.url) revokeVidUrl(S.url);
+    try{
+      const info=await loadVideoFile(f);
+      S.file=f; S.url=info.url; S.info=info;
+      pv.src=S.url; $('#work').hidden=false; $('#result').hidden=true;
+      $('#meta').innerHTML=`<span class="chip small">${info.w}×${info.h}</span><span class="chip small">${fmtTime(info.dur)}</span><span class="chip small">${(f.size/1048576).toFixed(1)} MB</span>`;
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
+  $('#q').oninput=e=>$('#qv').textContent=(e.target.value/1000).toFixed(1)+' Mbps';
+  $('#prev').onclick=()=>{ pv.muted=$('#keepAudio').checked?false:true; pv.play(); };
+  $('#exp').onclick=async()=>{
+    if(!S.file) return;
+    const btn=$('#exp'); btn.disabled=true; $('#bar').hidden=false;
+    const setP=p=>$('#barfill').style.width=(p*100).toFixed(0)+'%';
+    const target=$('#size').value;
+    let w=null,h=null;
+    if(target!=='orig'){
+      h=+target; w=Math.round(h*S.info.w/S.info.h/2)*2; h=Math.round(h/2)*2;
+      if(w%2) w++;
+    }
+    try{
+      const out=await recordVideoAdvanced(S.file,{
+        width:w,height:h,fps:+$('#fps').value,bitrate:+$('#q').value*1000,
+        mime:pickVideoMime($('#fmt').value), audio:$('#keepAudio').checked
+      },setP);
+      S.out=out.blob; S.ext=out.ext;
+      $('#rn').textContent=`${safeName(S.file.name)}.${out.ext}`;
+      $('#rs').textContent=`${fmtSize(out.blob.size)} · ${out.w}×${out.h}`;
+      $('#result').hidden=false;
+    }catch(e){ toast(e.message||'Conversion failed'); }
+    finally{ btn.disabled=false; setTimeout(()=>{$('#bar').hidden=true;setP(0);},700); }
+  };
+  $('#dl').onclick=()=>{ if(S.out) downloadBlob(S.out, safeName(S.file.name)+'.'+S.ext); };
+}
+
+/* ---------------- Video Resizer ---------------- */
+function renderVresize(){
+  const S={file:null,url:'',info:null,fw:1280,fh:720,out:null,ext:''};
+  page.innerHTML=toolPage('Video Resizer','Change a video’s frame size for any platform — 9:16 reels, 1:1 posts, 16:9 YouTube — with fit or fill (letterbox).',
+   `<div class="panel">${dropHtml('Tap to choose a video','mp4, webm…','dzv')}</div>
+    <div class="panel mt" id="work" hidden>
+      <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+      <div class="row wrap mt" id="meta"></div>
+      <div class="row wrap mt">
+        <button class="chip small" data-preset="1920,1080">16:9 · 1920×1080</button>
+        <button class="chip small" data-preset="1280,720">16:9 · 1280×720</button>
+        <button class="chip small" data-preset="1080,1920">9:16 Reel</button>
+        <button class="chip small" data-preset="1080,1080">1:1 Square</button>
+        <button class="chip small" data-preset="1080,1350">4:5 Post</button>
+        <button class="chip small" data-preset="720,1280">9:16 · 720p</button>
+      </div>
+      <div class="grid2 mt">
+        <div><label class="lbl">Width <span id="wv"></span> px</label><input type="number" class="inp" id="w" min="16" max="4096" step="2"></div>
+        <div><label class="lbl">Height <span id="hv"></span> px</label><input type="number" class="inp" id="h" min="16" max="4096" step="2"></div>
+        <div><label class="lbl">Fit</label><select class="inp" id="fit">
+          <option value="fit">Fit — letterbox, nothing cut</option>
+          <option value="stretch">Stretch — fill, may distort</option>
+        </select></div>
+        <div><label class="lbl">Quality <span id="qv">4.0 Mbps</span></label><input type="range" class="slider" id="q" min="500" max="10000" step="250" value="4000"></div>
+      </div>
+      <div class="row mt">
+        <div class="spacer"></div>
+        <button class="btn primary" id="exp">${IC.bolt} Resize &amp; export</button>
+      </div>
+      <div class="prog mt" id="bar" hidden><i id="barfill"></i></div>
+      <div class="row mt" id="result" hidden>
+        <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div><div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+        <button class="btn primary" id="dl">${IC.download} Download</button>
+      </div>
+    </div>`);
+  const pv=$('#pv');
+  function paintSize(){
+    $('#w').value=S.fw; $('#h').value=S.fh;
+    $('#wv').textContent=S.fw; $('#hv').textContent=S.fh;
+  }
+  async function load(f){
+    if(S.url) revokeVidUrl(S.url);
+    try{
+      const info=await loadVideoFile(f);
+      S.file=f; S.url=info.url; S.info=info;
+      pv.src=S.url; $('#work').hidden=false; $('#result').hidden=true;
+      S.fw=info.w; S.fh=info.h; paintSize();
+      $('#meta').innerHTML=`<span class="chip small">source ${info.w}×${info.h}</span><span class="chip small">${fmtTime(info.dur)}</span>`;
+    }catch(e){ toast('Could not open that video'); }
+  }
+  attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
+  $$('[data-preset]').forEach(b=>b.onclick=()=>{
+    const [w,h]=b.dataset.preset.split(',').map(Number); S.fw=w; S.fh=h;
+    paintSize(); $$('[data-preset]').forEach(x=>x.classList.toggle('on',x===b));
+  });
+  $('#w').oninput=e=>{ S.fw=+e.target.value||2; $('#wv').textContent=S.fw; };
+  $('#h').oninput=e=>{ S.fh=+e.target.value||2; $('#hv').textContent=S.fh; };
+  $('#q').oninput=e=>$('#qv').textContent=(e.target.value/1000).toFixed(1)+' Mbps';
+  $('#exp').onclick=async()=>{
+    if(!S.file) return;
+    if(S.fw<16||S.fh<16) return toast('Width and height must be at least 16 px');
+    const btn=$('#exp'); btn.disabled=true; $('#bar').hidden=false;
+    const setP=p=>$('#barfill').style.width=(p*100).toFixed(0)+'%';
+    try{
+      const out=await recordVideoAdvanced(S.file,{
+        width:S.fw,height:S.fh,fps:30,fit:$('#fit').value,bitrate:+$('#q').value*1000,
+        mime:pickVideoMime('mp4'), audio:true
+      },setP);
+      S.out=out.blob; S.ext=out.ext;
+      $('#rn').textContent=`${safeName(S.file.name)}-${out.w}x${out.h}.${out.ext}`;
+      $('#rs').textContent=fmtSize(out.blob.size);
+      $('#result').hidden=false;
+    }catch(e){ toast(e.message||'Export failed'); }
+    finally{ btn.disabled=false; setTimeout(()=>{$('#bar').hidden=true;setP(0);},700); }
+  };
+  $('#dl').onclick=()=>{ if(S.out) downloadBlob(S.out,`${safeName(S.file.name)}-${S.fw}x${S.fh}.${S.ext}`); };
+}
+
 const routes={
   home:renderHome, studio:renderStudio, trim:renderTrim, merge:renderMerge, mix:renderMix,
   split:renderSplit, insert:renderInsert, boost:renderBoost, ringtone:renderRingtone,
@@ -8646,6 +9049,7 @@ const routes={
   comp:renderComp, fx:renderFx, batch:renderBatch, viz:renderViz, outputs:renderOutputs,
   reverse:renderReverse, pitch:renderPitch, silence:renderSilence, fade:renderFade,
   vocal:renderVocal, bpm:renderBpm, stereo:renderStereo, equalizer:renderEqualizer, analyzer:renderAnalyzer,
+  aconv:renderAconv, vconv:renderVconv, vresize:renderVresize,
   video:renderVideoHub, vtrim:renderVtrim, vmerge:renderVmerge, vmute:renderVmute, vadd:renderVadd, vfilter:renderVfilter, vcrop:renderVcrop, vspeed:renderVspeed, vreverse:renderVreverse, vgif:renderVgif, vcompress:renderVcompress, screen:renderScreen, webcam:renderWebcam,
   podcast:renderPodcast, loopmaker:renderLoopmaker, tts:renderTts, stt:renderStt, vizpro:renderVizpro, beat:renderBeat, vslideshow:renderVslideshow, vsubs:renderVsubs, vthumb:renderVthumb, vintro:renderVintro, vmeme:renderVmeme, templates:renderTemplates,
   vemoji:renderVemoji, vtextanim:renderVtextanim, veffectlab:renderVeffectlab, vtransitions:renderVtransitions,

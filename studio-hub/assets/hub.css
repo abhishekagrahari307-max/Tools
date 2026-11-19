@@ -104,3 +104,14 @@ h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;back
 .site-foot{border-top:1px solid var(--line);padding:26px clamp(16px,4vw,34px) 40px;text-align:center;color:var(--dim);font-size:12.5px}
 .foot-links{margin-top:6px}
 .site-foot a:hover{color:var(--text)}
+
+/* status table */
+.status{margin-top:clamp(40px,7vw,70px)}
+.status h2{font-size:clamp(21px,3vw,28px);letter-spacing:-.01em;margin-bottom:10px;text-align:center}
+.status-lede{max-width:640px;margin:0 auto 20px;text-align:center;color:var(--muted);font-size:13.5px}
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.status-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;position:relative}
+.status-card h3{font-size:14px;margin-bottom:7px;padding-left:14px}
+.status-card h3::before{content:"";position:absolute;left:18px;top:22px;width:6px;height:6px;border-radius:2px;background:linear-gradient(135deg,var(--green),var(--cyan))}
+.status-card p{font-size:12.5px;color:var(--muted);line-height:1.6}
+.status-card h3{padding-left:14px}
