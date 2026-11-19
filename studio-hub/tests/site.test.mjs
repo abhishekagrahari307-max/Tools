@@ -58,13 +58,21 @@ test('no page loads a script or stylesheet from a remote host', () => {
 test('audio & video studio stays a single dependency-free file', () => {
   const html = read('audio-video/index.html');
   assert.ok(!/from '\.\/js\//.test(html), 'reference to a pipeline module that is not shipped');
+  const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  assert.match(title, /59 Tools/, 'the page title should state the current tool count');
   assert.ok(!/images\.unsplash\.com|picsum\.photos/.test(html), 'demo artwork must be self-contained');
   assert.ok(statSync(join(root, 'audio-video/index.html')).size < 1_500_000, 'page grew unexpectedly');
 });
 
 test('pixora keeps its engines out of the HTML and on disk', () => {
   const html = read('pixora/index.html');
-  assert.ok(html.length < 4_000_000, 'pixora/index.html should no longer inline its engines');
+  assert.ok(html.length < 400_000, 'pixora/index.html must stay a thin shell');
+  assert.ok(html.includes("vendor/boot.js"), 'the boot loader is missing');
+  for (const lib of ['fabric', 'pdf-lib', 'pdfjs', 'jszip', 'fontkit', 'tesseract', 'local-engines', 'app', 'boot']) {
+    assert.ok(existsSync(join(root, `pixora/vendor/${lib}.js`)), `pixora/vendor/${lib}.js is missing`);
+  }
+  const app = read('pixora/vendor/app.js');
+  assert.ok(app.includes('renderCards()'), 'vendor/app.js does not look like the studio bundle');
   assert.ok(!/id="(?:qpdfWasm|tessCoreCode|pdfWorkerCode|bundledHindiFont)"/.test(html),
     'a heavy engine is still inlined');
   assert.ok(html.includes('EngineStore'), 'EngineStore loader is missing');
@@ -84,6 +92,17 @@ test('external affiliate library is gone', () => {
   assert.ok(!/EXTERNAL_TOOLS/.test(html));
   assert.ok(!/pi7\.org|pixellab\.studio/.test(html), 'affiliate links should not ship');
   assert.ok(existsSync(join(root, 'pixora/THIRD-PARTY-LICENSES.txt')), 'licence text must be kept');
+});
+
+test('the three converter/resizer tools are wired into the audio & video studio', () => {
+  const html = read('audio-video/index.html');
+  for (const id of ['aconv', 'vconv', 'vresize']) {
+    assert.ok(html.includes(`id:'${id}'`) || html.includes(`id: '${id}'`), `${id} is missing from the tool catalogue`);
+    assert.ok(new RegExp(`${id}\\s*:\\s*render`).test(html), `${id} has no route`);
+  }
+  for (const fn of ['encodeAudio', 'recordVideoAdvanced', 'pickVideoMime']) {
+    assert.ok(html.includes(`function ${fn}`), `${fn} helper is missing`);
+  }
 });
 
 test('inline scripts on every page parse as JavaScript', () => {

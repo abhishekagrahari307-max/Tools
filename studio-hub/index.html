@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#080e28">
 <title>Studio Hub — Audio, Video, Image & PDF tools that never upload your files</title>
-<meta name="description" content="One private creative suite in your browser: a 55-tool audio & video editor plus a 43-tool image, PDF & design studio. Nothing is uploaded, nothing loads from a CDN.">
+<meta name="description" content="One private creative suite in your browser: a 59-tool audio & video editor plus a 43-tool image, PDF & design studio. Nothing is uploaded, nothing loads from a CDN.">
 <meta property="og:title" content="Studio Hub — private audio, video, image & PDF tools">
 <meta property="og:description" content="98 tools that run entirely on your device. No uploads, no accounts, no CDN.">
 <meta property="og:type" content="website">
@@ -23,7 +23,7 @@
   </a>
   <nav class="topnav">
     <a href="#apps">Apps</a>
-    <a href="#privacy">Privacy</a>
+    <a href="#status">Status</a><a href="#privacy">Privacy</a>
     <a href="audio-video/">Audio &amp; Video</a>
     <a href="pixora/">Image &amp; PDF</a>
   </nav>
@@ -34,7 +34,7 @@
 
 <main>
   <section class="hero">
-    <p class="badge"><span class="dot"></span> 98 tools · 0 uploads · 0 CDNs</p>
+    <p class="badge"><span class="dot"></span> 102 tools · 0 uploads · 0 CDNs</p>
     <h1>Every creative tool you need,<br><em>none of your files leave the tab.</em></h1>
     <p class="lede">Two studios, one home. Cut audio, edit video, compress a PDF, make a passport photo — all processed on your own device with the Web Audio, Canvas and WebAssembly APIs. No accounts, no watermarks, no CDN.</p>
     <div class="hero-actions">
@@ -48,12 +48,13 @@
       <div class="app-head">
         <span class="app-kicker">Studio 01</span>
         <h2>Audio &amp; Video Editor</h2>
-        <p class="app-sub">55 tools · timeline, mixing, voice and video</p>
+        <p class="app-sub">59 tools · timeline, mixing, voice and video</p>
       </div>
       <ul class="app-list">
         <li><b>Multi-track timeline</b> — 5 tracks, drag-and-drop, keyframes, undo/redo, project save.</li>
         <li><b>Audio</b> — trim, merge, mix, split, insert, fade, pitch, speed, reverse, silence finder, compressor, 10-band EQ, spectrum analyser, BPM &amp; beat detector, vocal remover, stereo widener, podcast and ringtone makers.</li>
         <li><b>Video</b> — frame-accurate trimmer, merger, cropper, filters, speed, mute, GIF, compress, slideshow, subtitles, thumbnails, intro, meme, emoji, text animation and transitions.</li>
+        <li><b>Convert &amp; resize</b> — audio converter (MP3 ⇄ WAV ⇄ OGG ⇄ M4A ⇄ WebM) and video converter/resizer (MP4 or WebM at any size, 9:16 / 1:1 / 16:9 presets).</li>
         <li><b>Recording &amp; AI</b> — screen and webcam recorder, voice recorder, text-to-speech, speech-to-text captions, on-device background removal.</li>
       </ul>
       <div class="app-foot">
@@ -79,6 +80,29 @@
         <span class="app-meta">PNG · JPG · WebP · PDF · DOCX</span>
       </div>
     </article>
+  </section>
+
+  <section id="status" class="status">
+    <h2>What runs where</h2>
+    <p class="status-lede">Nothing here is a placeholder: every tile opens a working tool. The engines differ, so this table is honest about it.</p>
+    <div class="status-grid">
+      <div class="status-card">
+        <h3>Pure on-device DSP</h3>
+        <p>Trim, merge, mix, split, fade, pitch, speed, EQ, compressor, normalizer, noise reduction, vocal removal, stereo, silence finder, BPM, reverse, ringtone, podcast, waveform and spectrum: Web Audio sample maths, no codec involved. These export WAV directly and MP3 through the bundled LAME encoder.</p>
+      </div>
+      <div class="status-card">
+        <h3>Canvas + MediaRecorder</h3>
+        <p>Video trim, merge, crop, resize, speed, filters, subtitles, slideshow, meme, GIF and the three converters/video resizer draw each frame to a canvas and record it. Chrome and Edge can emit MP4; Firefox emits WebM. Export is real-time: a 2-minute clip takes about 2 minutes.</p>
+      </div>
+      <div class="status-card">
+        <h3>WebAssembly engines</h3>
+        <p>Pixora's PDF tools run on PDF-Lib plus qpdf compiled to WebAssembly, OCR on a bundled Tesseract build with English and Hindi models, and Word export builds the DOCX file in the browser. These files load the first time you open such a tool.</p>
+      </div>
+      <div class="status-card">
+        <h3>Browser speech APIs</h3>
+        <p>Text-to-speech and speech-to-text use the browser's own <code>speechSynthesis</code> and <code>SpeechRecognition</code>. Chrome and Edge support both; Firefox currently ships neither, and the tool says so instead of failing silently.</p>
+      </div>
+    </div>
   </section>
 
   <section id="privacy" class="privacy">
