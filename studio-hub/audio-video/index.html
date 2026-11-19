@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0a1130">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f6df5'/%3E%3Cpath d='M14 26v12M24 18v28M34 10v44M44 18v28M54 26v12' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" type="image/svg+xml">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f6df5'/%3E%3Cpath d='M14 26v12M24 18v28M34 10v44M44 18v28M54 26v12' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -831,6 +832,193 @@ body{background: radial-gradient(800px 600px at 85% -10%, rgba(124,77,255,.15), 
 /* Smooth for all */
 * {scroll-behavior:smooth}
 
+
+/* ============================================================
+   POLISH LAYER (2026 UI pass)
+   Sits last in the cascade on purpose: the page has grown a dozen
+   appended design passes over the years and the older ones fight each
+   other with !important. Everything here is additive — no selector
+   removes a feature, it only changes how it looks and moves.
+   ============================================================ */
+
+/* ---------- 1. tokens: depth, motion, glass ---------- */
+:root{
+  --ease:cubic-bezier(.22,.68,.24,1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --glass:rgba(13,20,48,.66);
+  --glass-strong:rgba(10,16,40,.88);
+  --hair:rgba(148,163,255,.14);
+  --lift:0 18px 44px rgba(2,6,24,.45);
+  --lift-sm:0 8px 22px rgba(2,6,24,.32);
+  --glow:0 0 0 1px rgba(99,102,241,.35),0 12px 34px rgba(79,109,245,.28);
+}
+:root[data-theme="light"]{
+  --glass:rgba(255,255,255,.8);
+  --glass-strong:rgba(255,255,255,.94);
+  --hair:rgba(30,41,90,.12);
+  --lift:0 18px 40px rgba(30,41,90,.14);
+  --lift-sm:0 8px 20px rgba(30,41,90,.10);
+}
+
+/* the page background gets a slow aurora so it feels alive without ever
+   repainting the layout (transform-only animation on a fixed layer) */
+body::before{
+  content:"";position:fixed;inset:-20vmax;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(38vmax 30vmax at 18% 12%,rgba(99,102,241,.20),transparent 62%),
+    radial-gradient(34vmax 28vmax at 86% 8%,rgba(34,211,238,.14),transparent 62%),
+    radial-gradient(40vmax 30vmax at 70% 92%,rgba(232,121,249,.10),transparent 64%);
+  animation:auroraDrift 34s var(--ease) infinite alternate;
+  will-change:transform;
+}
+:root[data-theme="light"] body::before{
+  background:
+    radial-gradient(38vmax 30vmax at 18% 12%,rgba(99,102,241,.14),transparent 62%),
+    radial-gradient(34vmax 28vmax at 86% 8%,rgba(8,145,178,.10),transparent 62%),
+    radial-gradient(40vmax 30vmax at 70% 92%,rgba(192,38,211,.08),transparent 64%);
+}
+@keyframes auroraDrift{
+  from{transform:translate3d(-1.5%,-1%,0) scale(1)}
+  to{transform:translate3d(1.5%,1.5%,0) scale(1.06)}
+}
+
+/* ---------- 2. header ---------- */
+.header{
+  background:color-mix(in srgb,var(--bg) 72%,transparent);
+  border-bottom:1px solid var(--hair);
+  box-shadow:0 10px 34px rgba(2,6,24,.28);
+}
+.header .brand{letter-spacing:-.2px}
+.header .brand .logo{transition:transform .4s var(--ease-out),box-shadow .4s var(--ease)}
+.header .brand:hover .logo{transform:rotate(-6deg) scale(1.06);box-shadow:0 8px 26px rgba(59,130,246,.55)}
+.icon-btn,.theme-btn,.hub-link{background:rgba(148,163,255,.06);border:1px solid var(--hair);border-radius:12px}
+.icon-btn:hover,.theme-btn:hover{background:rgba(148,163,255,.14);border-color:rgba(148,163,255,.34)}
+.pro-badge{position:relative;overflow:hidden}
+.pro-badge::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.55),transparent 70%);
+  transform:translateX(-120%);animation:sheen 5.5s var(--ease) infinite}
+@keyframes sheen{0%,72%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+.menu{border-radius:18px;backdrop-filter:blur(18px);background:var(--glass-strong)}
+
+/* ---------- 3. hero ---------- */
+.hero{position:relative}
+.hero h1{letter-spacing:-.9px;line-height:1.08}
+.hero .sub{color:color-mix(in srgb,var(--muted) 88%,var(--text))}
+.hero-badge{animation:badgeIn .5s var(--ease-out) both}
+@keyframes badgeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.hero-cta .btn.big{box-shadow:0 16px 38px rgba(79,109,245,.38)}
+.hero-cta .btn.big:hover{transform:translateY(-2px)}
+
+/* ---------- 4. tool cards: one coherent hover, not five ---------- */
+.tools{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.tool{
+  border-radius:20px;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.18)),
+    linear-gradient(158deg,var(--c1),var(--c2));
+  border:1px solid rgba(148,163,255,.16);
+  box-shadow:var(--lift-sm);
+  transition:transform .26s var(--ease-out),box-shadow .26s var(--ease),border-color .26s var(--ease);
+  isolation:isolate;
+}
+/* a soft coloured light that only shows on hover / focus */
+.tool::after{
+  content:"";position:absolute;left:-30%;right:-30%;bottom:-60%;height:120%;z-index:-1;opacity:0;
+  background:radial-gradient(60% 60% at 50% 100%,var(--ic),transparent 70%);
+  filter:blur(26px);transition:opacity .3s var(--ease);
+}
+.tool:hover,.tool:focus-visible{
+  transform:translateY(-6px);
+  border-color:color-mix(in srgb,var(--ic) 45%,rgba(148,163,255,.3));
+  box-shadow:0 26px 52px rgba(2,6,24,.5),0 0 0 1px color-mix(in srgb,var(--ic) 28%,transparent);
+}
+.tool:hover::after,.tool:focus-visible::after{opacity:.32}
+.tool .t-nm{font-weight:800;letter-spacing:-.2px}
+.tool .t-ds{color:rgba(226,232,255,.66)}
+.tool .t-ic{
+  border-radius:15px;
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 18px rgba(0,0,0,.28);
+  transition:transform .3s var(--ease-out),box-shadow .3s var(--ease);
+}
+.tool:hover .t-ic{transform:translateY(-3px) scale(1.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 12px 26px rgba(0,0,0,.34)}
+:root[data-theme="light"] .tool{background:linear-gradient(158deg,var(--c1),var(--c2));border-color:rgba(30,41,90,.10)}
+:root[data-theme="light"] .tool .t-ds{color:rgba(19,26,61,.62)}
+.tool .crown{filter:drop-shadow(0 2px 8px rgba(251,191,36,.5))}
+
+/* ---------- 5. panels / sections ---------- */
+.panel{
+  border-radius:18px;
+  border:1px solid var(--hair);
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);
+  box-shadow:var(--lift-sm);
+}
+:root[data-theme="light"] .panel{background:var(--panel)}
+.sec-title{letter-spacing:-.4px}
+.sec-title::after{content:"";flex:1;height:1px;margin-left:14px;
+  background:linear-gradient(90deg,var(--hair),transparent)}
+
+/* ---------- 6. motion & smooth scrolling ---------- */
+html{scroll-behavior:smooth}
+.page{animation:fadeUp .34s var(--ease-out) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* scrolling containers should not jank */
+.studio-scroll,.pop,.menu,.tools{-webkit-overflow-scrolling:touch}
+.studio-scroll,.pop{scrollbar-gutter:stable}
+
+/* ---------- 7. responsive sweep ---------- */
+@media(max-width:1080px){
+  .tools{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:13px}
+}
+@media(max-width:760px){
+  .tools{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:11px!important}
+  .tool{min-height:150px;border-radius:17px}
+  .hero h1{font-size:clamp(24px,7.2vw,34px);letter-spacing:-.6px}
+  .hero-cta .btn{flex:1 1 160px}
+  .panel{border-radius:15px}
+  .sec-title{margin-top:28px}
+}
+@media(max-width:430px){
+  .tools{gap:9px!important}
+  .tool{min-height:138px;padding:18px 9px 14px;border-radius:15px}
+  .tool .t-nm{font-size:12.5px}
+  .tool .t-ds{font-size:10px;line-height:1.35}
+  .hero-badge{font-size:11px;padding:6px 11px}
+}
+@media(max-width:360px){
+  .tools{grid-template-columns:1fr!important}
+  .tool{min-height:auto;padding:16px 12px}
+}
+/* landscape phones: keep the nav out of the way */
+@media(max-height:520px) and (orientation:landscape){
+  .header{position:static}
+  .bnav{display:none!important}
+  main{padding-bottom:24px}
+}
+@media(prefers-reduced-motion:reduce){
+  body::before{animation:none}
+  .pro-badge::after{animation:none;display:none}
+  .page{animation:none}
+}
+
+/* ---------- 8. focus ring that follows the theme ---------- */
+:root{--ring:0 0 0 3px color-mix(in srgb,var(--indigo) 55%,transparent)}
+.tool:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(99,102,241,.6),var(--lift-sm)}
+
+/* ---------- 9. Timeline Pro preview: dark stage, real frame ---------- */
+#tlPreviewWrap{background:
+  radial-gradient(120% 90% at 50% 0%,#141a33,#05060d 72%)!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 20px 60px rgba(0,0,0,.55)}
+#tlCanvas{max-width:100%;max-height:100%;border-radius:8px;
+  box-shadow:0 18px 44px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+#tlPlay{transition:transform .2s var(--ease-out),background .2s;backdrop-filter:blur(6px)}
+#tlPlay:hover{transform:translate(-50%,-50%) scale(1.07)!important;background:#fff}
+.tl-tool{border-radius:14px;transition:background .2s var(--ease),transform .16s var(--ease)}
+.tl-tool:hover{background:rgba(148,163,255,.08)}
+.tl-clip{transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+.tl-clip:hover{filter:brightness(1.1)}
+.tl-clip.sel{box-shadow:0 0 0 2px rgba(250,204,21,.45) inset,0 6px 18px rgba(250,204,21,.18)}
+#tlRuler span{transition:color .2s}
 </style>
 </head>
 <body>
@@ -8491,7 +8679,7 @@ function renderTimelinePro(){
   }
   let mediaFiles=[]; // {file, url, name, dur, res, size, thumbnails}
   let selected={track:0, clip:0};
-  let currentTime=5, duration=30, playing=false, raf=null, snap=true, zoom=36, projectAspect='16:9';
+  let currentTime=5, duration=30, playing=false, raf=null, snap=true, zoom=36, projectFps=30;
   let history=[], histIdx=-1;
 
   function fmt(t){ const m=Math.floor(t/60), s=Math.floor(t%60); return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
@@ -8745,34 +8933,6 @@ function updatePlayhead(){
   document.getElementById('tlZoomIn').onclick=()=>{ zoom=Math.min(80, zoom+6); drawTracks(); updatePlayhead(); document.getElementById('tlZoomLabel').textContent=`Zoom ${Math.round(zoom/36*100)}% • Snap ${snap?'ON':'OFF'}`; };
   document.getElementById('tlZoomOut').onclick=()=>{ zoom=Math.max(18, zoom-6); drawTracks(); updatePlayhead(); document.getElementById('tlZoomLabel').textContent=`Zoom ${Math.round(zoom/36*100)}% • Snap ${snap?'ON':'OFF'}`; };
   document.getElementById('tlSnapToggle').onclick=document.getElementById('tlSnapBtn').onclick=()=>{ snap=!snap; document.getElementById('tlZoomLabel').textContent=`Zoom ${Math.round(zoom/36*100)}% • Snap ${snap?'ON':'OFF'}`; toast(snap?'🧲 Snap ON':'Snap OFF'); };
-  // Aspect — the chip now also sizes the composite frame and pre-selects the export ratio
-  function setAspect(a){
-    projectAspect = a;
-    const [aw, ah] = String(a).split(':').map(Number) || [16, 9];
-    const wrap = document.getElementById('tlPreviewWrap');
-    if (wrap && aw && ah){
-      const box = wrap.getBoundingClientRect();
-      const wide = aw >= ah;
-      const maxW = (box.width || 640) * 0.9, maxH = (box.height || 360) * 0.96;
-      let w = wide ? maxW : maxH * aw / ah, h = wide ? maxW * ah / aw : maxH;
-      if (h > maxH){ w = maxH * aw / ah; h = maxH; }
-      previewCv.style.width = Math.round(w) + 'px';
-      previewCv.style.height = Math.round(h) + 'px';
-      previewCv.style.margin = 'auto';
-    }
-    const sel = document.getElementById('exAspect');
-    if (sel && [...sel.options].some(o => o.value === a)) sel.value = a;
-    const info = document.getElementById('tlPreviewInfo');
-    if (info) info.textContent = a + ' • 30fps';
-    renderPreview();
-    toast('⬔ Aspect ' + a);
-  }
-  document.querySelectorAll('[data-aspect]').forEach(b=>{
-    b.onclick=()=>{
-      document.querySelectorAll('[data-aspect]').forEach(x=>x.classList.toggle('on',x===b));
-      setAspect(b.dataset.aspect);
-    };
-  });
   // Properties
   /* these used to only rewrite their own label; they now land on the clip and the
      model picks them up in the preview and in the export */
@@ -8897,6 +9057,49 @@ function updatePlayhead(){
   const workCv = document.getElementById('tlWork');
   const previewCv = document.getElementById('tlCanvas');
   const previewVid = document.getElementById('tlPreview');
+  /* the project aspect has to survive a route change: it was local to
+     renderTimelinePro(), so every re-open reset the stage to 16:9 */
+  let projectAspect = '16:9';
+  try { projectAspect = localStorage.getItem('tl-aspect') || '16:9'; } catch (e) {}
+  const ASPECT_W = { '16:9': [16, 9], '9:16': [9, 16], '1:1': [1, 1], '4:5': [4, 5] };
+  function applyAspectFrame(){
+    const wrap = document.getElementById('tlPreviewWrap');
+    if (!wrap || !previewCv) return;
+    const [aw, ah] = ASPECT_W[projectAspect] || [16, 9];
+    const box = wrap.getBoundingClientRect();
+    const maxW = (box.width || 640) * 0.94, maxH = (box.height || 360) * 0.94;
+    let w = maxW, h = maxW * ah / aw;
+    if (h > maxH){ h = maxH; w = maxH * aw / ah; }
+    previewCv.style.width = Math.round(w) + 'px';
+    previewCv.style.height = Math.round(h) + 'px';
+    previewCv.style.margin = 'auto';
+    previewCv.style.position = 'relative';
+  }
+
+  // Aspect — the chip sizes the composite frame, pre-selects the export ratio and
+  // is remembered, so re-opening the studio does not snap back to 16:9
+  function setAspect(a){
+    if (!ASPECT_W[a]) a = '16:9';
+    projectAspect = a;
+    try { localStorage.setItem('tl-aspect', a); } catch (e) {}
+    /* showPreview() re-frames the stage *and* resizes the canvas backing store,
+       so a 9:16 choice really renders in portrait instead of being squashed */
+    showPreview();
+    const sel = document.getElementById('exAspect');
+    if (sel && [...sel.options].some(o => o.value === a)) sel.value = a;
+    const info = document.getElementById('tlPreviewInfo');
+    if (info) info.textContent = a + ' • ' + projectFps + 'fps';
+    renderPreview();
+    toast('⬔ Aspect ' + a);
+  }
+  document.querySelectorAll('[data-aspect]').forEach(b=>{
+    b.classList.toggle('on', b.dataset.aspect === projectAspect);
+    b.onclick=()=>{
+      document.querySelectorAll('[data-aspect]').forEach(x=>x.classList.toggle('on',x===b));
+      setAspect(b.dataset.aspect);
+    };
+  });
+
   const textOverlay = document.getElementById('tlTextOverlay');
   const mediaEls = [];                                   /* one <video>/<audio> per clip file */
   let previewFrame = 0;
@@ -8986,12 +9189,20 @@ function updatePlayhead(){
   }
 
   function showPreview(){
-    /* keep the canvas the same size as the box the plain <video> used to fill */
+    /* the backing store follows the frame the user actually sees (the aspect
+       chip sets the CSS box), so a 9:16 reel is not squashed into 16:9 */
     const wrap = document.getElementById('tlPreviewWrap');
     const rect = wrap.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    previewCv.width = Math.max(320, Math.round((rect.width || 640) * dpr));
-    previewCv.height = Math.max(180, Math.round((rect.height || 360) * dpr));
+    applyAspectFrame();
+    /* jsdom / a hidden tab reports 0×0 for every box, so fall back to the
+       inline style the aspect helper just wrote, then to the stage itself */
+    const styleW = parseFloat(previewCv.style.width) || 0, styleH = parseFloat(previewCv.style.height) || 0;
+    const frame = previewCv.getBoundingClientRect();
+    const fw = styleW || frame.width || rect.width || 640;
+    const fh = styleH || frame.height || rect.height || 360;
+    previewCv.width = Math.max(240, Math.round(fw * dpr));
+    previewCv.height = Math.max(240, Math.round(fh * dpr));
     previewCv.style.display = 'block';
     if (previewVid) previewVid.style.display = 'none';
     if (textOverlay) textOverlay.innerHTML = '';
@@ -9172,16 +9383,31 @@ function updatePlayhead(){
     }
   };
   const expAllBtn = document.getElementById('expAll');
+  const exFpsSel = document.getElementById('exFps');
+  if (exFpsSel) exFpsSel.onchange = () => { projectFps = +exFpsSel.value || 30; paintPreviewInfo(); };
   if (expAllBtn) expAllBtn.onclick = () => {
     const sel = document.getElementById('exAspect');
     if (sel) sel.value = projectAspect;
+    document.getElementById('exFps').value = String(projectFps);
     document.getElementById('tlExportDlg').style.display = 'grid';
   };
   const exCancel = document.getElementById('exCancel');
   if (exCancel) exCancel.onclick = () => { document.getElementById('tlExportDlg').style.display = 'none'; };
 
   // Init
+  function paintPreviewInfo(){
+    const info = document.getElementById('tlPreviewInfo');
+    const wrap = document.getElementById('tlPreviewWrap');
+    if (!info) return;
+    const r = wrap ? wrap.getBoundingClientRect() : { width: 1280, height: 720 };
+    const [aw, ah] = String(projectAspect).split(':').map(Number);
+    /* report the project's own pixel size (720-line master), not the CSS box */
+    const base = 720;
+    const w = Math.round((aw >= ah ? base * aw / ah : base * aw / ah) / 2) * 2;
+    info.textContent = w + '×' + base + ' • ' + projectFps + 'fps';
+  }
   snapshot(); drawAll(); updatePlayhead();
+  paintPreviewInfo();
   // Expose for pipeline sync
   window.__tlWaveRefresh = () => { tlPreviewAt(tracks, currentTime).audio.forEach(a => ensureWaveform(a.clip)); drawTimelineWave(); };
   /* hooks for the headless tests: swap the project, show the composite preview,
@@ -9190,6 +9416,7 @@ function updatePlayhead(){
   window.exportTimeline = exportTimeline;
   window.__tlShowPreview = showPreview;
   window.__tlStop = tlStop;
+  window.__tlReframe = () => { if (document.getElementById('tlCanvas')) { applyAspectFrame(); showPreview(); } };
   window._tlPro={tracks, getTime:()=>currentTime, setTime:(t)=>{currentTime=t; renderPreview(); updatePlayhead();}};
 
   // Fallback filmstrip
@@ -10668,6 +10895,7 @@ const handleResize=()=>{
     if(pop){ if(pop._anchor&&pop._anchor.isConnected&&typeof placePopover==='function') placePopover(pop,pop._anchor); else closePopover(); }
     if(current()==='studio') stDirty();
     else if(window.__pageRedraw) window.__pageRedraw();
+    if(window.__tlReframe) window.__tlReframe();
     paintAllRanges(document);
   },120);
 };

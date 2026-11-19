@@ -21,7 +21,9 @@ test('every page exists and is not empty', () => {
 test('landing page links to both studios', () => {
   const html = read('index.html');
   for (const href of ['audio-video/', 'pixora/', 'assets/hub.css', 'manifest.webmanifest']) {
-    assert.ok(html.includes(`href="${href}"`), `landing page does not link ${href}`);
+    /* cache-busting queries are fine, the path is what matters */
+    assert.ok(new RegExp(`href="${href.replace('.', '\\.')}(?:\\?[^"]*)?"`).test(html),
+      `landing page does not link ${href}`);
   }
   assert.match(html, /Audio &amp; Video Editor/);
   assert.match(html, /Image &amp; PDF Studio/);

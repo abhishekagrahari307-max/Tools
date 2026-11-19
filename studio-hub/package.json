@@ -1,6 +1,6 @@
 {
   "name": "studio-hub",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Private, offline-first audio, video, image and PDF studios that run in the browser tab.",
   "type": "module",

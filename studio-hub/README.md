@@ -14,10 +14,10 @@ Neither studio uploads a file, opens an account, or loads a script from a CDN.
 ## Layout and load behaviour
 
 ```
-index.html                   landing page      9 KB + 7 KB css
-audio-video/index.html       68-tool studio    ~795 KB, single file, no CDN
+index.html                   landing page      ~28 KB + 15 KB css (search index included)
+audio-video/index.html       68-tool studio    ~815 KB, single file, no CDN
 audio-video/ffmpeg/core/     on demand        31 MB (FFmpeg 5.1.4 wasm) — first use only
-pixora/index.html            shell             134 KB — paints at once
+pixora/index.html            shell             ~150 KB — paints at once
 pixora/vendor/boot.js        loader            2 KB  — pulls the libraries in order
 pixora/vendor/*.js           libraries         2.2 MB (Fabric, PDF-Lib, PDF.js, JSZip, fontkit, Tesseract, app)
 pixora/engines/              on demand         14 MB (qpdf wasm, Tesseract models, Hindi font) — only fetched when a tool needs them
@@ -48,6 +48,28 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
 - **WebAssembly** — Pixora's PDF engines (PDF-Lib + qpdf), OCR (Tesseract eng/hin) and DOCX export.
 - **Browser speech APIs** — TTS uses `speechSynthesis`, STT uses `SpeechRecognition`
   (Chrome/Edge only; the tool explains that on Firefox).
+
+## Interface (2026 pass)
+
+The three pages were built as separate documents over many revisions, which left three
+different visual languages and three different responsive stories. They now share one:
+
+- **Hub** — a live aurora backdrop, one glass top bar, app cards that lift on hover, and a
+  **search box over all 111 tools** (type, arrow, enter — it deep links straight into the
+  right tool in the right studio). Phones get a real menu button instead of a hidden nav.
+- **Audio & video studio** — tool cards get one coherent hover state, the timeline preview is
+  a dark stage, and the shell is fluid from 320 px to desktop (landscape phones drop the
+  bottom nav entirely). The aspect chip now really re-frames the stage — 9:16 / 1:1 / 4:5 —
+  resizes the canvas backing store and is remembered across visits.
+- **Pixora** — depth and a genuine hover on the card grid, a phone pass for the tool dialog
+  (a bottom sheet that respects the home indicator instead of a 94vh box with a 480px
+  minimum body), and filter chips that scroll instead of wrapping.
+- **Shared** — the hub theme toggle writes the studios' own `ae-theme` key, so a light-theme
+  choice follows you between the pages; every page honours `prefers-reduced-motion`;
+  `color-scheme` is declared so form controls and scrollbars match the theme.
+
+`tests/hub-search.test.mjs` keeps the hub index in sync with both catalogues and drives the
+search box in a real DOM.
 
 ## Changes in this revision
 
