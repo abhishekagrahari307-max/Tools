@@ -170,6 +170,82 @@ if (JSDOM) test('audio and video export pipelines actually run', async (t) => {
     assert.match(msg, /rejected:/);
   });
 
+
+  /* Timeline Pro used to paint coloured cards with the clip name on export. This
+     drives the real compositor: two image clips with a gap, a text clip on top. */
+  await t.test('timeline export composites clips at their start times', async () => {
+    const out = await evalIn(`
+      /* open Timeline Pro so its composite pipeline is live, then swap the project */
+      window.location.hash = '#timelinepro';
+      await new Promise(r => setTimeout(r, 150));
+      /* the media stubs installed above give these elements a 640x360 picture */
+      const A = new File([new Uint8Array(64)], 'a.mp4', { type: 'video/mp4' });
+      const B = new File([new Uint8Array(64)], 'b.mp4', { type: 'video/mp4' });
+      const tracks = [
+        { type: 'video', clips: [
+          { id: 'a', name: 'a', start: 0, dur: 1, file: A, url: 'blob:stub-a' },
+          { id: 'b', name: 'b', start: 2, dur: 1, file: B, url: 'blob:stub-b' }] },
+        { type: 'overlay', clips: [{ id: 't', name: 'T', start: 0.5, dur: 1, text: 'HELLO' }] },
+        { type: 'audio', clips: [] }, { type: 'voice', clips: [] }, { type: 'subtitle', clips: [] },
+      ];
+      window.__tlSetTracks(tracks);
+      const steps = [];
+      const plan = tlRenderPlan(tracks);
+      const r = await exportTimeline({ width: 320, height: 180, fps: 10, format: 'webm', bitrate: 500000, onProgress: p => steps.push(p) });
+      return { size: r.blob.size, ext: r.ext, last: steps[steps.length - 1], duration: plan.duration,
+               segments: plan.segments.length, firstStart: plan.segments[0].start };`);
+    assert.ok(out.size > 0, 'the export produced no data');
+    assert.ok(['webm', 'mp4'].includes(out.ext));
+    assert.equal(out.last, 1, 'progress must reach 100%');
+    assert.equal(out.duration, 3, 'the gap after the first clip is part of the timeline');
+    assert.equal(out.firstStart, 0);
+    assert.ok(out.segments >= 4, 'a boundary per clip start/end');
+    assert.ok(w.__ctxCalls.includes('drawImage'), 'a real picture was composited');
+    assert.ok(w.__ctxCalls.includes('fillText'), 'the text layer was drawn on top');
+  });
+
+  await t.test('timeline export refuses an empty project instead of writing a blank video', async () => {
+    const msg = await evalIn(`
+      window.location.hash = '#timelinepro';
+      await new Promise(r => setTimeout(r, 150));
+      window.__tlSetTracks([
+        { type: 'video', clips: [] }, { type: 'overlay', clips: [] }, { type: 'audio', clips: [] },
+        { type: 'voice', clips: [] }, { type: 'subtitle', clips: [] }]);
+      try { await exportTimeline({ width: 320, height: 180, fps: 10 }); return 'no error'; }
+      catch (e) { return 'rejected: ' + e.message; }`);
+    assert.match(msg, /rejected: .*clip/i);
+  });
+
+  /* the timeline UI used to paint every clip at the left edge and stop its ruler
+     at 30 s; these read the real DOM after a project with a gap is drawn */
+  await t.test('timeline lanes place clips at their start time and the ruler follows the zoom', async () => {
+    const out = await evalIn(`
+      window.location.hash = '#timelinepro';
+      await new Promise(r => setTimeout(r, 150));
+      const A = new File([new Uint8Array(64)], 'a.mp4', { type: 'video/mp4' });
+      window.__tlSetTracks([
+        { type: 'video', clips: [
+          { id: 'a', name: 'a', start: 0, dur: 2, file: A, url: 'blob:stub-a' },
+          { id: 'b', name: 'b', start: 6, dur: 2, file: A, url: 'blob:stub-b' }] },
+        { type: 'overlay', clips: [] }, { type: 'audio', clips: [] },
+        { type: 'voice', clips: [] }, { type: 'subtitle', clips: [] }]);
+      const clips = [...document.querySelectorAll('#tlTracks .tl-clip')];
+      const ruler = document.getElementById('tlRuler');
+      const zoom = 36; /* the default timeline scale */
+      return { lefts: clips.map(c => parseFloat(c.style.left) || 0),
+               widths: clips.map(c => parseFloat(c.style.width) || 0),
+               ticks: ruler.querySelectorAll('span').length,
+               expected: 6 * zoom,
+               longRun: (() => { /* a 3 minute project must keep its scale past 30 s */
+                 window.__tlSetTracks([{ type: 'video', clips: [{ id: 'x', name: 'x', start: 0, dur: 180, file: A }] },
+                   { type: 'overlay', clips: [] }, { type: 'audio', clips: [] }, { type: 'voice', clips: [] }, { type: 'subtitle', clips: [] }]);
+                 return document.getElementById('tlRuler').querySelectorAll('span').length; })() };`);
+    assert.ok(out.lefts[1] > out.lefts[0], 'the second clip must not sit on top of the first');
+    assert.ok(Math.abs(out.lefts[1] - out.expected) < 1, `clip b should start at 6 s (${out.expected}px), got ${out.lefts[1]}px`);
+    assert.ok(out.ticks > 30, 'the ruler must span the whole project, not 0–30 s');
+    assert.ok(out.longRun > out.ticks, 'a 3 minute project must have a longer ruler than an 8 s one');
+  });
+
   await t.test('every route still renders', async () => {
     const routes = w.eval('Object.keys(routes)');
     assert.ok(routes.length >= 62, 'the studio should expose its full route table');
