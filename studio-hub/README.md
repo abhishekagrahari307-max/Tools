@@ -6,7 +6,7 @@ One private, offline-first creative suite that runs entirely in the browser tab.
 
 | Studio | Tools | What it covers |
 | ------ | ----- | -------------- |
-| [Audio & Video Editor](audio-video/) | 59 | multi-track timeline, trim/merge/mix/split, EQ, BPM, vocal remover, video trimmer/merger/filters/subtitles, screen & webcam recorder, converters and resizers, text-to-speech, speech-to-text |
+| [Audio & Video Editor](audio-video/) | 63 | multi-track timeline, trim/merge/mix/split, EQ, BPM, vocal remover, video trimmer/merger/filters/subtitles, screen & webcam recorder, converters and resizers, text-to-speech, speech-to-text |
 | [Image & PDF Studio](pixora/) | 43 | compress/resize/crop/convert images, passport photos, collage, PDF merge/split/sign/forms/protect/compress, PDF ⇄ Word, text ⇄ PDF, English + Hindi OCR, Fabric.js design editor |
 
 Neither studio uploads a file, opens an account, or loads a script from a CDN.
@@ -15,7 +15,8 @@ Neither studio uploads a file, opens an account, or loads a script from a CDN.
 
 ```
 index.html                   landing page      9 KB + 7 KB css
-audio-video/index.html       59-tool studio    716 KB, single file, no dependencies
+audio-video/index.html       63-tool studio    ~780 KB, single file, no CDN
+audio-video/ffmpeg/core/     on demand        31 MB (FFmpeg 5.1.4 wasm) — first use only
 pixora/index.html            shell             134 KB — paints at once
 pixora/vendor/boot.js        loader            2 KB  — pulls the libraries in order
 pixora/vendor/*.js           libraries         2.2 MB (Fabric, PDF-Lib, PDF.js, JSZip, fontkit, Tesseract, app)
@@ -33,14 +34,22 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
 - **Pure DSP (Web Audio sample maths)** — trim, merge, mix, split, fade, pitch, speed, EQ,
   compressor, normalizer, denoise, vocal removal, stereo, silence, BPM, reverse, ringtone,
   podcast. Export is WAV directly and MP3 through the bundled LAME encoder.
-- **Canvas + MediaRecorder** — video trim, merge, crop, resize, speed, filter, subtitles,
-  slideshow, meme, GIF, and the new Audio Converter / Video Converter / Video Resizer.
-  Chrome and Edge can emit MP4; Firefox emits WebM. Export is real time by nature.
+- **Canvas + MediaRecorder** — quick video trim, merge, crop, resize, speed, filter, slideshow,
+  meme, and the Audio Converter / Video Converter / Video Resizer. Chrome and Edge emit MP4,
+  Firefox emits WebM. Export is real time by nature.
+- **FFmpeg 5.1.4 in WebAssembly** (self-hosted in `audio-video/ffmpeg/core/`, 31 MB, loaded on
+  first use) — Video Compressor (x264 CRF), Colour & Stabilise (eq/unsharp/deshake),
+  Subtitle Editor (SRT import, preview, libass burn-in with Devanagari) and GIF Maker Pro
+  (palettegen + paletteuse). Frame-by-frame decoding, usually faster than real time.
 - **WebAssembly** — Pixora's PDF engines (PDF-Lib + qpdf), OCR (Tesseract eng/hin) and DOCX export.
 - **Browser speech APIs** — TTS uses `speechSynthesis`, STT uses `SpeechRecognition`
   (Chrome/Edge only; the tool explains that on Firefox).
 
 ## Changes in this revision
+
+- FFmpeg engine added (self-hosted, no CDN) with four tools: Video Compressor, Colour & Stabilise,
+  Subtitle Editor and GIF Maker Pro. The loader builds the wasm URL through the core's base64
+  `mainScriptUrlOrBlob` payload — without it the engine cannot find its own wasm.
 
 - Tool counts now agree everywhere (59 audio/video + 43 image/PDF = 102) instead of 55/56/98.
 - Pixora: split into shell + `vendor/` + `engines/`; skeleton grid so the page never looks empty;
