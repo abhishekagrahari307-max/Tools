@@ -1995,6 +1995,19 @@ function attachDrop(zone,onFiles,accept){
   return inp;
 }
 
+/* Clipboard: navigator.clipboard is undefined on plain-http LAN origins and in
+   some in-app browsers, so every copy button goes through this (never throws). */
+async function copyText(text){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } }catch(e){}
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    const ok=document.execCommand && document.execCommand('copy');
+    ta.remove(); return !!ok;
+  }catch(e){ return false; }
+}
+
 /* ================= shared page bits ================= */
 const page=$('#page');
 function toolPage(title,desc,inner){
@@ -3644,7 +3657,10 @@ function renderMix(){
       </div>
     </div>`);
   ['A','B'].forEach(k=>{
-    attachDrop($('#drop'+k),async fs=>{
+    /* attachDrop appends its <input type=file> inside the zone it is given.
+       Handing it the wrapping .panel put that input outside the .drop box, so
+       tapping the zone to pick a file did nothing. */
+    attachDrop($('#dz'+k),async fs=>{
       const f=fs[0];
       try{
         const buf=await decodeFile(f);
@@ -4158,7 +4174,9 @@ function renderA2V(){
     const an=c.createAnalyser(); an.fftSize=256; an.smoothingTimeConstant=.82;
     S.src=src; S.an=an; /* kept so leaving the page can actually stop the audio */
     src.connect(an); an.connect(dst); an.connect(c.destination);
-    stream.addTrack(dst.stream.getAudioTracks()[0]);
+    /* addTrack(undefined) throws in Chrome/Firefox: only attach a real track */
+    const aTrack=dst.stream.getAudioTracks()[0];
+    if(aTrack) stream.addTrack(aTrack);
     let mime='';
     for(const t of ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4']){
       try{ if(MediaRecorder.isTypeSupported(t)){ mime=t; break; } }catch(e){}
@@ -4172,21 +4190,24 @@ function renderA2V(){
     const t0=c.currentTime; src.start(t0);
     const freq=new Uint8Array(an.frequencyBinCount);
     let finished=false;
+    let guard=0;
     const finish=()=>{
       if(finished) return; finished=true;
+      clearTimeout(guard);
       S.active=false;
       try{src.stop();}catch(e){}
       try{an.disconnect();}catch(e){}
       if(rec&&rec.state!=='inactive') rec.stop();
-      done.then(()=>{
+      Promise.race([done,new Promise(r=>setTimeout(r,10000))]).then(()=>{
         const type=(rec&&rec.mimeType)||mime||'video/webm';
         const ext=type.indexOf('mp4')>-1?'mp4':'webm';
         const blob=new Blob(chunks,{type});
         S.src=null; S.an=null;
         btn.disabled=false; btn.innerHTML=IC.video+' Generate video';
-        if(blob.size>1000) downloadBlob(blob,safeName(S.name)+'-visual.'+ext);
-        else toast('Could not record video');
-      });
+        /* an empty MediaRecorder still yields a ~13-byte header: that is not a video */
+        if(blob.size>2000) downloadBlob(blob,safeName(S.name)+'-visual.'+ext);
+        else toast('Could not record video — the canvas stream produced no frames');
+      }).catch(e=>{ console.warn(e); btn.disabled=false; btn.innerHTML=IC.video+' Generate video'; toast('Could not record video'); });
     };
     const draw=()=>{
       if(!S.active) return;
@@ -4214,6 +4235,9 @@ function renderA2V(){
       requestAnimationFrame(draw);
     };
     draw();
+    /* rAF stops in a hidden tab, so the audio can finish without the loop ever
+       seeing the end — this guarantees the export closes out */
+    guard=setTimeout(finish,(S.buf.duration+2)*1000);
   };
   window.__pageStop=()=>{
     if(S.active){
@@ -5245,8 +5269,22 @@ async function loadVideoFile(file){
     const v=document.createElement('video');
     v.preload='metadata'; v.muted=true; v.playsInline=true;
     v.src=vidUrl(file);
-    v.onloadedmetadata=()=>{ res({el:v, url:v.src, dur:v.duration, w:v.videoWidth, h:v.videoHeight}); };
-    v.onerror=()=>{ revokeVidUrl(v.src); rej(new Error('video load failed')); };
+    /* a container/codec the browser cannot decode fires no event at all, so the
+       promise never settled and the tool sat on "Loading…" forever */
+    const t=setTimeout(()=>{ try{revokeVidUrl(v.src);}catch(e){} rej(new Error('This video did not load — the browser may not support its codec.')); },15000);
+    v.onloadedmetadata=()=>{ clearTimeout(t); res({el:v, url:v.src, dur:v.duration, w:v.videoWidth, h:v.videoHeight}); };
+    v.onerror=()=>{ clearTimeout(t); revokeVidUrl(v.src); rej(new Error('This video could not be decoded by the browser.')); };
+  });
+}
+
+/* wait for a media element's metadata, with a timeout and an error path */
+function waitMeta(v, ms){
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>rej(new Error('Timed out reading the video — the browser may not support its codec.')), ms||15000);
+    const ok=()=>{ clearTimeout(t); res(); };
+    if(v.readyState>=1) return ok();
+    v.addEventListener('loadedmetadata',ok,{once:true});
+    v.addEventListener('error',()=>{ clearTimeout(t); rej(new Error('The browser could not decode this video.')); },{once:true});
   });
 }
 async function recordVideoWithCanvas(videoEl, canvas, opts={}){
@@ -5258,9 +5296,13 @@ async function recordVideoWithCanvas(videoEl, canvas, opts={}){
   let cw = videoEl.videoWidth||1280, ch = videoEl.videoHeight||720;
   if(opts.outW && opts.outH){ cw=opts.outW; ch=opts.outH; }
   if(opts.crop){
-    cw = Math.round(cw * opts.crop.w);
-    ch = Math.round(ch * opts.crop.h);
+    /* crop the output size first, then let a 90° turn swap the resulting frame */
+    cw = Math.max(1, Math.round(cw * (opts.crop.w || 1)));
+    ch = Math.max(1, Math.round(ch * (opts.crop.h || 1)));
   }
+  const deg=(opts.rotate||0)%360;
+  if(deg===90||deg===270){ const t=cw; cw=ch; ch=t; }
+  cw=Math.max(2,Math.round(cw/2)*2); ch=Math.max(2,Math.round(ch/2)*2);
   canvas.width=cw; canvas.height=ch;
   const ctx=canvas.getContext('2d');
   const stream = canvas.captureStream(fps);
@@ -5287,6 +5329,12 @@ async function recordVideoWithCanvas(videoEl, canvas, opts={}){
   if(opts.start!=null) videoEl.currentTime=opts.start;
   const playSpeed=opts.speed||1;
   videoEl.playbackRate=playSpeed;
+  /* MediaRecorder captures the element's audio at its native rate: at any speed
+     other than 1x the soundtrack would drift out of sync, so drop it and say so
+     (the FFmpeg slow-motion tool keeps pitch-correct audio instead). */
+  if(playSpeed!==1 && !opts.muted){
+    try{ stream.getAudioTracks().forEach(t=>stream.removeTrack(t)); }catch(e){}
+  }
   rec.start(200);
   if(opts.start!=null){
     await new Promise(res=>{ if(videoEl.readyState>=2) res(); else videoEl.onseeked=()=>res(); });
@@ -5310,11 +5358,15 @@ async function recordVideoWithCanvas(videoEl, canvas, opts={}){
     const rot=(opts.rotate||0)%360;
     const flipH=!!opts.flipH, flipV=!!opts.flipV;
     if(rot||flipH||flipV){
+      /* a 90°/270° turn swaps the frame: fit against the swapped box, or the
+         picture is cropped to the short side (a 16:9 clip lost its edges) */
+      const swapped=rot===90||rot===270;
+      const boxW=swapped?ch:cw, boxH=swapped?cw:ch;
       ctx.translate(cw/2,ch/2);
       if(flipH) ctx.scale(-1,1);
       if(flipV) ctx.scale(1,-1);
       if(rot) ctx.rotate(rot*Math.PI/180);
-      const scale=Math.min(cw/sw, ch/sh);
+      const scale=Math.min(boxW/sw, boxH/sh);
       const dw=sw*scale, dh=sh*scale;
       ctx.drawImage(videoEl, sx,sy,sw,sh, -dw/2, -dh/2, dw,dh);
     } else {
@@ -5328,9 +5380,12 @@ async function recordVideoWithCanvas(videoEl, canvas, opts={}){
   };
   draw();
   const timeout = setTimeout(()=>{ if(!stopped){ stopped=true; try{videoEl.pause();}catch(e){} try{rec.stop();}catch(e){} } }, (dur/playSpeed*1000)+4000);
-  await done;
+  /* if the recorder never reports onstop (some Android WebViews), resolve anyway
+     so the tool reports a real error instead of freezing on "Exporting…" */
+  await Promise.race([done, new Promise(r=>setTimeout(r, (dur/playSpeed*1000)+9000))]);
   clearTimeout(timeout);
   try{ if(opts._extraAudioEl){ opts._extraAudioEl.pause(); revokeVidUrl(opts._extraUrl); } }catch(e){}
+  if(!chunks.length) throw new Error('The browser recorder produced no frames — try a shorter clip or another format.');
   const blob=new Blob(chunks,{type: rec.mimeType||mime||'video/webm'});
   return blob;
 }
@@ -5615,7 +5670,7 @@ function renderBpm(){
     const ch=buf.getChannelData(0), sr=buf.sampleRate;
     const fps=100, step=Math.max(1, Math.round(sr/fps));
     const n=Math.floor(ch.length/step);
-    if(n<64) return {bpm:0,rel:0};
+    if(n<64) return {bpm:0,rel:0,why:'short'};                     /* under 0.64 s of audio */
     const env=new Float64Array(n);
     let meanEnv=0;
     for(let i=0;i<n;i++){
@@ -5629,9 +5684,14 @@ function renderBpm(){
        tone/noise (constant level) produces almost nothing */
     const flux=new Float64Array(n);
     for(let i=1;i<n;i++) flux[i]=Math.max(0, env[i]-env[i-1])/(meanEnv+1e-9);
-    let peak=0;
-    for(let i=0;i<n;i++) if(flux[i]>peak) peak=flux[i];
-    if(peak<0.05) return {bpm:0,rel:0};                            /* no rhythm at all */
+    let peak=0, fsum=0;
+    for(let i=0;i<n;i++){ if(flux[i]>peak) peak=flux[i]; fsum+=flux[i]; }
+    if(peak<0.05) return {bpm:0,rel:0,why:'flat'};                 /* digital silence / no dynamics */
+    /* Rhythm salience = how sharply the onsets stand out from the average.
+       Drum loops land at 12-60; pads, drones, noise beds and room tone at 3-7.
+       Without this, a sustained pad produced a confident-looking false tempo. */
+    const salience=peak/(fsum/n+1e-9);
+    if(salience<9) return {bpm:0,rel:0,why:'sustained',salience};
     /* comb (beat-grid) scoring: works when the true beat spacing is not a whole
        number of 10 ms frames, which plain autocorrelation smears away */
     const minBpm=60, maxBpm=200, stepBpm=0.5;
@@ -5655,9 +5715,9 @@ function renderBpm(){
       sum+=top*w; cnt++;
       if(top*w>best){ best=top*w; bestBpm=bpm; }
     }
-    if(!(best>0)) return {bpm:0,rel:0};
+    if(!(best>0)) return {bpm:0,rel:0,why:'flat'};
     const avg=sum/Math.max(1,cnt);
-    if(best/avg<1.45) return {bpm:0,rel:best/avg};                        /* aperiodic: noise, drone, speech */
+    if(best/avg<1.45) return {bpm:0,rel:best/avg,why:'aperiodic'};        /* aperiodic: noise, drone, speech */
     /* tempo-octave fix: a beat grid at half the tempo also fires on every beat,
        so if doubling still scores nearly as high, prefer the faster pulse */
     const scoreAt=bpm=>{
@@ -5677,7 +5737,7 @@ function renderBpm(){
     while(bpm*2<=200 && scoreAt(bpm*2)>=0.8*s0){ bpm*=2; s0=scoreAt(bpm); }
     while(bpm<60) bpm*=2;
     while(bpm>200) bpm/=2;
-    return {bpm:Math.round(bpm), rel:best/avg};
+    return {bpm:Math.round(bpm), rel:best/avg, salience};
   }
   const detectBPM=buf=>tempoOf(buf).bpm;
   async function load(f){ try{ const buf=await decodeFile(f); S.buf=buf; S.name=f.name; S.bpm=0; $('#fn').textContent=f.name; $('#fs').textContent=fmtTime(buf.duration); $('#work').hidden=false; $('#bpmv').textContent='— BPM'; requestAnimationFrame(draw);}catch(e){toast("Couldn't decode "+f.name);} }
@@ -5690,7 +5750,11 @@ function renderBpm(){
     const conf = t.rel>=3 ? 'high' : t.rel>=2 ? 'medium' : 'low';
     $('#bpmv').textContent = t.bpm ? t.bpm+' BPM · '+conf+' confidence' : 'No steady beat found';
     draw();
-    toast(t.bpm? 'Detected '+t.bpm+' BPM' : 'No steady beat — try Tap tempo');
+    if(t.bpm) toast('Detected '+t.bpm+' BPM');
+    else if(t.why==='short') toast('That clip is too short to analyse — use at least 2 seconds of audio');
+    else if(t.why==='sustained') toast('Sustained tone or pad — there is no beat to detect. Use Tap tempo, or analyse a drum section');
+    else if(t.why==='aperiodic') toast('No regular pulse in this audio — try Tap tempo');
+    else toast('Nothing to analyse — this clip is silent or has no dynamics');
   };
   $('#tap').onclick=()=>{
     const now=performance.now();
@@ -5705,7 +5769,7 @@ function renderBpm(){
     } else $('#bpmv').textContent='Tap again…';
   };
   $('#pp').onclick=()=>{ if(!S.buf) return; playBuf(S.buf,$('#pp')); if(S.bpm) toast('Playing at '+S.bpm+' BPM grid shown'); };
-  $('#copyBpm').onclick=()=>{ if(S.bpm) { navigator.clipboard.writeText(String(S.bpm)).then(()=>toast('BPM copied')).catch(()=>toast(S.bpm+' BPM')); } else toast('Detect BPM first'); };
+  $('#copyBpm').onclick=()=>{ if(!S.bpm) return toast('Detect BPM first'); copyText(String(S.bpm)).then(ok=>toast(ok?'BPM copied':S.bpm+' BPM')); };
   window.__pageRedraw=draw;
 }
 
@@ -5924,21 +5988,37 @@ function renderVtrim(){
   $('#chg').onclick=()=>{ const i=$('#dzv input'); if(i) i.click(); };
   $('#svr').oninput=e=>{ S.start=+e.target.value/1000; S.start=Math.min(S.start, S.end-0.2); $('#sv').textContent=fmtTime(S.start); pv.currentTime=S.start; };
   $('#evr').oninput=e=>{ S.end=+e.target.value/1000; S.end=Math.max(S.end, S.start+0.2); $('#ev').textContent=fmtTime(S.end); pv.currentTime=Math.min(S.end-0.2, S.end); };
-  $('#prev').onclick=()=>{ pv.currentTime=S.start; pv.play(); const chk=setInterval(()=>{ if(pv.currentTime>=S.end){ pv.pause(); clearInterval(chk);} },80); };
+  /* one poller at a time: tapping Preview repeatedly used to stack intervals
+     that fought over pv.currentTime long after the page was gone */
+  let prevChk=0;
+  $('#prev').onclick=()=>{
+    clearInterval(prevChk);
+    pv.currentTime=S.start; pv.play();
+    prevChk=setInterval(()=>{
+      if(pv.paused || pv.ended){ clearInterval(prevChk); prevChk=0; return; }
+      if(pv.currentTime>=S.end){ pv.pause(); clearInterval(prevChk); prevChk=0; }
+    },80);
+  };
   $('#exp').onclick=async()=>{
     if(!S.file) return;
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.muted=false; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
-      v.currentTime=S.start;
-      await new Promise(r=> v.onseeked=r);
+      await waitMeta(v);
+      /* only wait for a seek that actually has to happen, and never unbounded:
+         seeking to the current time fires no 'seeked' and the export hung */
+      if(Math.abs(v.currentTime-S.start)>0.01){
+        v.currentTime=S.start;
+        await Promise.race([new Promise(r=>v.addEventListener('seeked',r,{once:true})), new Promise(r=>setTimeout(r,1200))]);
+      }
       const blob=await recordVideoWithCanvas(v,cv,{start:S.start,end:S.end});
       downloadBlob(blob,safeName(S.file.name)+'-trim.webm');
       toast('Trim exported');
     }catch(e){ console.warn(e); toast('Export failed — try another video'); }
     btn.disabled=false;
   };
+  /* leaving the page must stop the preview poller */
+  window.__pageStop=()=>{ clearInterval(prevChk); prevChk=0; try{pv.pause();}catch(e){} };
 }
 
 /* ================= VIDEO MERGER ================= */
@@ -5971,7 +6051,7 @@ function renderVmerge(){
   attachDrop($('#dzv'),fs=>add(fs),'video/*');
   $('#clear').onclick=()=>{ S.files.forEach(f=>revokeVidUrl(f.url)); S.files=[]; drawList(); };
   $('#exp').onclick=async()=>{
-    if(!S.files.length) return;
+    if(!S.files.length) return toast('Add at least two clips first');
     const btn=$('#exp'); btn.disabled=true;
     try{
       const mimeCandidates=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
@@ -5986,18 +6066,21 @@ function renderVmerge(){
       for(let idx=0;idx<S.files.length;idx++){
         const f=S.files[idx];
         const v=document.createElement('video'); v.src=f.url; v.crossOrigin='anonymous'; v.muted=false; v.playsInline=true;
-        await new Promise(r=>{ v.onloadedmetadata=r; });
+        await waitMeta(v);
+        let addedTrack=null;
         try{
           if(v.captureStream){
             const vs=v.captureStream();
-            const at=vs.getAudioTracks()[0];
-            if(at){ stream.getAudioTracks().forEach(t=>stream.removeTrack(t)); stream.addTrack(at); }
+            addedTrack=vs.getAudioTracks()[0]||null;
+            /* swap the audio track per clip: without removing the previous one
+               every clip after the first played over the first clip's sound */
+            if(addedTrack){ stream.getAudioTracks().forEach(t=>stream.removeTrack(t)); stream.addTrack(addedTrack); }
           }
         }catch(e){}
         await v.play().catch(()=>{});
         await new Promise(res=>{
           const draw=()=>{
-            if(v.ended || v.paused){ res(); return; }
+            if(v.ended || (v.duration>0 && v.currentTime>=v.duration-0.02)){ res(); return; }
             const scale=Math.min(W/v.videoWidth, H/v.videoHeight);
             const dw=v.videoWidth*scale, dh=v.videoHeight*scale;
             ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
@@ -6009,9 +6092,11 @@ function renderVmerge(){
           setTimeout(res, (v.duration||5)*1000+1000);
         });
         v.pause();
+        if(addedTrack){ try{stream.removeTrack(addedTrack);}catch(e){} }
       }
       rec.stop();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,12000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||mime||'video/webm'});
       downloadBlob(blob,'merged-video.webm');
       toast('Merged video exported');
@@ -6023,12 +6108,14 @@ function renderVmerge(){
 /* ================= MUTE / EXTRACT ================= */
 function renderVmute(){
   const S={file:null,url:'',dur:0,video:null, mode:'mute'};
-  page.innerHTML=toolPage('Mute / Extract','Mute video audio or extract audio track — one tap. Extract gives you MP3/WAV.',
+  page.innerHTML=toolPage('Mute / Extract','Mute a video or pull its soundtrack out. Mute saves a WebM; Extract saves MP3 or WAV.',
    `<div class="panel">${dropHtml('Tap to choose a video file','mp4, webm, mov…','dzv')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="row between"><div class="file-row" style="flex:1;min-width:230px;border:0;padding:0;gap:10px"><div class="file-ic">${IC.video}</div><div class="file-meta"><div class="fm-n"><span id="fn"></span></div><div class="fm-s"><span id="fs"></span></div></div></div><button class="btn ghost small" id="chg">Change</button></div>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
       <div class="row mt"><span class="chip on" data-m="mute">${IC.mute} Mute video</span><span class="chip" data-m="extract">${IC.music} Extract audio</span></div>
+      <div class="row mt" id="fmtRow" hidden><span class="chip on" data-f="mp3">MP3</span><span class="chip" data-f="wav">WAV</span></div>
+      <p class="dim mt" style="font-size:12px" id="spNote">Muting re-records the video in real time and saves WebM. Extracting decodes the audio track and saves MP3 or WAV.</p>
       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview</button><div class="spacer"></div><button class="btn primary" id="exp">${IC.download} Export</button></div>
       <canvas id="workCv" width="1280" height="720" style="display:none"></canvas>
     </div>`);
@@ -6043,7 +6130,18 @@ function renderVmute(){
   }
   attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
   $('#chg').onclick=()=>{ const i=$('#dzv input'); if(i) i.click(); };
-  $$('[data-m]').forEach(ch=>ch.onclick=()=>{ S.mode=ch.dataset.m; $$('[data-m]').forEach(c=>c.classList.toggle('on',c===ch)); });
+  $$('[data-m]').forEach(ch=>ch.onclick=()=>{
+    S.mode=ch.dataset.m;
+    $$('[data-m]').forEach(c=>c.classList.toggle('on',c===ch));
+    $('#fmtRow').hidden=S.mode!=='extract';
+  });
+  /* a confirm() dialog cannot be read back on mobile Safari and blocks the page —
+     the format is an explicit choice instead */
+  let fmt='mp3';
+  $$('[data-f]').forEach(ch=>ch.onclick=()=>{
+    fmt=ch.dataset.f;
+    $$('[data-f]').forEach(c=>c.classList.toggle('on',c===ch));
+  });
   $('#prev').onclick=()=>{
     if(S.mode==='mute'){ pv.muted=true; pv.play(); toast('Muted preview'); }
     else {
@@ -6054,16 +6152,18 @@ function renderVmute(){
     if(!S.file) return;
     if(S.mode==='extract'){
       try{
+        const btn=$('#exp'); btn.disabled=true;
+        toast('Extracting audio…');
         const buf=await decodeFile(S.file);
-        const choice=confirm('Extract as MP3? (Cancel = WAV)');
-        exportBuffer(buf,safeName(S.file.name)+'-audio', choice?'mp3':'wav');
-      }catch(e){ toast('Could not extract audio — try Video to MP3 tool'); }
+        await exportBuffer(buf,safeName(S.file.name)+'-audio', fmt);
+      }catch(e){ console.warn(e); toast('Could not extract audio — try the Video to MP3 tool'); }
+      finally{ $('#exp').disabled=false; }
       return;
     }
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.muted=true; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const blob=await recordVideoWithCanvas(v,cv,{muted:true});
       downloadBlob(blob,safeName(S.file.name)+'-muted.webm');
       toast('Muted video exported');
@@ -6079,9 +6179,14 @@ function renderVadd(){
    `<div class="panel">${dropHtml('Step 1: Choose VIDEO','mp4, webm…','dzv')}</div>
     <div class="panel mt">${dropHtml('Step 2: Choose AUDIO to add','mp3, wav, m4a…','dza')}</div>
     <div class="panel mt" id="work" hidden>
-      <div class="file-row"><div class="file-ic">${IC.video}</div><div class="file-meta"><div class="fm-n" id="vn"></div><div class="fm-s" id="vs"></div></div></div>
-      <div class="file-row mt"><div class="file-ic">${IC.music}</div><div class="file-meta"><div class="fm-n" id="an"></div><div class="fm-s" id="as"></div></div></div>
+      <div class="file-row"><div class="file-ic">${IC.video}</div><div class="file-meta"><div class="fm-n" id="vn"></div><div class="fm-s" id="vs"></div></div><button class="btn ghost small" id="chgV">Change video</button></div>
+      <div class="file-row mt"><div class="file-ic">${IC.music}</div><div class="file-meta"><div class="fm-n" id="an"></div><div class="fm-s" id="as"></div></div><button class="btn ghost small" id="chgA">Change audio</button></div>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
+      <div class="row wrap mt" style="gap:10px">
+        <span class="chip on" data-amode="replace">${IC.music} Replace the original audio</span>
+        <span class="chip" data-amode="mix">${IC.eq} Mix with it (half volume)</span>
+      </div>
+      <p class="dim mt" style="font-size:12px">Replace drops the video's own sound. Mix keeps it and lays the new track over the top at 50% — that mode is exported live, so it records in real time.</p>
       <div class="row mt"><button class="btn primary" id="exp">${IC.download} Export video with new audio</button></div>
       <canvas id="workCv" width="1280" height="720" style="display:none"></canvas>
     </div>`);
@@ -6093,6 +6198,11 @@ function renderVadd(){
     $('#vn').textContent=S.vFile.name; $('#vs').textContent=fmtTime(S.dur);
     $('#an').textContent=S.aFile.name; $('#as').textContent=fmtTime(S.aBuf.duration);
   }
+  S.mode='replace';
+  $$('[data-amode]').forEach(ch=>ch.onclick=()=>{
+    S.mode=ch.dataset.amode;
+    $$('[data-amode]').forEach(c=>c.classList.toggle('on',c===ch));
+  });
   attachDrop($('#dzv'),async fs=>{
     const f=fs[0];
     const info=await loadVideoFile(f);
@@ -6104,15 +6214,19 @@ function renderVadd(){
     const f=fs[0];
     try{ const b=await decodeFile(f); S.aFile=f; S.aBuf=b; refresh(); }catch(e){ toast("Couldn't decode "+f.name); }
   },'audio/*');
+  $('#chgV').onclick=()=>{ const i=$('#dzv input'); if(i) i.click(); };
+  $('#chgA').onclick=()=>{ const i=$('#dza input'); if(i) i.click(); };
   $('#exp').onclick=async()=>{
     if(!S.vFile||!S.aBuf) return toast('Need both video and audio');
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.vUrl; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const aUrl=URL.createObjectURL(wavBlob(S.aBuf));
       const aEl=document.createElement('audio'); aEl.src=aUrl; aEl.crossOrigin='anonymous';
-      v.muted=true;
+      aEl.volume=S.mode==='mix'?0.5:1;
+      /* replace = only the new track; mix = the clip's own audio too */
+      v.muted=S.mode!=='mix';
       const W=v.videoWidth||1280, H=v.videoHeight||720; cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
       const stream=cv.captureStream(30);
       aEl.muted=false;
@@ -6123,19 +6237,25 @@ function renderVadd(){
           aStream.getAudioTracks().forEach(t=>stream.addTrack(t));
         }
       }catch(e){}
+      if(S.mode==='mix'){
+        try{ if(v.captureStream) v.captureStream().getAudioTracks().forEach(t=>stream.addTrack(t)); }catch(e){}
+      }
       const rec=new MediaRecorder(stream,{videoBitsPerSecond:4000000});
       const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
       const done=new Promise(r=>rec.onstop=r);
       rec.start(200);
       v.currentTime=0; await v.play().catch(()=>{});
+      /* cover the whole clip; stop the music with the picture so the export does
+         not trail a music-only tail (or cut it early when the song is longer) */
       const draw=()=>{
-        if(v.ended || v.paused){ try{rec.stop();}catch(e){} return; }
+        if(v.ended || (v.duration>0 && v.currentTime>=v.duration-0.02)){ try{rec.stop();}catch(e){} try{aEl.pause();}catch(e){} return; }
         ctx.drawImage(v,0,0,W,H);
         requestAnimationFrame(draw);
       };
       draw();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,(S.dur||v.duration||10)*1000+8000))]);
       aEl.pause(); revokeVidUrl(aUrl);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.vFile.name)+'-with-audio.webm');
       toast('Exported with new audio');
@@ -6185,7 +6305,7 @@ function renderVfilter(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const blob=await recordVideoWithCanvas(v,cv,{filter:S.filter});
       downloadBlob(blob,safeName(S.file.name)+'-filtered.webm');
       toast('Filtered video exported');
@@ -6227,18 +6347,30 @@ function renderVcrop(){
   $('#rotL').onclick=()=>{ S.rot=(S.rot+90)%360; updatePV(); };
   $('#flipH').onclick=()=>{ S.flipH=!S.flipH; updatePV(); };
   $('#flipV').onclick=()=>{ S.flipV=!S.flipV; updatePV(); };
-  $('#reset').onclick=()=>{ S.rot=0; S.flipH=false; S.flipV=false; S.crop={x:0,y:0,w:1,h:1}; $('#cx').value=0;$('#cy').value=0;$('#cw').value=100;$('#ch').value=100; $('#cxv').textContent='0%';$('#cyv').textContent='0%';$('#cwv').textContent='100%';$('#chv').textContent='100%'; updatePV(); };
-  $('#cx').oninput=e=>{ S.crop.x=+e.target.value/100; $('#cxv').textContent=e.target.value+'%'; };
-  $('#cy').oninput=e=>{ S.crop.y=+e.target.value/100; $('#cyv').textContent=e.target.value+'%'; };
-  $('#cw').oninput=e=>{ S.crop.w=+e.target.value/100; $('#cwv').textContent=e.target.value+'%'; };
-  $('#ch').oninput=e=>{ S.crop.h=+e.target.value/100; $('#chv').textContent=e.target.value+'%'; };
+  $('#reset').onclick=()=>{ S.rot=0; S.flipH=false; S.flipV=false; S.crop={x:0,y:0,w:1,h:1}; syncCrop(); updatePV(); };
+  /* the four sliders were independent, so x=80% + w=100% asked for a window
+     that starts outside the frame and the exporter drew garbage. Keep the
+     window inside the picture. */
+  function clampCrop(){
+    const c=S.crop;
+    c.w=clamp(c.w,0.05,1); c.h=clamp(c.h,0.05,1);
+    c.x=clamp(c.x,0,1-c.w); c.y=clamp(c.y,0,1-c.h);
+  }
+  function syncCrop(){ $('#cx').value=Math.round(S.crop.x*100); $('#cy').value=Math.round(S.crop.y*100); $('#cw').value=Math.round(S.crop.w*100); $('#ch').value=Math.round(S.crop.h*100);
+    $('#cxv').textContent=$('#cx').value+'%'; $('#cyv').textContent=$('#cy').value+'%'; $('#cwv').textContent=$('#cw').value+'%'; $('#chv').textContent=$('#ch').value+'%'; paintAllRanges(document); }
+  $('#cx').oninput=e=>{ S.crop.x=+e.target.value/100; clampCrop(); syncCrop(); };
+  $('#cy').oninput=e=>{ S.crop.y=+e.target.value/100; clampCrop(); syncCrop(); };
+  $('#cw').oninput=e=>{ S.crop.w=+e.target.value/100; clampCrop(); syncCrop(); };
+  $('#ch').oninput=e=>{ S.crop.h=+e.target.value/100; clampCrop(); syncCrop(); };
   $('#exp').onclick=async()=>{
     if(!S.file) return;
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
-      const blob=await recordVideoWithCanvas(v,cv,{rotate:S.rot, flipH:S.flipH, flipV:S.flipV, crop:S.crop});
+      await waitMeta(v);
+      /* size the canvas to the cropped window: recordVideoWithCanvas swaps it for a
+         90°/270° turn, so pass the source size and let it do the maths */
+      const blob=await recordVideoWithCanvas(v,cv,{rotate:S.rot, flipH:S.flipH, flipV:S.flipV, crop:S.crop, outW:Math.round(v.videoWidth*S.crop.w), outH:Math.round(v.videoHeight*S.crop.h)});
       downloadBlob(blob,safeName(S.file.name)+'-cropped.webm');
       toast('Cropped video exported');
     }catch(e){ console.warn(e); toast('Export failed'); }
@@ -6249,11 +6381,12 @@ function renderVcrop(){
 /* ================= VIDEO SPEED ================= */
 function renderVspeed(){
   const S={file:null,url:'',speed:1};
-  page.innerHTML=toolPage('Video Speed','Speed up or slow down video & audio together — 0.25× to 4×. Canvas-accurate.',
+  page.innerHTML=toolPage('Video Speed','Speed up or slow down a clip — 0.25× to 4×. Canvas-accurate frames; the browser recorder captures audio at 1×, so the exported file is silent for any speed other than 1× (use the FFmpeg Slow Motion tool when you need pitch-correct sound).',
    `<div class="panel">${dropHtml('Tap to choose a video','mp4, webm…','dzv')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
       <div class="mt"><label class="lbl">Speed <span id="spv" style="color:var(--cyan)">1.00×</span></label><input type="range" class="slider" id="sp" min="0.25" max="4" step="0.25" value="1"></div>
+      <p class="dim mt" style="font-size:12px" id="spNote">The browser recorder cannot resample audio, so exported clips are silent unless the speed is 1×.</p>
       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview</button><div class="spacer"></div><button class="btn primary" id="exp">${IC.download} Export</button></div>
       <canvas id="workCv" width="1280" height="720" style="display:none"></canvas>
     </div>`);
@@ -6265,14 +6398,19 @@ function renderVspeed(){
     pv.src=S.url; $('#work').hidden=false;
   }
   attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
-  $('#sp').oninput=e=>{ S.speed=+e.target.value; $('#spv').textContent=S.speed.toFixed(2)+'×'; pv.playbackRate=S.speed; };
+  $('#sp').oninput=e=>{
+    S.speed=+e.target.value; $('#spv').textContent=S.speed.toFixed(2)+'×'; pv.playbackRate=S.speed;
+    const note=$('#spNote'); if(note) note.textContent = S.speed===1
+      ? 'At 1× the export keeps the original soundtrack.'
+      : 'Exported clips are silent at '+S.speed.toFixed(2)+'× — the browser recorder cannot resample audio.';
+  };
   $('#prev').onclick=()=>{ pv.playbackRate=S.speed; pv.play(); };
   $('#exp').onclick=async()=>{
     if(!S.file) return;
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const blob=await recordVideoWithCanvas(v,cv,{speed:S.speed});
       downloadBlob(blob,safeName(S.file.name)+'-'+S.speed+'x.webm');
       toast('Speed video exported');
@@ -6311,7 +6449,7 @@ function renderVreverse(){
         for(let c=0;c<S.aBuf.numberOfChannels;c++){ const d=S.aBuf.getChannelData(c), o=revAudio.getChannelData(c); for(let i=0;i<d.length;i++) o[i]=d[d.length-1-i]; }
       }
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.muted=true; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const fps=30, dur=v.duration||S.aBuf?.duration||5;
       const W=v.videoWidth||1280, H=v.videoHeight||720;
       cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
@@ -6336,8 +6474,9 @@ function renderVreverse(){
         await new Promise(r=> setTimeout(r, 1000/fps));
       }
       rec.stop();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,12000))]);
       if(_aEl){ _aEl.pause(); revokeVidUrl(_aUrl); }
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.file.name)+'-reversed.webm');
       toast('Reversed video exported');
@@ -6376,7 +6515,7 @@ function renderVgif(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.muted=true; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const aspect=(v.videoHeight||720)/(v.videoWidth||1280);
       cv.width=S.w; cv.height=Math.round(S.w*aspect);
       const blob=await recordVideoWithCanvas(v,cv,{fps:S.fps, bitrate:2500000, muted:true});
@@ -6390,11 +6529,11 @@ function renderVgif(){
 /* ================= VIDEO COMPRESSOR ================= */
 function renderVcompress(){
   const S={file:null,url:'', quality:'720p'};
-  page.innerHTML=toolPage('Video Compressor','Shrink video file size by re-encoding — choose quality 480p/720p/540p. Canvas re-encode.',
+  page.innerHTML=toolPage('Video Compressor','Shrink video file size by re-encoding — pick a height (480p / 720p / 1080p) or keep the original size. Canvas re-encode, nothing uploaded.',
    `<div class="panel">${dropHtml('Tap to choose a video','large mp4/webm…','dzv')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
-      <div class="row mt"><span class="chip" data-q="480p">480p · small</span><span class="chip on" data-q="720p">720p · balanced</span><span class="chip" data-q="1080p">1080p · high</span></div>
+      <div class="row mt"><span class="chip" data-q="480p">480p · small</span><span class="chip on" data-q="720p">720p · balanced</span><span class="chip" data-q="1080p">1080p · high</span><span class="chip" data-q="orig">Keep size · re-encode</span></div>
       <div class="row mt"><span class="chip on" data-br="1500000">1.5 Mbps</span><span class="chip" data-br="2500000">2.5 Mbps</span><span class="chip" data-br="4000000">4 Mbps</span></div>
       <div class="row mt"><button class="btn primary" id="exp">${IC.download} Compress & Export</button></div>
       <canvas id="workCv" width="1280" height="720" style="display:none"></canvas>
@@ -6408,16 +6547,21 @@ function renderVcompress(){
     pv.src=S.url; $('#work').hidden=false;
   }
   attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
-  $$('[data-q]').forEach(ch=>ch.onclick=()=>{ S.quality=ch.dataset.q; $$('[data-q]').forEach(c=>c.classList.toggle('on',c===ch)); });
+  $$('[data-q]').forEach(ch=>ch.onclick=()=>{ S.quality=ch.dataset.q; $$('[data-q]').forEach(c=>c.classList.toggle('on',c==ch)); });
   $$('[data-br]').forEach(ch=>ch.onclick=()=>{ br=+ch.dataset.br; $$('[data-br]').forEach(c=>c.classList.toggle('on',c===ch)); });
   $('#exp').onclick=async()=>{
     if(!S.file) return;
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
-      const map={ '480p':[854,480], '720p':[1280,720], '1080p':[1920,1080]};
-      const [W,H]=map[S.quality]||[1280,720];
+      await waitMeta(v);
+      /* a 4:3 or portrait clip was stretched into 16:9 and came out squashed:
+         derive the height from the source aspect instead of a fixed table */
+      const map={ '480p':854, '720p':1280, '1080p':1920, 'orig':0 };
+      const W0=map[S.quality]!=null?map[S.quality]:1280;
+      const srcW=v.videoWidth||1280, srcH=v.videoHeight||720;
+      let W=W0||srcW, H=W0?Math.round(W0*srcH/srcW):srcH;
+      H=Math.round(H/2)*2; W=Math.round(W/2)*2;
       cv.width=W; cv.height=H;
       const blob=await recordVideoWithCanvas(v,cv,{outW:W,outH:H, bitrate:br});
       downloadBlob(blob,safeName(S.file.name)+'-'+S.quality+'.webm');
@@ -6430,7 +6574,7 @@ function renderVcompress(){
 /* ================= SCREEN RECORDER ================= */
 function renderScreen(){
   const S={rec:null,stream:null,chunks:[],mime:''};
-  page.innerHTML=toolPage('Screen Recorder','Record your screen + mic — perfect for tutorials, save as MP4. Uses getDisplayMedia.',
+  page.innerHTML=toolPage('Screen Recorder','Record your screen + mic — perfect for tutorials. Saves WebM (MP4 where the browser supports it). Uses getDisplayMedia.',
    `<div class="panel">
       <div class="av-wrap" id="previewWrap" hidden><video id="pv" autoplay muted playsinline style="width:100%;height:100%;background:#000"></video></div>
       <div class="rec-stage" id="stage">
@@ -6465,10 +6609,18 @@ function renderScreen(){
       S.rec=new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:4000000}:{videoBitsPerSecond:4000000});
       S.rec.ondataavailable=e=>{ if(e.data&&e.data.size) S.chunks.push(e.data); };
       S.rec.onstop=()=>{
-        const blob=new Blob(S.chunks,{type:S.rec.mimeType||mime||'video/webm'});
-        downloadBlob(blob,'screen-record-'+Date.now()+'.webm');
-        state.textContent='Saved '+fmtSize(blob.size);
-        toast('Screen recording saved');
+        const type=S.rec.mimeType||mime||'video/webm';
+        const blob=new Blob(S.chunks,{type});
+        /* the container name must match what was actually encoded */
+        const ext=type.indexOf('mp4')>-1?'mp4':'webm';
+        if(blob.size>2000){
+          downloadBlob(blob,'screen-record-'+Date.now()+'.'+ext);
+          state.textContent='Saved '+fmtSize(blob.size);
+          toast('Screen recording saved');
+        } else {
+          state.textContent='Nothing captured';
+          toast('That recording was empty — record for at least a second, then stop');
+        }
       };
       stream.getVideoTracks()[0].onended=()=>stop();
       S.rec.start(250);
@@ -6542,9 +6694,13 @@ function renderWebcam(){
       S.rec=new MediaRecorder(recStream, mime?{mimeType:mime, videoBitsPerSecond:4000000}:{videoBitsPerSecond:4000000});
       S.rec.ondataavailable=e=>{ if(e.data&&e.data.size) S.chunks.push(e.data); };
       S.rec.onstop=()=>{
-        const blob=new Blob(S.chunks,{type:S.rec.mimeType||mime||'video/webm'});
-        downloadBlob(blob,'webcam-'+Date.now()+'.webm');
-        toast('Webcam recording saved');
+        const type=S.rec.mimeType||mime||'video/webm';
+        const blob=new Blob(S.chunks,{type});
+        const ext=type.indexOf('mp4')>-1?'mp4':'webm';
+        if(blob.size>2000){
+          downloadBlob(blob,'webcam-'+Date.now()+'.'+ext);
+          toast('Webcam recording saved');
+        } else toast('That recording was empty — record for at least a second, then stop');
       };
       S.rec.start(250);
       ring.classList.add('rec'); lbl.textContent='Recording — tap to stop';
@@ -6918,22 +7074,81 @@ function renderPodcast(){
   $('#pickOutro').onclick=()=>outroInp.click();
   introInp.onchange=async()=>{ if(introInp.files[0]){ try{ S.intro=await decodeFile(introInp.files[0]); $('#ioInfo').textContent='Intro: '+introInp.files[0].name+' '; }catch(e){toast("Couldn't decode intro");} } };
   outroInp.onchange=async()=>{ if(outroInp.files[0]){ try{ S.outro=await decodeFile(outroInp.files[0]); $('#ioInfo').textContent+='Outro: '+outroInp.files[0].name; }catch(e){toast("Couldn't decode outro");} } };
+  function findSilences(buf,thrDb,minSil,pad){
+    const th=Math.pow(10,thrDb/20);
+    /* measure every channel: a file with the noise on the right channel only
+       used to look silent on the left and was cut to pieces */
+    const nc=buf.numberOfChannels, n=buf.length, win=Math.round(0.02*buf.sampleRate);
+    const keep=[];
+    for(let i=0;i<n;i+=win){
+      const end=Math.min(n,i+win);
+      let silent=true;
+      for(let c=0;c<nc && silent;c++){ const d=buf.getChannelData(c); for(let j=i;j<end;j++) if(Math.abs(d[j])>th){ silent=false; break; } }
+      if(!silent) keep.push([i,end]);
+    }
+    const merged=[], minKeep=Math.round(minSil*buf.sampleRate), padN=Math.round(pad*buf.sampleRate);
+    for(const seg of keep){
+      if(!merged.length) merged.push(seg.slice());
+      else{ const last=merged[merged.length-1]; if(seg[0]-last[1]<minKeep) last[1]=seg[1]; else merged.push(seg.slice()); }
+    }
+    for(const m of merged){ m[0]=Math.max(0,m[0]-padN); m[1]=Math.min(n,m[1]+padN); }
+    return merged;
+  }
+  /* overlay-short fade so intro → body → outro joins do not click */
+  function fadeEdges(buf,sec){
+    const n=Math.min(Math.round(sec*buf.sampleRate), Math.floor(buf.length/2));
+    if(n<2) return buf;
+    for(let c=0;c<buf.numberOfChannels;c++){
+      const d=buf.getChannelData(c);
+      for(let i=0;i<n;i++){ const k=i/n; d[i]*=k; d[d.length-1-i]*=k; }
+    }
+    return buf;
+  }
   $('#run').onclick=async()=>{
-    if(!S.buf) return; $('#run').disabled=true;
-    // step1 silence cut
-    const thr=Math.pow(10,th/20); const sr=S.buf.sampleRate, d=S.buf.getChannelData(0); const win=Math.round(0.02*sr); const keep=[]; let i=0; while(i<d.length){ let silent=true; const end=Math.min(d.length,i+win); for(let j=i;j<end;j++) if(Math.abs(d[j])>thr){silent=false;break;} if(!silent) keep.push([i,end]); i+=win; }
-    const merged=[]; const minKeep=Math.round(0.3*sr), pad=Math.round(0.05*sr); for(const seg of keep){ if(!merged.length) merged.push(seg.slice()); else{ const last=merged[merged.length-1]; if(seg[0]-last[1]<minKeep) last[1]=seg[1]; else merged.push(seg.slice()); } } for(const m of merged){ m[0]=Math.max(0,m[0]-pad); m[1]=Math.min(d.length,m[1]+pad); }
-    let curBuf;
-    if(merged.length){ let total=0; merged.forEach(s=>total+=s[1]-s[0]); curBuf=AC().createBuffer(S.buf.numberOfChannels,total,sr); let pos=0; for(const [a,b] of merged){ const len=b-a; for(let c=0;c<S.buf.numberOfChannels;c++){ const dd=S.buf.getChannelData(c), oo=curBuf.getChannelData(c); for(let k=0;k<len;k++) oo[pos+k]=dd[a+k]; } pos+=len; } } else curBuf=S.buf;
-    // step2 normalize to -1dB
-    let peak=0; for(let c=0;c<curBuf.numberOfChannels;c++){ const dd=curBuf.getChannelData(c); for(let k=0;k<dd.length;k++){ const a=Math.abs(dd[k]); if(a>peak) peak=a; } } const gain=peak>0? Math.pow(10,-1/20)/peak :1; const norm=AC().createBuffer(curBuf.numberOfChannels,curBuf.length,sr); for(let c=0;c<curBuf.numberOfChannels;c++){ const dd=curBuf.getChannelData(c), oo=norm.getChannelData(c); for(let k=0;k<dd.length;k++) oo[k]=dd[k]*gain; } curBuf=norm;
-    // step3 intro/outro stitch with 0.5s crossfade
-    const parts=[]; if(S.intro) parts.push(S.intro); parts.push(curBuf); if(S.outro) parts.push(S.outro);
-    let totalLen=parts.reduce((a,b)=>a+b.length,0);
-    const out=AC().createBuffer(Math.max(...parts.map(p=>p.numberOfChannels)), totalLen, sr);
-    let offset=0; for(let p=0;p<parts.length;p++){ const b=parts[p]; for(let c=0;c<out.numberOfChannels;c++){ const src=b.numberOfChannels> c? b.getChannelData(c): b.getChannelData(0); const dst=out.getChannelData(c); for(let k=0;k<b.length;k++) dst[offset+k]+=src[k]; } offset+=b.length; }
-    S.proc=out; $('#stat').textContent=`Processed ${fmtTime(S.buf.duration)} → ${fmtTime(out.duration)}`;
-    draw(); $('#run').disabled=false; toast('Podcast processed');
+    if(!S.buf){ toast('Add your voice track first'); return; }
+    $('#run').disabled=true;
+    try{
+      /* 1. cut the gaps */
+      const merged=findSilences(S.buf,th,0.3,0.05);
+      let curBuf;
+      if(merged.length){
+        let total=0; merged.forEach(s=>total+=s[1]-s[0]);
+        curBuf=AC().createBuffer(S.buf.numberOfChannels,Math.max(1,total),S.buf.sampleRate);
+        let pos=0;
+        for(const [a,b] of merged){ const len=b-a;
+          for(let c=0;c<S.buf.numberOfChannels;c++){ const dd=S.buf.getChannelData(c), oo=curBuf.getChannelData(c); for(let k=0;k<len;k++) oo[pos+k]=dd[a+k]; }
+          pos+=len;
+        }
+      } else curBuf=S.buf;
+      /* 2. normalise the *body* itself to the loudness target (the old code always
+         used -1 dBFS and ignored the -16 LUFS slider entirely) */
+      const bRms=(()=>{ let s=0,k=0; for(let c=0;c<curBuf.numberOfChannels;c++){ const d=curBuf.getChannelData(c); for(let i=0;i<d.length;i++){ s+=d[i]*d[i]; k++; } } return Math.sqrt(s/Math.max(1,k)); })();
+      const target=Math.pow(10,Math.max(-40,Math.min(-3,tg))/20);
+      let gain=bRms>1e-6 ? target/bRms : 1;
+      /* keep the peak under -1 dBFS even when the target would push it over */
+      let pk=0; for(let c=0;c<curBuf.numberOfChannels;c++){ const d=curBuf.getChannelData(c); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>pk) pk=a; } }
+      if(pk*gain>0.89) gain=0.89/Math.max(1e-9,pk);
+      const body=AC().createBuffer(curBuf.numberOfChannels,curBuf.length,curBuf.sampleRate);
+      for(let c=0;c<curBuf.numberOfChannels;c++){ const d=curBuf.getChannelData(c), o=body.getChannelData(c); for(let i=0;i<d.length;i++) o[i]=d[i]*gain; }
+      /* 3. stitch intro + body + outro, all resampled to the body rate */
+      const sr=body.sampleRate;
+      const parts=[];
+      if(S.intro) parts.push(resampleLinear(S.intro,sr));
+      parts.push(body);
+      if(S.outro) parts.push(resampleLinear(S.outro,sr));
+      parts.forEach((p,i)=>{ if(parts.length>1) fadeEdges(p, i===0?0.4:0.25); });
+      let totalLen=parts.reduce((a,b)=>a+b.length,0);
+      const out=AC().createBuffer(Math.max(...parts.map(p=>p.numberOfChannels)), totalLen, sr);
+      let offset=0;
+      for(const b of parts){
+        for(let c=0;c<out.numberOfChannels;c++){ const src=b.getChannelData(Math.min(c,b.numberOfChannels-1)); const dst=out.getChannelData(c); for(let k=0;k<b.length;k++) dst[offset+k]=src[k]; }
+        offset+=b.length;
+      }
+      S.proc=out;
+      $('#stat').textContent=`${fmtTime(S.buf.duration)} → ${fmtTime(out.duration)} · ${gain>1?'+':''}${(20*Math.log10(gain)).toFixed(1)} dB to ${tg} dB target`;
+      draw(); toast('Podcast processed');
+    }catch(e){ console.warn(e); toast('Processing failed'); }
+    finally{ $('#run').disabled=false; }
   };
   $('#pp').onclick=()=>{ const b=S.proc||S.buf; if(b) playBuf(b,$('#pp')); };
   $('#exW').onclick=()=>{ if(S.proc) exportBuffer(S.proc,safeName(S.name)+'-podcast','wav'); else toast('Process first'); };
@@ -6959,7 +7174,7 @@ function renderLoopmaker(){
     </div>`);
   const cv=$('#wc');
   function draw(){ if(S.proc) drawPeaks(cv,S.proc.getChannelData(0),{color:'#fbbf24'}); else if(S.buf) drawPeaks(cv,S.buf.getChannelData(0),{color:'#7d8fd6'}); }
-  async function load(f){ try{ const buf=await decodeFile(f); S.buf=buf; S.name=f.name; $('#fn').textContent=f.name; $('#fs').textContent=fmtTime(buf.duration); $('#work').hidden=false; updateInfo(); requestAnimationFrame(draw);}catch(e){toast("Couldn't decode "+f.name);} }
+  async function load(f){ try{ const buf=await decodeFile(f); S.buf=buf; S.name=f.name; $('#fn').textContent=f.name; const fsEl=$('#fs'); if(fsEl) fsEl.textContent=fmtTime(buf.duration)+' · '+buf.sampleRate+' Hz'; $('#work').hidden=false; updateInfo(); requestAnimationFrame(draw);}catch(e){toast("Couldn't decode "+f.name);} }
   function updateInfo(){ const secs=S.bars*4*60/S.bpm; $('#info').textContent=`Loop length: ${secs.toFixed(2)}s (${S.bars} bars @ ${S.bpm} BPM)`; }
   attachDrop($('#dz'),fs=>load(fs[0]));
   $('#bpm').oninput=e=>{ S.bpm=+e.target.value; $('#bpmv').textContent=S.bpm; updateInfo(); S.proc=null; };
@@ -6969,12 +7184,21 @@ function renderLoopmaker(){
     if(!S.buf) return;
     const targetSec=S.bars*4*60/S.bpm; const sr=S.buf.sampleRate; const targetLen=Math.round(targetSec*sr);
     const out=AC().createBuffer(S.buf.numberOfChannels,targetLen,sr);
-    const xfLen=Math.round(S.xf*sr);
+    /* a crossfade longer than a quarter of the loop (or than the source) folded
+       the loop over itself and cancelled the audio; clamp it to something sane */
+    const xfLen=Math.min(Math.round(S.xf*sr), Math.floor(targetLen/4), Math.floor(S.buf.length/4));
     for(let c=0;c<S.buf.numberOfChannels;c++){
       const src=S.buf.getChannelData(c), dst=out.getChannelData(c);
       for(let i=0;i<targetLen;i++) dst[i]=src[i % src.length] || 0;
-      // crossfade tail/head
-      for(let i=0;i<xfLen;i++){ const a=(i/xfLen), b=1-a; const head=dst[i], tail=dst[targetLen-xfLen+i]; dst[i]=head*b+tail*a; dst[targetLen-xfLen+i]=tail*b+head*a; }
+      /* equal-power crossfade of the wrapped tail into the head, so the seam
+         keeps a constant level instead of dipping in the middle */
+      for(let i=0;i<xfLen;i++){
+        const t=(i+0.5)/xfLen;
+        const head=dst[i], tail=dst[targetLen-xfLen+i];
+        const a=Math.sin(t*Math.PI/2), b=Math.cos(t*Math.PI/2);
+        dst[i]=head*a+tail*b;
+        dst[targetLen-xfLen+i]=tail*a+head*b;
+      }
     }
     S.proc=out; draw(); toast('Loop ready — preview 2× seamless');
   };
@@ -6985,8 +7209,9 @@ function renderLoopmaker(){
     for(let c=0;c<S.proc.numberOfChannels;c++){ const d=S.proc.getChannelData(c), o=doubled.getChannelData(c); o.set(d,0); o.set(d,S.proc.length); }
     playBuf(doubled,$('#pp'));
   };
-  $('#exW').onclick=()=>{ if(S.proc) exportBuffer(S.proc,safeName(S.name)+'-loop','wav'); };
-  $('#exM').onclick=()=>{ if(S.proc) exportBuffer(S.proc,safeName(S.name)+'-loop','mp3'); };
+  /* the two export buttons used to return silently when no loop had been made */
+  $('#exW').onclick=()=>{ if(!S.proc) return toast('Hit "Make loop" first'); exportBuffer(S.proc,safeName(S.name)+'-loop','wav'); };
+  $('#exM').onclick=()=>{ if(!S.proc) return toast('Hit "Make loop" first'); exportBuffer(S.proc,safeName(S.name)+'-loop','mp3'); };
   window.__pageRedraw=draw; updateInfo();
 }
 
@@ -7070,7 +7295,7 @@ function renderStt(){
     rec.start();
   };
   $('#stop').onclick=()=>{ if(rec){ try{rec.stop();}catch(e){} } };
-  $('#copy').onclick=()=>{ const v=$('#out').value; if(v) navigator.clipboard.writeText(v).then(()=>toast('Copied')).catch(()=>toast('Copy failed')); };
+  $('#copy').onclick=()=>{ const v=$('#out').value; if(!v) return; copyText(v).then(ok=>toast(ok?'Copied':'Copy failed')); };
   $('#clear').onclick=()=>{ finalTxt=""; $('#out').value=""; };
   $('#dl').onclick=()=>{ const v=$('#out').value.trim(); if(!v) return toast('Nothing to download'); const blob=new Blob([v],{type:'text/plain'}); downloadBlob(blob,'transcript.txt'); toast('TXT saved'); };
 }
@@ -7113,6 +7338,7 @@ function renderVizpro(){
     const src=ac.createBufferSource(); src.buffer=S.buf;
     const an=ac.createAnalyser(); an.fftSize=256; src.connect(an); an.connect(ac.destination);
     const data=new Uint8Array(an.frequencyBinCount);
+    const t0=ac.currentTime;
     src.start();
     const g=av.getContext('2d');
     const draw=()=>{
@@ -7135,10 +7361,13 @@ function renderVizpro(){
         const n=48, bw=1280/n;
         for(let i=0;i<n;i++){ const v=data[Math.floor(i/n*data.length)]/255; const h=v*400; g.fillStyle=`hsl(${195},90%,65%)`; g.fillRect(i*bw+4,620-h,bw-8,h); } g.shadowBlur=0;
       }
-      if(src.playbackState!==2) requestAnimationFrame(draw);
+      /* source.playbackState is WebKit-only: Firefox left this loop running
+         forever. Track the clock instead, and paint one final still. */
+      if(!src.__done && ac.currentTime - t0 <= S.buf.duration + 0.05) requestAnimationFrame(draw);
+      else { src.__done=true; drawStatic(); }
     };
     draw();
-    src.onended=()=>{ drawStatic(); };
+    src.onended=()=>{ src.__done=true; drawStatic(); };
   };
   $('#exp').onclick=async()=>{
     if(!S.buf) return;
@@ -7148,7 +7377,9 @@ function renderVizpro(){
       const ac=AC(); const src=ac.createBufferSource(); src.buffer=S.buf; const an=ac.createAnalyser(); an.fftSize=256; src.connect(an);
       const cvs=document.createElement('canvas'); cvs.width=1280; cvs.height=720; const ctx=cvs.getContext('2d');
       const stream=cvs.captureStream(30);
-      const dest=ac.createMediaStreamDestination(); an.connect(dest); an.connect(ac.destination); stream.addTrack(dest.stream.getAudioTracks()[0]);
+      const dest=ac.createMediaStreamDestination(); an.connect(dest); an.connect(ac.destination);
+      const vizTrack=dest.stream.getAudioTracks()[0];
+      if(vizTrack) stream.addTrack(vizTrack);
       let mime=''; for(const m of ['video/webm;codecs=vp9,opus','video/webm','video/webm;codecs=vp8,opus','video/mp4']){ try{ if(MediaRecorder.isTypeSupported(m)){mime=m;break;} }catch(e){} }
       const rec=new MediaRecorder(stream, mime?{mimeType:mime}:{});
       const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); }; const done=new Promise(r=>rec.onstop=r);
@@ -7162,10 +7393,11 @@ function renderVizpro(){
         else if(S.tpl==='circle'){ const cx=640,cy=360,r=120; for(let i=0;i<64;i++){ const v=data[Math.floor(i/64*data.length)]/255; const ang=i/64*Math.PI*2; const len=30+v*160; const x1=cx+Math.cos(ang)*r,y1=cy+Math.sin(ang)*r,x2=cx+Math.cos(ang)*(r+len),y2=cy+Math.sin(ang)*(r+len); ctx.strokeStyle=`hsl(${260+i*2},85%,65%)`; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); } }
         else { ctx.fillStyle='#22d3ee'; ctx.fillRect(0,0,1280,720); }
         ctx.fillStyle='#eef2ff'; ctx.font='700 36px system-ui'; ctx.fillText(S.name,50,80);
-        if(ac.currentTime - t0 < S.buf.duration) requestAnimationFrame(draw); else { try{src.stop();}catch(e){} rec.stop(); }
+        if(ac.currentTime - t0 < S.buf.duration) requestAnimationFrame(draw); else { try{src.stop();}catch(e){} try{rec.stop();}catch(e){} }
       };
       draw();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,(S.buf.duration+6)*1000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.name)+'-viz-'+S.tpl+'.webm');
       toast('Visualizer video exported');
@@ -7324,15 +7556,23 @@ function renderVslideshow(){
             ctx.globalAlpha=1;
             ctx.drawImage(f.img, baseX, baseY, dw, dh);
           }
-          // transition fade in first 12 frames if not first image
-          if(idx>0 && fr<12){
-            ctx.fillStyle=`rgba(0,0,0,${1 - fr/12})`;
-            ctx.fillRect(0,0,1920,1080);
+          /* a real crossfade: draw the previous slide underneath and fade this
+             one in over the first 12 frames (the old code dipped to black) */
+          if(idx>0 && fr<12 && S.transition==='fade'){
+            const prev=S.files[idx-1];
+            const ps=Math.max(1920/prev.w,1080/prev.h);
+            ctx.globalAlpha=1;
+            ctx.drawImage(prev.img,(1920-prev.w*ps)/2,(1080-prev.h*ps)/2,prev.w*ps,prev.h*ps);
+            ctx.globalAlpha=fr/12;
+            ctx.drawImage(f.img, baseX, baseY, dw, dh);
+            ctx.globalAlpha=1;
           }
           await new Promise(r=> setTimeout(r, 1000/fps));
         }
       }
-      rec.stop(); await done;
+      rec.stop();
+      await Promise.race([done, new Promise(r=>setTimeout(r,8000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,'slideshow-'+Date.now()+'.webm');
       toast('Slideshow exported');
@@ -7398,7 +7638,7 @@ function renderVsubs(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       cv.width=v.videoWidth||1280; cv.height=v.videoHeight||720; const ctx=cv.getContext('2d');
       const stream=cv.captureStream(30);
       try{ if(v.captureStream){ const vs=v.captureStream(); vs.getAudioTracks().forEach(t=>stream.addTrack(t)); } }catch(e){}
@@ -7406,8 +7646,11 @@ function renderVsubs(){
       const rec=new MediaRecorder(stream, mime?{mimeType:mime}:{});
       const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); }; const done=new Promise(r=>rec.onstop=r);
       rec.start(200); v.currentTime=0; await v.play().catch(()=>{});
+      /* a short buffer stall used to end the recording early; only 'ended' or
+         running past the duration should stop it */
+      const dur=(v.duration&&isFinite(v.duration))?v.duration:0;
       const draw=()=>{
-        if(v.ended || v.paused){ try{rec.stop();}catch(e){} return; }
+        if(v.ended || (dur>0 && v.currentTime>=dur) || (v.paused && !v.seeking && v.currentTime>0.05)){ try{rec.stop();}catch(e){} return; }
         const W=cv.width, H=cv.height;
         ctx.drawImage(v,0,0,W,H);
         const cur=v.currentTime;
@@ -7426,7 +7669,8 @@ function renderVsubs(){
         requestAnimationFrame(draw);
       };
       draw();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,(dur||10)*1000+8000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.file.name)+'-subbed.webm');
       toast('Subtitled video exported');
@@ -7479,16 +7723,18 @@ function renderVthumb(){
       ctx.fillStyle=S.color; ctx.fillRect(0,710,1280,10);
     };
   }
-  attachDrop($('#dzv')||$('#dz'),fs=>load(fs[0]),'video/*');
-  // fallback for generic drop zone id
   const dz=document.querySelector('#dzv')||document.querySelector('#dz');
   if(dz) attachDrop(dz,fs=>load(fs[0]),'video/*');
   $('#tm').oninput=e=>{ S.time=+e.target.value; $('#tv').textContent=S.time.toFixed(1)+'s'; drawThumb(); };
   $('#title').oninput=drawThumb;
   $('#col').oninput=e=>{ S.color=e.target.value; drawThumb(); };
   $$('[data-f]').forEach(ch=>ch.onclick=()=>{ filter=ch.dataset.f; $$('[data-f]').forEach(c=>c.classList.toggle('on',c===ch)); drawThumb(); });
-  $('#expJpg').onclick=()=>{ cv.toBlob(b=>{ if(b) downloadBlob(b,safeName(S.file.name)+'-thumb.jpg'); },'image/jpeg',0.92); };
-  $('#expPng').onclick=()=>{ cv.toBlob(b=>{ if(b) downloadBlob(b,safeName(S.file.name)+'-thumb.png'); },'image/png'); };
+  const saveThumb=(ext,type,q)=>{
+    if(!S.file) return toast('Choose a video first');
+    cv.toBlob(b=>{ if(b) downloadBlob(b,safeName(S.file.name)+'-thumb.'+ext); else toast('Could not render the thumbnail'); },type,q);
+  };
+  $('#expJpg').onclick=()=>saveThumb('jpg','image/jpeg',0.92);
+  $('#expPng').onclick=()=>saveThumb('png','image/png');
 }
 
 /* ================= INTRO MAKER ================= */
@@ -7563,7 +7809,8 @@ function renderVintro(){
         drawPreview(t); requestAnimationFrame(drawLoop);
       };
       drawLoop();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,14000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,'intro-'+tpl+'.webm');
       toast('Intro exported');
@@ -7642,7 +7889,7 @@ function renderVmeme(){
         const btn=$('#exp'); btn.disabled=true;
         try{
           const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-          await new Promise(r=>{ v.onloadedmetadata=r; });
+          await waitMeta(v);
           const cvs=document.createElement('canvas'); cvs.width=1080; cvs.height=1080; const cctx=cvs.getContext('2d');
           const stream=cvs.captureStream(30);
           try{ if(v.captureStream){ const vs=v.captureStream(); vs.getAudioTracks().forEach(t=>stream.addTrack(t)); } }catch(e){}
@@ -7651,7 +7898,7 @@ function renderVmeme(){
           const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); }; const done=new Promise(r=>rec.onstop=r);
           rec.start(200); v.currentTime=0; await v.play().catch(()=>{});
           const drawV=()=>{
-            if(v.ended||v.paused){ try{rec.stop();}catch(e){} return; }
+            if(v.ended || (v.duration>0 && v.currentTime>=v.duration-0.02)){ try{rec.stop();}catch(e){} return; }
             cctx.drawImage(v,0,0,1080,1080);
             cctx.fillStyle=color; cctx.strokeStyle='#000'; cctx.lineWidth=8; cctx.font=`800 ${fontSize}px Impact, system-ui`; cctx.textAlign='center';
             cctx.textBaseline='top'; if(S.top){ cctx.strokeText(S.top,540,40); cctx.fillText(S.top,540,40); }
@@ -7659,7 +7906,8 @@ function renderVmeme(){
             requestAnimationFrame(drawV);
           };
           drawV();
-          await done;
+          await Promise.race([done, new Promise(r=>setTimeout(r,((v.duration||10)+10)*1000))]);
+          if(!chunks.length) throw new Error('The recorder produced no frames');
           const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
           downloadBlob(blob,'meme-video.webm');
           toast('Meme video exported');
@@ -7766,7 +8014,7 @@ function renderVemoji(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const W=v.videoWidth||1280, H=v.videoHeight||720; cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
       const stream=cv.captureStream(30);
       try{ if(v.captureStream){ const vs=v.captureStream(); vs.getAudioTracks().forEach(t=>stream.addTrack(t)); } }catch(e){}
@@ -7776,7 +8024,7 @@ function renderVemoji(){
       rec.start(200); v.currentTime=0; await v.play().catch(()=>{});
       let start=performance.now();
       const draw=()=>{
-        if(v.ended||v.paused){ try{rec.stop();}catch(e){} return; }
+        if(v.ended || (v.duration>0 && v.currentTime>=v.duration-0.02)){ try{rec.stop();}catch(e){} return; }
         ctx.drawImage(v,0,0,W,H);
         const elapsed=(performance.now()-start)/1000;
         S.emojis.forEach(em=>{
@@ -7794,7 +8042,8 @@ function renderVemoji(){
         requestAnimationFrame(draw);
       };
       draw();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,((v.duration||10)+10)*1000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.file.name)+'-emoji.webm');
       toast('Emoji video exported');
@@ -7849,7 +8098,7 @@ function renderVtextanim(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const W=v.videoWidth||1280, H=v.videoHeight||720; cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
       const stream=cv.captureStream(30);
       try{ if(v.captureStream){ const vs=v.captureStream(); vs.getAudioTracks().forEach(t=>stream.addTrack(t)); } }catch(e){}
@@ -7859,7 +8108,7 @@ function renderVtextanim(){
       rec.start(200); v.currentTime=0; await v.play().catch(()=>{});
       let start=performance.now();
       const draw=()=>{
-        if(v.ended||v.paused){ try{rec.stop();}catch(e){} return; }
+        if(v.ended || (v.duration>0 && v.currentTime>=v.duration-0.02)){ try{rec.stop();}catch(e){} return; }
         ctx.drawImage(v,0,0,W,H);
         const elapsed=(performance.now()-start)/1000; const dur=v.duration||5; const prog=Math.min(1, elapsed/ (dur*0.2)); // anim in first 20%
         // text position
@@ -7884,7 +8133,8 @@ function renderVtextanim(){
         requestAnimationFrame(draw);
       };
       draw();
-      await done;
+      await Promise.race([done, new Promise(r=>setTimeout(r,((v.duration||10)+10)*1000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,safeName(S.file.name)+'-textanim.webm');
       toast('Text animated video exported');
@@ -7962,7 +8212,7 @@ function renderVeffectlab(){
     const btn=$('#exp'); btn.disabled=true;
     try{
       const v=document.createElement('video'); v.src=S.url; v.crossOrigin='anonymous'; v.playsInline=true;
-      await new Promise(r=>{ v.onloadedmetadata=r; });
+      await waitMeta(v);
       const fx=FX.find(f=>f.id===cur);
       const css = (!fx||fx.css==='none'||intensity===0)?'none': fx.css + (intensity!==100? ` opacity(${intensity}%)` : '');
       const blob=await recordVideoWithCanvas(v,cv,{filter:css});
@@ -8035,7 +8285,7 @@ function renderVtransitions(){
       for(let idx=0; idx<files.length; idx++){
         const f=files[idx];
         const v=document.createElement('video'); v.src=f.url; v.crossOrigin='anonymous'; v.playsInline=true; v.muted=false;
-        await new Promise(r=>{ v.onloadedmetadata=r; });
+        await waitMeta(v);
         // add audio for first clip, subsequent clips audio will be mixed via transition (simplified: just use first clip audio + rest muted? For demo, add all)
         try{ if(v.captureStream){ const vs=v.captureStream(); const at=vs.getAudioTracks()[0]; if(at && idx===0){ stream.getAudioTracks().forEach(t=>stream.removeTrack(t)); stream.addTrack(at); } } }catch(e){}
         const clipDur=Math.max(0.5, (v.duration||3) - (idx>0?dur:0)); // overlap transition
@@ -8075,7 +8325,9 @@ function renderVtransitions(){
         });
         v.pause();
       }
-      rec.stop(); await done;
+      rec.stop();
+      await Promise.race([done, new Promise(r=>setTimeout(r,12000))]);
+      if(!chunks.length) throw new Error('The recorder produced no frames');
       const blob=new Blob(chunks,{type:rec.mimeType||'video/webm'});
       downloadBlob(blob,'transition-'+tr+'.webm');
       toast('Transitions video exported');
@@ -8660,22 +8912,25 @@ function renderTimelinePro(){
     const audioClips=tracks[2].clips.concat(tracks[3].clips);
     if(!audioClips.length){ toast('🎤 Pehle Audio/Voice add karo'); return; }
     const src=audioClips[0];
-    const phrases=['Welcome to VN Pro','Auto Captions ✨','100% Offline','CapCut Style Editing','Hello World'];
+    /* These are placeholders, not transcription: the page has no offline ASR.
+       Name them like placeholders so nobody ships "Welcome to VN Pro" by accident. */
+    const phrases=['Subtitle 1','Subtitle 2','Subtitle 3','Subtitle 4','Subtitle 5'];
     const dur=src.dur||8;
     const per=dur/phrases.length;
     tracks[4].clips=[];
     phrases.forEach((ph,i)=>{
       tracks[4].clips.push({id:'cap'+Date.now()+i, name:ph, dur:per, start:i*per, color:'#1d4ed8', text:ph});
     });
-    // Try real Web Speech if available and user wants live
-    if('webkitSpeechRecognition' in window && confirm('Real mic se captions generate kare? (Allow mic)')) {
+    // Try real Web Speech if available and the user wants to dictate
+    if('webkitSpeechRecognition' in window && confirm('Also dictate a live caption from the mic? (Allow mic — Cancel keeps the 5 placeholder subtitles)')) {
       try{
         const rec=new window.webkitSpeechRecognition(); rec.continuous=false; rec.lang='en-IN'; rec.interimResults=false;
         rec.onresult=e=>{ const txt=e.results[0][0].transcript; tracks[4].clips=[{id:'c'+Date.now(), name:txt, dur:3, start:currentTime, color:'#1d4ed8', text:txt}]; drawAll(); toast('🎤 Captions: '+txt); };
         rec.start(); toast('🎤 Listening... bolo');
       }catch(e){}
     }
-    snapshot(); drawAll(); saveProject(); toast('💬 Auto Captions added — 5 subs');
+    snapshot(); drawAll(); saveProject();
+    toast('💬 5 placeholder subtitles added — double-tap each to type the real text');
   }
   let mediaFiles=[]; // {file, url, name, dur, res, size, thumbnails}
   let selected={track:0, clip:0};
@@ -8720,13 +8975,23 @@ function drawAll(){
 
   async function addMediaFiles(files){
     for(const f of files){
+      /* dropping the same file twice used to create a second blob URL and a
+         second set of clips for one asset */
+      if(mediaFiles.some(m=>m.file.name===f.name && m.file.size===f.size && m.file.lastModified===f.file.lastModified)){
+        toast(f.name+' is already in the media bin');
+        continue;
+      }
       const url=URL.createObjectURL(f);
       const isVid=f.type.startsWith('video/'), isAud=f.type.startsWith('audio/'), isImg=f.type.startsWith('image/');
       let dur=5, res='—', thumbs=null;
       if(isVid){
-        try{ const v=document.createElement('video'); v.src=url; v.muted=true; await new Promise(r=>{v.onloadedmetadata=r; v.onerror=r;}); if(isFinite(v.duration)) dur=+v.duration.toFixed(1); res=(v.videoWidth||0)+'×'+(v.videoHeight||0); 
+        try{ const v=document.createElement('video'); v.src=url; v.muted=true;
+          /* waitMeta has a timeout: a container this browser cannot decode fires
+             neither event and the whole import stalled */
+          await waitMeta(v, 12000);
+          if(isFinite(v.duration)) dur=+v.duration.toFixed(1); res=(v.videoWidth||0)+'×'+(v.videoHeight||0);
           try{ const gen=window.generateFilmstrip||generateFilmstripFallback; thumbs=await gen(f,8); }catch(e){}
-        }catch(e){}
+        }catch(e){ toast('Could not read '+f.name+' — the browser may not support its codec'); }
       } else if(isAud){
         dur=8; res='Audio';
       } else if(isImg){ dur=3; res='Image'; }
@@ -8752,7 +9017,15 @@ function drawAll(){
         <div style="padding:6px"><div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div><div style="font-size:10px;color:var(--muted)">${m.dur}s • ${m.res} • ${m.size}</div></div>
       </div>`).join('') || '<div style="font-size:11px;color:var(--muted);text-align:center;padding:12px">No media — Import</div>';
     mediaList.innerHTML = mediaFiles.map((m,i)=>`<div style="display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:6px 8px"><span style="font-size:14px">${m.file.type.startsWith('video')?'🎬':m.file.type.startsWith('audio')?'🎵':'🖼️'}</span><span style="flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</span><button class="icon-sq ghost" data-del="${i}" style="width:24px;height:24px">✕</button></div>`).join('');
-    mediaList.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const it=mediaFiles[+b.dataset.del]; if(it.url) URL.revokeObjectURL(it.url); mediaFiles.splice(+b.dataset.del,1); snapshot(); drawMedia(); saveProject(); });
+    mediaList.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+      const idx=+b.dataset.del, it=mediaFiles[idx];
+      if(!it) return;
+      /* a clip still pointing at this object URL would go blank if we revoked it */
+      const used=[].concat(...tracks.map(t=>t.clips)).some(c=>c.url===it.url);
+      if(used) return toast('That file is still on the timeline — delete its clips first');
+      if(it.url) URL.revokeObjectURL(it.url);
+      mediaFiles.splice(idx,1); snapshot(); drawMedia(); saveProject();
+    });
     // drag to timeline
     mediaGrid.querySelectorAll('[draggable]').forEach(el=>{
       el.ondragstart=e=>{ e.dataTransfer.setData('text/plain', el.dataset.mi); };
@@ -9338,9 +9611,10 @@ function updatePlayhead(){
       await new Promise(r => setTimeout(r, Math.min(60, 1000 / fps)));
     }
     rec.stop();
-    await done;
+    await Promise.race([done, new Promise(r => setTimeout(r, 20000))]);
     if (audioCtx) try { audioCtx.close(); } catch (e) {}
     if (opts.onProgress) opts.onProgress(1);
+    if (!chunks.length) throw new Error('The recorder produced no frames — try a lower resolution.');
     const type = (mime || 'video/webm').split(';')[0];
     return { blob: new Blob(chunks, { type }), ext: type === 'video/mp4' ? 'mp4' : 'webm' };
   }
@@ -9510,11 +9784,16 @@ async function encodeWithAudioContext(buf, mime, onProgress){
   const rec=new MediaRecorder(dest.stream,{mimeType:use});
   const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
   const done=new Promise(r=>rec.onstop=r);
+  /* arm onended BEFORE the source starts: a start() that ends immediately
+     (very short buffers) fired 'ended' before the listener existed, and the
+     encoder then waited for a stop that never came */
+  const ended=new Promise(r=>{ src.onended=r; });
   rec.start();
-  await src.start(0);
-  await new Promise(r=>src.onended=r);
+  src.start(0);
+  await ended;
   try{rec.stop();}catch(e){}
-  await done;
+  await Promise.race([done, new Promise(r=>setTimeout(r,10000))]);
+  if(!chunks.length) throw new Error('The browser produced no audio data for this format.');
   return new Blob(chunks,{type:use});
 }
 
@@ -9528,7 +9807,7 @@ function recordVideoAdvanced(file, opts, onProgress){
     const cleanup=()=>{ try{v.pause();}catch(e){} revokeVidUrl(url); };
     const fail=m=>{ cleanup(); reject(new Error(m)); };
     v.onerror=()=>fail('This browser could not open that video. Try MP4 (H.264) or WebM.');
-    await new Promise(r=>{ v.onloadedmetadata=r; });
+    await new Promise((r,rej)=>{ v.onloadedmetadata=r; setTimeout(()=>rej(new Error('The video did not load — the browser cannot decode this file.')),15000); }).catch(e=>{ throw e; });
     if(!v.videoWidth) return fail('The video has no picture track.');
 
     const dur = v.duration;
@@ -9625,7 +9904,8 @@ function recordVideoAdvanced(file, opts, onProgress){
     const guard=setTimeout(finish, totalOut*1000+6000);
 
     draw();
-    await stopped;
+    /* never wait on onstop forever: the guard timer also resolves the race */
+    await Promise.race([stopped, new Promise(r=>setTimeout(r, totalOut*1000+12000))]);
     clearTimeout(guard);
     if(extraUrl) revokeVidUrl(extraUrl);
     onProgress&&onProgress(1,'Finishing…');
@@ -9760,7 +10040,6 @@ function renderVconv(){
     let w=null,h=null;
     if(target!=='orig'){
       h=+target; w=Math.round(h*S.info.w/S.info.h/2)*2; h=Math.round(h/2)*2;
-      if(w%2) w++;
     }
     try{
       const out=await recordVideoAdvanced(S.file,{
@@ -10151,13 +10430,16 @@ function ffToolPage(cfg){
     }catch(e){ toast('Could not open that video'); }
   };
   attachDrop($('#dzv'), fs => S.load(fs[0]), 'video/*');
-  $('#prev').onclick = () => pv.play();
+  /* the button used to fire play() on an empty <video> and throw on some browsers */
+  $('#prev').onclick = () => { if (!pv.getAttribute('src')) return toast('Choose a video first'); pv.play().catch(() => {}); };
   $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, S.name); };
   $('#runb').onclick = async () => {
     if (!S.file) return;
     const out = Object.assign({ file: 'out.mp4', ext: 'mp4', type: 'video/mp4' }, cfg.output && cfg.output(S) || {});
     const btn = $('#runb'); btn.disabled = true;
     setFFProgress(bar, 0, 'Starting FFmpeg…');
+    const statusEl = bar.nextElementSibling;
+    if (statusEl && statusEl.classList.contains('ff-status')) statusEl.textContent = '';
     const ext = (S.file.name.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
     try{
       const plan = await cfg.builder(S, out);
@@ -10803,6 +11085,24 @@ const current=()=>{
   const h=location.hash.replace(/^#/,'');
   return routes[h]?h:'home';
 };
+/* ================= VIDEO DETAIL PANEL ================= */
+/* This used to be an IIFE *inside* route() that re-wrapped window.route on every
+   navigation: each hop piled on another layer, so the third visit re-rendered the
+   tool four times and stacked timers. It is now installed once and called once. */
+function videoDetailPanel(){
+  const key=current();
+  if(typeof VIDEO_DETAILS!=='undefined' && VIDEO_DETAILS[key]){
+    const d=VIDEO_DETAILS[key];
+    const panel=document.createElement('div');
+    panel.className='detail-panel';
+    panel.style.marginTop='18px';
+    panel.innerHTML=`<h4>${IC.video} About — Full Details</h4><p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px">${esc(d.long)}</p><div class="detail-grid"><div><b>Inputs:</b><br>${esc(d.inputs)}</div><div><b>Outputs:</b><br>${esc(d.outputs)}</div><div><b>Engine:</b><br>${esc(d.engine)}</div><div><b>Privacy:</b><br>100% offline</div></div><div style="margin-top:12px"><b style="font-size:12px;color:var(--text)">Features:</b><ul style="margin:6px 0 0 18px;font-size:12.5px;color:var(--muted);line-height:1.6">${d.features.map(f=>`<li>${esc(f)}</li>`).join('')}</ul></div><div style="margin-top:10px"><b style="font-size:12px;color:var(--text)">Steps:</b><ol style="margin:6px 0 0 18px;font-size:12.5px;color:var(--muted);line-height:1.6">${d.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div>${d.tips?`<p style="margin-top:10px;font-size:12.5px;color:var(--muted);background:rgba(34,211,238,.06);border:1px solid var(--line);padding:8px 10px;border-radius:10px"><b style="color:var(--cyan)">Tip:</b> ${esc(d.tips)}</p>`:''}`;
+  const pageEl=document.querySelector('#page .page');
+  if(pageEl && !pageEl.querySelector('.detail-panel')) pageEl.appendChild(panel);
+  }
+}
+
+
 function route(){
   const key=current();
   if(st.playing) stPause();
@@ -10813,32 +11113,8 @@ function route(){
   closeModal();
   (routes[key]||renderHome)();
   requestAnimationFrame(()=>paintAllRanges(document));
-  
-// Auto inject detailed feature panel for video tools after render
-(function(){
-  const origRoute = route;
-  window._videoHookDone=false;
-  const videoIds = new Set(['vtrim','vmerge','vmute','vadd','vfilter','vcrop','vspeed','vreverse','vgif','vcompress','screen','webcam','v2a','a2v','vslideshow','vsubs','vthumb','vintro','vmeme','podcast','loopmaker','vizpro','vemoji','vtextanim','veffectlab','vtransitions']);
-  const _wrap = ()=>{
-    const key=current();
-    if(typeof VIDEO_DETAILS!=='undefined' && VIDEO_DETAILS[key]){
-      const d=VIDEO_DETAILS[key];
-      const panel=document.createElement('div');
-      panel.className='detail-panel';
-      panel.style.marginTop='18px';
-      panel.innerHTML=`<h4>${IC.video} About — Full Details</h4><p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:10px">${esc(d.long)}</p><div class="detail-grid"><div><b>Inputs:</b><br>${esc(d.inputs)}</div><div><b>Outputs:</b><br>${esc(d.outputs)}</div><div><b>Engine:</b><br>${esc(d.engine)}</div><div><b>Privacy:</b><br>100% offline</div></div><div style="margin-top:12px"><b style="font-size:12px;color:var(--text)">Features:</b><ul style="margin:6px 0 0 18px;font-size:12.5px;color:var(--muted);line-height:1.6">${d.features.map(f=>`<li>${esc(f)}</li>`).join('')}</ul></div><div style="margin-top:10px"><b style="font-size:12px;color:var(--text)">Steps:</b><ol style="margin:6px 0 0 18px;font-size:12.5px;color:var(--muted);line-height:1.6">${d.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol></div>${d.tips?`<p style="margin-top:10px;font-size:12.5px;color:var(--muted);background:rgba(34,211,238,.06);border:1px solid var(--line);padding:8px 10px;border-radius:10px"><b style="color:var(--cyan)">Tip:</b> ${esc(d.tips)}</p>`:''}`;
-      const pageEl=document.querySelector('#page .page');
-      if(pageEl && !pageEl.querySelector('.detail-panel')) pageEl.appendChild(panel);
-    }
-  };
-  const orig = window.route;
-  window.route = function(){
-    orig();
-    setTimeout(_wrap, 60);
-  };
-})();
-
-$$('#bnav a').forEach(a=>a.classList.toggle('on',a.dataset.nav===key));
+  setTimeout(videoDetailPanel, 0);
+  $$('#bnav a').forEach(a=>a.classList.toggle('on',a.dataset.nav===key));
   window.scrollTo({top:0,behavior:'auto'});
 }
 
