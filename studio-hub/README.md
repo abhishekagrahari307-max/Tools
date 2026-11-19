@@ -6,7 +6,7 @@ One private, offline-first creative suite that runs entirely in the browser tab.
 
 | Studio | Tools | What it covers |
 | ------ | ----- | -------------- |
-| [Audio & Video Editor](audio-video/) | 63 | multi-track timeline, trim/merge/mix/split, EQ, BPM, vocal remover, video trimmer/merger/filters/subtitles, screen & webcam recorder, converters and resizers, text-to-speech, speech-to-text |
+| [Audio & Video Editor](audio-video/) | 68 | timeline, trim/merge/mix/split, EQ, BPM, vocal remover, video trimmer/merger/filters/subtitles, rotate/slow-motion/watermark/audio-extract/thumbnail, screen & webcam recorder, converters and resizers, text-to-speech, speech-to-text |
 | [Image & PDF Studio](pixora/) | 43 | compress/resize/crop/convert images, passport photos, collage, PDF merge/split/sign/forms/protect/compress, PDF ⇄ Word, text ⇄ PDF, English + Hindi OCR, Fabric.js design editor |
 
 Neither studio uploads a file, opens an account, or loads a script from a CDN.
@@ -15,7 +15,7 @@ Neither studio uploads a file, opens an account, or loads a script from a CDN.
 
 ```
 index.html                   landing page      9 KB + 7 KB css
-audio-video/index.html       63-tool studio    ~780 KB, single file, no CDN
+audio-video/index.html       68-tool studio    ~795 KB, single file, no CDN
 audio-video/ffmpeg/core/     on demand        31 MB (FFmpeg 5.1.4 wasm) — first use only
 pixora/index.html            shell             134 KB — paints at once
 pixora/vendor/boot.js        loader            2 KB  — pulls the libraries in order
@@ -39,8 +39,12 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
   Firefox emits WebM. Export is real time by nature.
 - **FFmpeg 5.1.4 in WebAssembly** (self-hosted in `audio-video/ffmpeg/core/`, 31 MB, loaded on
   first use) — Video Compressor (x264 CRF), Colour & Stabilise (eq/unsharp/deshake),
-  Subtitle Editor (SRT import, preview, libass burn-in with Devanagari) and GIF Maker Pro
-  (palettegen + paletteuse). Frame-by-frame decoding, usually faster than real time.
+  Subtitle Editor (SRT import, preview, libass burn-in with Devanagari), GIF Maker Pro
+  (palettegen + paletteuse), **Video Rotator** (transpose/flip), **Slow Motion**
+  (`setpts` + optional `minterpolate`), **Watermark** (`drawtext` or a PNG overlay with real
+  opacity), **Audio Extractor** (MP3/WAV/M4A) and **Thumbnail Maker** (exact frame, optional
+  1280×720 / 1080×1920 cover with a caption). Frame-by-frame decoding, usually faster than real
+  time.
 - **WebAssembly** — Pixora's PDF engines (PDF-Lib + qpdf), OCR (Tesseract eng/hin) and DOCX export.
 - **Browser speech APIs** — TTS uses `speechSynthesis`, STT uses `SpeechRecognition`
   (Chrome/Edge only; the tool explains that on Firefox).
@@ -78,10 +82,22 @@ finds is what ships:
 - **Crashes** — `sliceBuf()` threw when the start point was past the end of the file, and
   `resampleLinear()` returned NaN for an empty buffer. Both clamp now.
 
+**Five missing video tools, built on the engine.** Rotator, Slow Motion, Watermark, Audio
+Extractor and Thumbnail Maker now exist as their own tools instead of being "crop & rotate" or
+"mute / extract" side options. All five share one shell (`ffToolPage`) so file input, progress,
+result, download and error reporting behave the same everywhere. The text stamp uses the
+Devanagari-capable TTF Pixora already ships (fetched lazily, still no CDN), which also means
+watermark captions work in Hindi. Real-encode tests confirm a 320×240 clip rotated 90° comes out
+**240×320**, slow motion stretches the timeline (0.25× needs two `atempo` stages), the logo
+overlay really applies opacity, audio extraction writes MP3/WAV/M4A, and thumbnails come out at
+the requested pixel size — with `scale` running before `drawtext` so captions are sized for the
+final frame.
+
 Earlier in this line of work: the FFmpeg engine (self-hosted, no CDN) added Video Compressor,
 Colour & Stabilise, Subtitle Editor and GIF Maker Pro; the loader builds the wasm URL through the
 core's base64 `mainScriptUrlOrBlob` payload — without it the engine cannot find its own wasm.
-Tool counts agree everywhere (63 audio/video + 43 image/PDF = 106) instead of 55/56/98.
+Tool counts agree everywhere (68 audio/video + 43 image/PDF = 111) instead of 55/56/98, and a
+test now fails if the catalogue and the numbers on the pages ever drift apart again.
 
 ## Tests
 

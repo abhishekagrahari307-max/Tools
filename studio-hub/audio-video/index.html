@@ -9,8 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Audio & Video Editor — 63 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
-<title>Audio & Video Editor — 63 Tools | Trim, Mix, Studio & Video Suite</title>
+<meta name="description" content="Audio & Video Editor — 68 free in-browser tools: trim, merge, mix, vocal remover, BPM finder, 10-band EQ, video trimmer, merger, filters, screen & webcam recorder and more. 100% private, files never leave your device.">
+<title>Audio & Video Editor — 68 Tools | Trim, Mix, Studio & Video Suite</title>
 <style>
 /* ============================================================
    AUDIO EDITOR — Design System v2 (upgraded)
@@ -1311,6 +1311,11 @@ const TOOLS=[
   {id:'vcolor', nm:'Colour & Stabilise', cat:'video', ic:'sliders', c:['#155e75','#0c4a6e'], icc:'#67e8f9', ds:'Exposure, contrast, saturation, sharpness and shake removal via FFmpeg eq/deshake filters', go:'vcolor'},
   {id:'vsubedit', nm:'Subtitle Editor', cat:'video', ic:'layers',   c:['#4c1d95','#2e1065'], icc:'#c4b5fd', ds:'Write or import SRT, preview on the video, then burn real subtitles with libass', go:'vsubedit'},
   {id:'vgifff', nm:'GIF Maker Pro',     cat:'video', ic:'video',  c:['#7f1d1d','#450a0a'], icc:'#fca5a5', ds:'Palette-optimised GIFs from any clip — sharp 256-colour output, not dithered', go:'vgifff'},
+  {id:'vrotate', nm:'Video Rotator', cat:'video', ic:'rev', c:['#155e75','#0c4a6e'], icc:'#67e8f9', ds:'Rotate 90/180/270 or mirror — real frames, true portrait output (FFmpeg)', go:'vrotate'},
+  {id:'vslowmo', nm:'Slow Motion', cat:'video', ic:'clock', c:['#312e81','#1e1b4b'], icc:'#a5b4fc', ds:'0.25×–0.9× with optional motion interpolation for smooth in-between frames', go:'vslowmo'},
+  {id:'vwatermark', nm:'Watermark', cat:'video', ic:'shield', c:['#4c1d95','#2e1065'], icc:'#c4b5fd', ds:'Burn a logo or a text stamp into the pixels — FFmpeg overlay, survives re-uploads', go:'vwatermark'},
+  {id:'vextractaudio', nm:'Audio Extractor', cat:'video', ic:'music', c:['#0d4234','#0a2e24'], icc:'#34d399', ds:'Video → MP3 320k / WAV / M4A with FFmpeg, even for clips the browser cannot play', go:'vextractaudio'},
+  {id:'vthumbnailff', nm:'Thumbnail Maker', cat:'video', ic:'video', c:['#4a2c14','#35200e'], icc:'#fbbf24', ds:'Grab any frame as PNG/JPEG, upscale to a 1280×720 or 1080×1920 cover with a caption', go:'vthumbnailff'},
   {id:'aconv',  nm:'Audio Converter',  cat:'edit', ic:'music',   c:['#083344','#0e7490'], icc:'#22d3ee', ds:'MP3 ⇄ WAV ⇄ OGG ⇄ M4A ⇄ WebM — re-encode audio in the browser with a quality slider', go:'aconv'},
   {id:'vconv',  nm:'Video Converter',  cat:'video', ic:'video',   c:['#1e3a8a','#1e40af'], icc:'#60a5fa', ds:'Re-encode video to MP4 or WebM at the size, frame rate and bitrate you choose', go:'vconv'},
   {id:'vresize',nm:'Video Resizer',    cat:'video', ic:'layers',  c:['#3f2d1a','#7c2d12'], icc:'#fbbf24', ds:'9:16 reels, 1:1 posts, 16:9 YouTube — resize with fit or fill, then export', go:'vresize'},
@@ -6397,7 +6402,7 @@ function renderHome(){
         <div class="row between" style="align-items:center">
           <div style="min-width:0">
             <h3 style="font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px">${IC.video} Video Section — Alag Dedicated Hub</h3>
-            <p class="muted" style="font-size:13px;margin-top:4px">22 video tools ek jagah — trim, merge, filters, crop, speed, screen/webcam recorder. Har tool ke full features & details ke liye hub kholo.</p>
+            <p class="muted" style="font-size:13px;margin-top:4px">33 video tools ek jagah — trim, merge, filters, crop, speed, rotate, slow motion, watermark, audio extract, screen/webcam recorder. Har tool ke full features & details ke liye hub kholo.</p>
           </div>
           <button class="btn primary" data-go="video">${IC.video} Open Video Hub</button>
         </div>
@@ -9369,6 +9374,371 @@ function ffOutName(file, suffix, ext){
   return safeName(file && file.name ? file.name : 'clip') + (suffix || '') + '.' + ext;
 }
 
+/* ================= FFMPEG TOOL SHELL + the five missing video tools =================
+   Rotator, Slow Motion, Watermark, Audio Extractor and Thumbnail Maker all run
+   through the same self-hosted wasm engine as the compressor. The shell handles
+   file in, command, progress, result and download so each tool stays small.
+   The text fonts come from the TTF Pixora already ships — still no CDN. */
+
+const ffFontState = { bytes: null, loading: null };
+/* lazily fetch the TTF once (it lives base64-encoded in pixora/engines/) */
+function loadWatermarkFont(){
+  if (ffFontState.bytes) return Promise.resolve(ffFontState.bytes);
+  if (ffFontState.loading) return ffFontState.loading;
+  ffFontState.loading = fetch('../pixora/engines/hindi-font.ttf.b64')
+    .then(r => { if (!r.ok) throw new Error('font ' + r.status); return r.text(); })
+    .then(txt => {
+      const bin = atob(txt.replace(/\s+/g, ''));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      ffFontState.bytes = bytes;
+      ffFontState.loading = null;
+      return bytes;
+    })
+    .catch(() => { ffFontState.loading = null; return null; });
+  return ffFontState.loading;
+}
+
+/* command builder for the shell tools (pure: unit-tested in tests/ffmpeg) */
+function buildVideoTool(o = {}){
+  const args = ['-hide_banner', '-nostdin', '-y'];
+  if (o.start != null) args.push('-ss', String(o.start));
+  args.push('-i', o.input || 'in.mp4');
+  if (o.image) args.push('-i', o.image);
+  const vf = [];
+  if (o.rotate === 90) vf.push('transpose=1');
+  else if (o.rotate === 180) vf.push('hflip,vflip');
+  else if (o.rotate === 270) vf.push('transpose=2');
+  if (o.flipH) vf.push('hflip');
+  if (o.flipV) vf.push('vflip');
+  if (o.scale) vf.push('scale=' + o.scale);
+  if (o.interpolate) vf.push('minterpolate=fps=' + (o.fps || 60) + ':mi_mode=mci');
+  if (o.fps && !o.interpolate) vf.push('fps=' + o.fps);
+  if (o.slow) vf.push('setpts=PTS*' + o.slow);
+  else if (o.speed) vf.push('setpts=PTS/' + o.speed);
+  if (o.videoFilters) vf.push(...o.videoFilters);
+  if (o.drawText) {
+    const t = o.drawText;
+    /* ffmpeg wants 0xRRGGBB for an exact colour; '#' only works in some builds */
+    const colour = String(t.colour || '#ffffff').replace(/^#/, '0x');
+    vf.push(`drawtext=fontfile=${t.font || 'font.ttf'}:textfile=${t.textFile || 'stamp.txt'}:fontsize=${t.size || 36}` +
+      `:fontcolor=${colour}@${t.alpha == null ? 1 : t.alpha}:borderw=3:bordercolor=black@0.6:x=${t.x || 20}:y=${t.y || 'H-th-20'}`);
+  }
+  const af = [];
+  let speed = o.speed || 0;
+  if (o.slow && o.keepPitch !== false) speed = 1 / o.slow;
+  if (o.audio === false) speed = 0;          /* the audio is dropped, so no filter graph */
+  if (speed && speed !== 1) {
+    /* atempo only accepts 0.5–2.0, so a 4x change becomes two stages */
+    let left = speed, guard = 0;
+    while (left > 2.0001 && guard++ < 4) { af.push('atempo=2'); left /= 2; }
+    while (left < 0.4999 && guard++ < 4) { af.push('atempo=0.5'); left /= 0.5; }
+    af.push('atempo=' + left.toFixed(4));
+  }
+  if (o.watermark) {
+    const w = o.watermark;
+    const pos = { tl: '20:20', tr: 'W-w-20:20', bl: '20:H-h-20', br: 'W-w-20:H-h-20', c: '(W-w)/2:(H-h)/2' }[w.pos] || 'W-w-20:H-h-20';
+    const pre = w.scale ? `[1:v]scale=${w.scale},format=rgba,colorchannelmixer=aa=${w.opacity == null ? 1 : w.opacity}[wm];[0:v][wm]` : '[0:v][1:v]';
+    args.push('-filter_complex', pre + 'overlay=' + pos);
+    if (vf.length) args.push('-vf', vf.join(','));
+  } else if (vf.length) args.push('-vf', vf.join(','));
+  if (af.length) args.push('-filter:a', af.join(','));
+  if (o.audioOnly) {
+    args.push('-vn', '-c:a', o.audioCodec || 'libmp3lame', '-b:a', o.audioBitrate || '192k');
+  } else if (o.imageOnly) {
+    args.push('-frames:v', '1');
+    if (/\.jpe?g$/i.test(o.output || '')) args.push('-q:v', String(o.quality || 2));
+  } else {
+    args.push('-c:v', o.encoder || 'libx264', '-preset', o.preset || 'veryfast');
+    args.push('-crf', String(o.crf == null ? 23 : o.crf), '-pix_fmt', 'yuv420p');
+    if (o.audio === false) args.push('-an');
+    else args.push('-c:a', o.audioCodec || 'aac', '-b:a', o.audioBitrate || '160k');
+  }
+  args.push(o.output || 'out.mp4');
+  return args;
+}
+
+/* shared page: one file box, the tool's own controls, run + result */
+function ffToolPage(cfg){
+  const S = { file: null, info: null, out: null, ext: '', name: '' };
+  page.innerHTML = toolPage(cfg.title, cfg.desc,
+    `<div class="panel">${dropHtml('Tap to choose a video', cfg.accept || 'mp4, mov, mkv, webm — anything FFmpeg reads', 'dzv')}</div>
+     <div class="panel mt" id="work" hidden>
+       <div class="av-wrap mt"><video id="pv" controls playsinline muted style="width:100%;height:100%;background:#000"></video></div>
+       <div class="row wrap mt" id="meta"></div>
+       ${cfg.extra || ''}
+       <div class="row mt"><button class="btn ghost" id="prev">${IC.play} Preview</button>
+         <div class="spacer"></div><button class="btn primary" id="runb">${IC.bolt} ${cfg.runLabel || 'Render'}</button></div>
+       ${ffStatusBar('bar')}<div class="ff-status mt" style="font-size:12px;color:var(--muted)"></div>
+       <div class="row mt" id="result" hidden>
+         <div class="file-row" style="flex:1;min-width:220px"><div class="file-ic">${IC.download}</div>
+           <div class="file-meta"><div class="fm-n" id="rn"></div><div class="fm-s" id="rs"></div></div></div>
+         <button class="btn primary" id="dl">${IC.download} Download</button></div>
+     </div>`);
+  const pv = $('#pv'), bar = $('#bar');
+  S.load = async function (f) {
+    try{
+      const info = await loadVideoFile(f);
+      S.file = f; S.info = info;
+      pv.src = info.url;
+      $('#work').hidden = false; $('#result').hidden = true;
+      $('#meta').innerHTML = `<span class="chip small">${info.w}×${info.h}</span><span class="chip small">${fmtTime(info.dur)}</span><span class="chip small">${esc(f.name)}</span>`;
+      if (cfg.onLoad) cfg.onLoad(S);
+    }catch(e){ toast('Could not open that video'); }
+  };
+  attachDrop($('#dzv'), fs => S.load(fs[0]), 'video/*');
+  $('#prev').onclick = () => pv.play();
+  $('#dl').onclick = () => { if (S.out) downloadBlob(S.out, S.name); };
+  $('#runb').onclick = async () => {
+    if (!S.file) return;
+    const out = Object.assign({ file: 'out.mp4', ext: 'mp4', type: 'video/mp4' }, cfg.output && cfg.output(S) || {});
+    const btn = $('#runb'); btn.disabled = true;
+    setFFProgress(bar, 0, 'Starting FFmpeg…');
+    const ext = (S.file.name.match(/\.[a-z0-9]+$/i) || ['.mp4'])[0];
+    try{
+      const plan = await cfg.builder(S, out);
+      await ffPut('in' + ext, S.file);
+      if (plan.pre) await plan.pre();
+      await ffRun(plan.args, p => setFFProgress(bar, p, (cfg.progressLabel || 'Rendering') + ' ' + Math.round(p * 100) + '%'));
+      const data = await ffGet(out.file);
+      S.out = new Blob([data], { type: out.type });
+      S.ext = out.ext;
+      S.name = ffOutName(S.file, cfg.suffix || '-out', out.ext);
+      setFFProgress(bar, 1, 'Done');
+      $('#rn').textContent = S.name; $('#rs').textContent = fmtSize(S.out.size);
+      $('#result').hidden = false;
+      await ffClean(['in' + ext]);
+      if (cfg.onDone) cfg.onDone(S);
+    }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'Export failed'); }
+    finally{ btn.disabled = false; }
+  };
+  window.__pageRedraw = () => {};
+  return S;
+}
+
+/* ---------------- Video Rotator ---------------- */
+function renderVrotate(){
+  ffToolPage({
+    title: 'Video Rotator',
+    desc: 'Rotate 90° / 180° / 270° or mirror a clip. FFmpeg re-encodes the frames, so a sideways phone video becomes a real portrait video instead of being letterboxed by the player.',
+    suffix: '-rotated',
+    runLabel: 'Rotate & export',
+    extra: `<div class="grid2 mt">
+        <div><label class="lbl">Rotation</label><select class="inp" id="rot">
+          <option value="0">None</option><option value="90" selected>90° clockwise</option>
+          <option value="180">180°</option><option value="270">90° anticlockwise</option></select></div>
+        <div><label class="lbl">Mirror / flip</label><select class="inp" id="flip">
+          <option value="none">None</option><option value="h">Horizontal</option><option value="v">Vertical</option></select></div>
+        <div><label class="lbl">Quality</label><select class="inp" id="crf">
+          <option value="20">High</option><option value="23" selected>Good</option><option value="28">Small file</option></select></div>
+      </div>`,
+    builder: () => {
+      const flip = $('#flip').value;
+      return { args: buildVideoTool({ input: 'in.mp4', output: 'out.mp4', rotate: +$('#rot').value,
+        flipH: flip === 'h', flipV: flip === 'v', crf: +$('#crf').value }) };
+    }
+  });
+}
+
+/* ---------------- Slow Motion ---------------- */
+function renderVslowmo(){
+  ffToolPage({
+    title: 'Slow Motion',
+    desc: 'Stretch a clip to 0.25×–0.9× with real frame timing. Motion interpolation generates in-between frames instead of repeating one, for a smooth cinematic slow-down.',
+    suffix: '-slowmo',
+    runLabel: 'Make slow motion',
+    extra: `<div class="grid2 mt">
+        <div><label class="lbl">Speed <span id="spv" style="color:var(--cyan)">0.50×</span></label>
+          <input type="range" class="slider" id="sp" min="0.25" max="0.9" step="0.05" value="0.5"></div>
+        <div><label class="lbl">Frame rate</label><select class="inp" id="fps">
+          <option value="30">30 fps</option><option value="60" selected>60 fps</option></select></div>
+      </div>
+      <label class="lbl row mt" style="gap:10px;text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="interp" checked> Motion interpolation (smoother, slower to render)</label>
+      <p class="dim mt" style="font-size:12px">Interpolation blends neighbouring frames — great for a dreamy look, but it invents motion. Turn it off for frame-exact work (the audio is muted either way, since stretched audio would sound wrong).</p>`,
+    builder: () => {
+      const speed = +$('#sp').value;
+      const interp = $('#interp').checked;
+      return { args: buildVideoTool({ input: 'in.mp4', output: 'out.mp4', slow: 1 / speed,
+        interpolate: interp, fps: interp ? +$('#fps').value : null, audio: false,
+        crf: 21, preset: interp ? 'ultrafast' : 'veryfast' }) };
+    }
+  });
+  $('#sp').oninput = e => { $('#spv').textContent = (+e.target.value).toFixed(2) + '×'; };
+}
+
+/* ---------------- Watermark ---------------- */
+function renderVwatermark(){
+  ffToolPage({
+    title: 'Watermark',
+    desc: 'Burn a logo or a text stamp into the video. This is a real FFmpeg overlay, so the mark lives in the pixels and survives every re-upload.',
+    suffix: '-watermarked',
+    runLabel: 'Add watermark',
+    progressLabel: 'Burn-in',
+    extra: `<div class="row wrap mt" style="gap:10px">
+        <span class="chip on" data-wm="text">Text stamp</span><span class="chip" data-wm="image">Logo image</span></div>
+      <div id="textCtl" class="mt">
+        <label class="lbl">Stamp text</label><input class="inp" id="wtxt" style="width:100%" value="Studio Hub" maxlength="80">
+        <div class="grid2 mt">
+          <div><label class="lbl">Size <span id="wszv" style="color:var(--cyan)">36 px</span></label>
+            <input type="range" class="slider" id="wsz" min="12" max="120" step="2" value="36"></div>
+          <div><label class="lbl">Colour</label><input type="color" id="wcol" value="#ffffff" style="width:100%;height:38px;border-radius:10px;border:1px solid var(--line)"></div>
+        </div>
+      </div>
+      <div id="imgCtl" class="mt" hidden>
+        <label class="lbl">Logo file (PNG with transparency works best)</label>
+        <input type="file" id="wlogo" accept="image/*" class="inp" style="width:100%">
+        <div class="mt"><label class="lbl">Logo width <span id="wlgv" style="color:var(--cyan)">auto</span></label>
+          <input type="range" class="slider" id="wlg" min="0" max="600" step="10" value="0"></div>
+      </div>
+      <div class="grid2 mt">
+        <div><label class="lbl">Position</label><select class="inp" id="wpos">
+          <option value="br" selected>Bottom right</option><option value="bl">Bottom left</option>
+          <option value="tr">Top right</option><option value="tl">Top left</option><option value="c">Centre</option></select></div>
+        <div><label class="lbl">Opacity <span id="wopv" style="color:var(--cyan)">85%</span></label>
+          <input type="range" class="slider" id="wop" min="20" max="100" step="5" value="85"></div>
+      </div>`,
+    builder: async (S) => {
+      const useImage = !$('#imgCtl').hidden;
+      const opacity = +$('#wop').value / 100;
+      if (useImage) {
+        const f = $('#wlogo').files[0];
+        if (!f) throw new Error('Choose a logo image first');
+        return { pre: () => ffPut('logo.png', f),
+          args: buildVideoTool({ input: 'in.mp4', output: 'out.mp4', image: 'logo.png',
+            watermark: { pos: $('#wpos').value, scale: +$('#wlg').value ? $('#wlg').value + ':-1' : '', opacity },
+            crf: 22 }) };
+      }
+      const txt = ($('#wtxt').value || '').trim();
+      if (!txt) throw new Error('Type the watermark text first');
+      const font = await loadWatermarkFont();
+      const colour = $('#wcol').value;
+      return {
+        pre: async () => {
+          if (font) await ffPut('font.ttf', font);
+          await ffPut('stamp.txt', new TextEncoder().encode(txt));
+        },
+        args: buildVideoTool({ input: 'in.mp4', output: 'out.mp4', crf: 22,
+          drawText: { font: 'font.ttf', textFile: 'stamp.txt', size: +$('#wsz').value, colour, alpha: opacity } })
+      };
+    }
+  });
+  const chips = [...document.querySelectorAll('[data-wm]')];
+  chips.forEach(c => c.onclick = () => {
+    const img = c.dataset.wm === 'image';
+    $('#imgCtl').hidden = !img; $('#textCtl').hidden = img;
+    chips.forEach(x => x.classList.toggle('on', x === c));
+  });
+  $('#wsz').oninput = e => { $('#wszv').textContent = e.target.value + ' px'; };
+  $('#wop').oninput = e => { $('#wopv').textContent = e.target.value + '%'; };
+  $('#wlg').oninput = e => { $('#wlgv').textContent = +e.target.value ? e.target.value + ' px' : 'auto'; };
+}
+
+/* ---------------- Audio Extractor ---------------- */
+function renderVextractaudio(){
+  ffToolPage({
+    title: 'Audio Extractor',
+    desc: 'Pull the soundtrack out of any video as MP3, WAV or M4A. FFmpeg decodes it, so clips the browser itself cannot play still give you a clean audio file.',
+    suffix: '-audio',
+    runLabel: 'Extract audio',
+    progressLabel: 'Extracting',
+    extra: `<div class="grid2 mt">
+        <div><label class="lbl">Format</label><select class="inp" id="afmt">
+          <option value="mp3">MP3 192 kbps</option><option value="mp3hq">MP3 320 kbps</option>
+          <option value="wav">WAV (lossless)</option><option value="m4a">M4A / AAC</option></select></div>
+        <div><label class="lbl">Start at (seconds)</label><input class="inp" type="number" id="astart" min="0" step="1" value="0" style="width:100%"></div>
+      </div>
+      <p class="dim mt" style="font-size:12px">No audio track? FFmpeg stops with a clear message instead of writing an empty file.</p>`,
+    output: () => {
+      const f = $('#afmt').value;
+      const ext = f === 'wav' ? 'wav' : f === 'm4a' ? 'm4a' : 'mp3';
+      return { file: 'out.' + ext, ext, type: ext === 'wav' ? 'audio/wav' : ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg' };
+    },
+    builder: () => {
+      const f = $('#afmt').value;
+      const codec = f === 'wav' ? 'pcm_s16le' : f === 'm4a' ? 'aac' : 'libmp3lame';
+      const bitrate = f === 'mp3hq' ? '320k' : '192k';
+      const start = Math.max(0, +$('#astart').value || 0);
+      const ext = f === 'wav' ? 'wav' : f === 'm4a' ? 'm4a' : 'mp3';
+      return { args: buildVideoTool({ input: 'in.mp4', output: 'out.' + ext, audioOnly: true,
+        audioCodec: codec, audioBitrate: bitrate, start: start || null }) };
+    }
+  });
+}
+
+/* ---------------- Thumbnail Maker ---------------- */
+function renderVthumbnailff(){
+  const S = ffToolPage({
+    title: 'Thumbnail Maker',
+    desc: 'Grab the exact frame you want as PNG or JPEG, optionally upscaled to a 1280×720 or 1080×1920 cover with a caption burned in.',
+    suffix: '-thumb',
+    runLabel: 'Grab frame',
+    progressLabel: 'Decoding',
+    extra: `<div class="mt">
+        <label class="lbl">Frame at <span id="tsv" style="color:var(--cyan)">0:00.0</span></label>
+        <input type="range" class="slider" id="ts" min="0" max="1000" value="0">
+        <div class="row mt"><button class="btn ghost small" id="now">${IC.clock} Use the preview position</button></div>
+      </div>
+      <div class="grid2 mt">
+        <div><label class="lbl">Size</label><select class="inp" id="tsz">
+          <option value="orig">Original frame</option><option value="1280">1280×720 cover</option>
+          <option value="1080">1080×1920 cover</option></select></div>
+        <div><label class="lbl">Format</label><select class="inp" id="tfmt">
+          <option value="jpg">JPEG</option><option value="png">PNG</option></select></div>
+      </div>
+      <label class="lbl mt" style="display:block">Caption (optional)</label>
+      <input class="inp" id="tcap" style="width:100%" maxlength="80" placeholder="Burned into the frame">`,
+    output: () => {
+      const f = $('#tfmt').value;
+      return { file: 'out.' + f, ext: f, type: f === 'png' ? 'image/png' : 'image/jpeg' };
+    },
+    onLoad: (st) => { if ($('#ts')) { $('#ts').value = 0; if (window.__thumbSync) window.__thumbSync(); } },
+    builder: async () => {
+      const dur = 1;
+      const fmt = $('#tfmt').value;
+      const sz = $('#tsz').value;
+      /* the slider maps 0–1000 onto the clip, so the same position is kept when the file changes */
+      const target = (S.info && isFinite(S.info.dur)) ? S.info.dur : dur;
+      const ts = Math.min(Math.max(0, target - 0.05), +$('#ts').value / 1000 * target);
+      const scale = sz === '1280' ? 'scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720'
+        : sz === '1080' ? 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920' : '';
+      const cap = ($('#tcap').value || '').trim();
+      const font = cap ? await loadWatermarkFont() : null;
+      const filters = scale ? [scale] : [];
+      return {
+        pre: async () => {
+          if (cap) {
+            if (font) await ffPut('font.ttf', font);
+            await ffPut('cap.txt', new TextEncoder().encode(cap));
+          }
+        },
+        args: buildVideoTool({ input: 'in.mp4', output: 'out.' + fmt, start: ts, imageOnly: true,
+          quality: 2, videoFilters: filters,
+          drawText: cap ? { font: 'font.ttf', textFile: 'cap.txt', size: sz === 'orig' ? 36 : Math.round(Number(sz) / 20),
+            colour: 'white', x: '(w-text_w)/2', y: 'h-th-70' } : null })
+      };
+    }
+  });
+  const ts = $('#ts'), pv = $('#pv');
+  const fmtShort = t => { const m = Math.floor(t / 60), s2 = t - m * 60; return m + ':' + (s2 < 10 ? '0' : '') + s2.toFixed(1); };
+  const redraw = () => {
+    const d = (S.info && isFinite(S.info.dur) && S.info.dur > 0) ? S.info.dur : 1;
+    $('#tsv').textContent = fmtShort(+ts.value / 1000 * d);
+  };
+  window.__thumbSync = redraw;
+  const origLoad = S.load;
+  S.load = async (f) => { await origLoad(f); if (S.info) { ts.value = 0; redraw(); } };
+  attachDrop($('#dzv'), fs => S.load(fs[0]), 'video/*');
+  ts.oninput = () => {
+    const d = (S.info && isFinite(S.info.dur)) ? S.info.dur : 1;
+    pv.currentTime = Math.max(0, +ts.value / 1000 * d); redraw();
+  };
+  $('#now').onclick = () => {
+    const d = (S.info && isFinite(S.info.dur) && S.info.dur > 0) ? S.info.dur : 1;
+    ts.value = Math.round((pv.currentTime / d) * 1000); redraw();
+  };
+}
+
 /* ---------------- FFmpeg Compressor ---------------- */
 function renderVffcompress(){
   const S = { file: null, info: null, out: null, ext: '' };
@@ -9755,6 +10125,7 @@ const routes={
   vocal:renderVocal, bpm:renderBpm, stereo:renderStereo, equalizer:renderEqualizer, analyzer:renderAnalyzer,
   aconv:renderAconv, vconv:renderVconv, vresize:renderVresize,
   vffcompress:renderVffcompress, vcolor:renderVcolor, vsubedit:renderVsubtitles, vgifff:renderVgifff,
+  vrotate:renderVrotate, vslowmo:renderVslowmo, vwatermark:renderVwatermark, vextractaudio:renderVextractaudio, vthumbnailff:renderVthumbnailff,
   video:renderVideoHub, vtrim:renderVtrim, vmerge:renderVmerge, vmute:renderVmute, vadd:renderVadd, vfilter:renderVfilter, vcrop:renderVcrop, vspeed:renderVspeed, vreverse:renderVreverse, vgif:renderVgif, vcompress:renderVcompress, screen:renderScreen, webcam:renderWebcam,
   podcast:renderPodcast, loopmaker:renderLoopmaker, tts:renderTts, stt:renderStt, vizpro:renderVizpro, beat:renderBeat, vslideshow:renderVslideshow, vsubs:renderVsubs, vthumb:renderVthumb, vintro:renderVintro, vmeme:renderVmeme, templates:renderTemplates,
   vemoji:renderVemoji, vtextanim:renderVtextanim, veffectlab:renderVeffectlab, vtransitions:renderVtransitions,

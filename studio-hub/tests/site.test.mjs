@@ -59,7 +59,7 @@ test('audio & video studio stays a single dependency-free file', () => {
   const html = read('audio-video/index.html');
   assert.ok(!/from '\.\/js\//.test(html), 'reference to a pipeline module that is not shipped');
   const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
-  assert.match(title, /63 Tools/, 'the page title should state the current tool count');
+  assert.match(title, /68 Tools/, 'the page title should state the current tool count');
   assert.ok(!/images\.unsplash\.com|picsum\.photos/.test(html), 'demo artwork must be self-contained');
   assert.ok(statSync(join(root, 'audio-video/index.html')).size < 1_500_000, 'page grew unexpectedly');
 });
@@ -94,13 +94,15 @@ test('external affiliate library is gone', () => {
   assert.ok(existsSync(join(root, 'pixora/THIRD-PARTY-LICENSES.txt')), 'licence text must be kept');
 });
 
-test('the three converter/resizer tools are wired into the audio & video studio', () => {
+test('every FFmpeg-backed tool is wired into the audio & video studio', () => {
   const html = read('audio-video/index.html');
-  for (const id of ['aconv', 'vconv', 'vresize', 'vffcompress', 'vcolor', 'vsubedit', 'vgifff']) {
+  for (const id of ['aconv', 'vconv', 'vresize', 'vffcompress', 'vcolor', 'vsubedit', 'vgifff',
+                    'vrotate', 'vslowmo', 'vwatermark', 'vextractaudio', 'vthumbnailff']) {
     assert.ok(html.includes(`id:'${id}'`) || html.includes(`id: '${id}'`), `${id} is missing from the tool catalogue`);
     assert.ok(new RegExp(`${id}\\s*:\\s*render`).test(html), `${id} has no route`);
   }
-  for (const fn of ['encodeAudio', 'recordVideoAdvanced', 'pickVideoMime', 'loadFFmpeg', 'buildVideoExport', 'buildSrt']) {
+  for (const fn of ['encodeAudio', 'recordVideoAdvanced', 'pickVideoMime', 'loadFFmpeg', 'buildVideoExport', 'buildSrt',
+                    'buildVideoTool', 'ffToolPage', 'loadWatermarkFont']) {
     assert.ok(html.includes(`function ${fn}`), `${fn} helper is missing`);
   }
 });
@@ -114,4 +116,19 @@ test('inline scripts on every page parse as JavaScript', () => {
     const close = (html.match(/<\/script>/gi) || []).length;
     assert.equal(open, close, `${page} has unbalanced <script> tags`);
   }
+});
+
+test('every stated tool count matches the catalogue', () => {
+  const av = read('audio-video/index.html');
+  const catalogue = av.slice(av.indexOf('const TOOLS=['));
+  const tools = (catalogue.slice(0, catalogue.indexOf('\n];')).match(/\{id:\s*'[^']+',\s*nm:/g) || []).length;
+  const routes = (av.slice(av.indexOf('const routes'), av.indexOf('const current=')).match(/:\s*render/g) || []).length;
+  const hub = read('index.html');
+  const badge = (hub.match(/([0-9]+) tools · 0 uploads/) || [])[1];
+  const card = (hub.match(/([0-9]+) tools · timeline/) || [])[1];
+  assert.equal(String(Number(tools) + 43), badge, `landing badge says ${badge} but the site defines ${tools} audio/video + 43 image tools`);
+  assert.equal(String(tools), card, `the studio card says ${card} but the studio defines ${tools} tools`);
+  assert.ok(Math.abs(tools - routes) <= 6, `${tools} catalogue rows vs ${routes} routes — a tool has no page or vice versa`);
+  assert.ok(av.includes(`${tools} Tools`), `the page title does not state ${tools} tools`);
+  assert.ok(hub.includes(`${Number(tools) + 43} tools`), `the landing page should total ${Number(tools) + 43} tools`);
 });
