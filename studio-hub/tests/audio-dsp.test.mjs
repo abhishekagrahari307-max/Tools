@@ -20,7 +20,9 @@ function srcOf(name) {
   const i = html.search(new RegExp(`(?:async )?function ${name}\\(`));
   assert.ok(i > 0, `page no longer defines ${name}()`);
   let depth = 0;
-  let k = html.indexOf('{', i);
+  /* start counting after the parameter list: a default such as opts={} would
+     otherwise close the function body before it opens */
+  let k = html.indexOf('{', html.indexOf(')', i));
   for (; k < html.length; k++) {
     if (html[k] === '{') depth++;
     else if (html[k] === '}' && --depth === 0) break;
@@ -380,4 +382,117 @@ test('DSP helpers survive tiny, empty and pathological buffers', async () => {
   assert.equal(standalone.sliceBuf(b, 2, 3).length, 1, 'slice past the end');
   assert.equal(standalone.sliceBuf(b, -1, 0.5).length, 44100, 'slice before zero returns the whole file');
   assert.equal(standalone.sliceBuf(b, 0.8, 0.2).length, 1, 'reversed range');
+});
+
+/* =================================================================
+ * Regressions for the A-to-Z tool audit (audio & video page).
+ * Each of these caught a real bug that shipped; keep them.
+ * ================================================================= */
+
+test('tempo detection calls a sustained pad what it is instead of inventing a BPM', () => {
+  /* A stack of harmonics with no transients is a pad/drone, not a groove.
+     Before the rhythm-salience gate this reported e.g. "154 BPM". */
+  const pad = new FakeBuffer(1, SR * 8, SR);
+  const d = pad.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    const t = i / SR;
+    d[i] = 0.12 * Math.sin(2 * Math.PI * 220 * t) + 0.08 * Math.sin(2 * Math.PI * 330 * t) + 0.05 * Math.sin(2 * Math.PI * 440 * t);
+  }
+  const r = tempoOf(pad);
+  assert.equal(r.bpm, 0, `pad must not report a tempo (got ${r.bpm})`);
+  assert.equal(r.why, 'sustained', 'the reason must be reported so the UI can explain itself');
+
+  /* a real four-on-the-floor under the same pad must still be found */
+  const mixed = new FakeBuffer(1, SR * 8, SR);
+  const m = mixed.getChannelData(0);
+  m.set(d);
+  for (let t = 0; t < 7.9; t += 0.5) {                     /* 120 BPM */
+    const i0 = Math.round(t * SR);
+    for (let k = 0; k < Math.round(0.1 * SR); k++) {
+      m[i0 + k] += 0.9 * Math.exp(-(k / SR) * 38) * Math.sin(2 * Math.PI * 60 * k / SR);
+    }
+  }
+  const beat = tempoOf(mixed);
+  assert.ok(Math.abs(beat.bpm - 120) <= 2, `120 BPM under a pad detected as ${beat.bpm}`);
+});
+
+test('tempo detection explains itself when the clip is too short to analyse', () => {
+  const brief = drumTrack(120, { secs: 0.4 });
+  const r = tempoOf(brief);
+  assert.equal(r.bpm, 0);
+  assert.equal(r.why, 'short');
+});
+
+test('the MP3/Ogg encoder arms its ended handler before the source starts', () => {
+  /* encodeWithAudioContext used to await a stop that never came for very short
+     buffers: 'ended' fired before the listener existed. Assert ordering in source. */
+  const src = srcOf('encodeWithAudioContext');
+  const armEnd = src.indexOf('src.onended');
+  const start = src.indexOf('src.start(');
+  assert.ok(armEnd > 0 && start > 0, 'encoder shape changed — re-check this test');
+  assert.ok(armEnd < start, "'ended' must be bound before src.start(0)");
+  /* and it must not wait on `done` without a guard */
+  assert.match(src, /Promise\.race\(\s*\[done/, 'the stop must be awaited with a timeout');
+});
+
+test('the recorder helpers guarantee they cannot hang or save an empty file', () => {
+  for (const name of ['recordVideoWithCanvas', 'recordVideoAdvanced']) {
+    const src = srcOf(name);
+    assert.match(src, /Promise\.race\(/, `${name} must race its completion with a timeout`);
+    assert.match(src, /chunks\.length/, `${name} must reject an empty recording`);
+  }
+  /* a video whose codec the browser cannot decode must reject, not wait forever */
+  const meta = srcOf('waitMeta');
+  assert.match(meta, /rej\(/, 'waitMeta needs an error path');
+  assert.match(meta, /setTimeout\([\s\S]*?rej\(/, 'waitMeta needs a timeout path');
+  const load = srcOf('loadVideoFile');
+  assert.match(load, /setTimeout\([\s\S]*?rej\(/, 'loadVideoFile needs a timeout path');
+});
+
+test('every template/video tool stops on the end of the clip, not on a buffer stall', () => {
+  /* a paused video draws no frames, but `paused` is also true for the frame
+     before play() resolves — keying off it truncated exports */
+  const stops = [...html.matchAll(/if\(v\.ended\s*\|\|\s*v\.paused\)/g)].length
+             + [...html.matchAll(/if\(v\.ended \|\| v\.paused\)/g)].length;
+  assert.equal(stops, 0, 'stills stop the recorder on v.paused, which fires during stalls');
+});
+
+test('video crop clamps the window inside the frame and exports the cropped size', () => {
+  const src = srcOf('renderVcrop');
+  assert.match(src, /function clampCrop\(/, 'crop must be clamped');
+  assert.match(src, /outW/, 'export must pass the cropped width');
+  /* run the real clamp: every edge out of bounds must land back inside the frame */
+  const S = { crop: { x: -0.5, y: 1.4, w: 3, h: 0.001 } };
+  const clampCrop = new Function('S', 'clamp', 'return ' + srcOf('clampCrop') + '\nclampCrop;')(S, clamp);
+  clampCrop();
+  assert.ok(S.crop.w > 0 && S.crop.w <= 1 && S.crop.h > 0 && S.crop.h <= 1, 'w/h ran out of range');
+  assert.ok(S.crop.x >= 0 && S.crop.x + S.crop.w <= 1 + 1e-9, 'x escaped the frame');
+  assert.ok(S.crop.y >= 0 && S.crop.y + S.crop.h <= 1 + 1e-9, 'y escaped the frame');
+});
+
+test('merge releases each clip audio track so clip N does not play over clip N-1', () => {
+  const src = srcOf('renderVmerge');
+  assert.match(src, /removeTrack\(addedTrack\)/, 'the per-clip audio track must be removed');
+  assert.match(src, /Add at least two clips/, 'an empty list must be explained, not silent');
+});
+
+test('slide crossfade draws the previous slide underneath instead of dipping to black', () => {
+  const src = srcOf('renderVslideshow');
+  assert.match(src, /globalAlpha=fr\/12/, 'crossfade alpha ramp missing');
+  assert.match(src, /S\.files\[idx-1\]/, 'crossfade must composite the previous image');
+  assert.doesNotMatch(src, /transition fade in first 12 frames/, 'the black-dip code is back');
+});
+
+test('clipboard fallback never throws and always resolves', () => {
+  const src = srcOf('copyText');
+  assert.match(src, /catch/, 'copyText must catch the async clipboard failure');
+  assert.match(src, /execCommand/, 'copyText needs the legacy fallback');
+});
+
+test('tool renderers do not double-wrap the router', () => {
+  /* the detail-panel IIFE used to sit inside route() and re-wrap window.route on
+     every navigation, so the Nth visit rendered N times */
+  assert.equal([...html.matchAll(/window\.route\s*=\s*function/g)].length, 0,
+    'nothing may reassign window.route');
+  assert.match(html, /function videoDetailPanel\(\)/, 'the panel must exist as a plain function');
 });
