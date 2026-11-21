@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Online tools — Studio Hub</title>
+<meta name="description" content="Optional live-data tools for Studio Hub: translation, dictionary, stock images, currency, weather. Each one names the single free service it contacts. No accounts, no keys.">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/hub.css?v=3">
+<link rel="stylesheet" href="../assets/online.css?v=1">
+</head>
+<body>
+<main class="ob-page">
+  <div class="ob-top">
+    <h1>Online tools</h1>
+    <a class="ob-link" href="../" data-i18n="common.back">Back to studio hub</a>
+    <div class="ob-langs">
+      <span data-i18n="common.language">Language</span>
+      <button class="ob-lang" data-lang-btn="en">EN</button>
+      <button class="ob-lang" data-lang-btn="hi">हिं</button>
+    </div>
+  </div>
+
+  <p class="ob-lead">
+    <b>These are the only tools on this site that use the internet.</b>
+    Everything in the Audio &amp; Video and Image &amp; PDF studios runs on your device and uploads nothing.
+    Each card below names the one free service it contacts, before you press anything.
+  </p>
+
+  <div class="ob-warn">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+    <span data-i18n="online.warn">This tool sends your query to a third-party service. The offline studios above never do.</span>
+  </div>
+
+  <div class="ob-chips" id="ob-chips"></div>
+  <div class="ob-grid" id="ob-grid"></div>
+
+  <p class="ob-lead" style="margin-top:28px;font-size:12.5px">
+    Built against the <a href="https://github.com/public-apis/public-apis" target="_blank" rel="noopener noreferrer" style="color:#67e8f9">public-apis</a>
+    catalog, filtered to <b>no-key, CORS-enabled, HTTPS</b> services only. Paid or key-gated services are listed with a dash so you can see what was left out and why.
+  </p>
+</main>
+
+<script src="../assets/online-core.js?v=1"></script>
+<script src="../assets/online-tools.js?v=1"></script>
+</body>
+</html>

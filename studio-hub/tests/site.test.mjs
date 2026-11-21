@@ -49,11 +49,25 @@ test('every local href/src on every page resolves', () => {
 });
 
 test('no page loads a script or stylesheet from a remote host', () => {
+  // Only things the browser *fetches* count. <link rel="canonical">, og:/twitter:
+  // meta and JSON-LD point AT this site for crawlers and fetch nothing, so they
+  // are allowed — but a canonical must at least be our own origin.
+  const FETCHING = /<(?:script|link)\b(?![^>]*\brel="(?:canonical|alternate|manifest|icon|apple-touch-icon|preconnect|dns-prefetch)")(?![^>]*\brel='(?:canonical|alternate)')[^>]*(?:src|href)="(https?:\/\/[^"]+)"/gi;
   for (const page of PAGES) {
     const html = read(page);
-    const remote = [...html.matchAll(/<(?:script|link)\b[^>]*(?:src|href)="(https?:\/\/[^"]+)"/gi)];
+    const remote = [...html.matchAll(FETCHING)];
     assert.equal(remote.length, 0,
       `${page} loads ${remote.map((m) => m[1]).join(', ')} — everything must be served locally`);
+  }
+});
+
+test('canonical and share URLs point at this site, not elsewhere', () => {
+  for (const page of PAGES) {
+    const html = read(page);
+    for (const m of html.matchAll(/<link rel="canonical" href="([^"]+)"/g)) {
+      assert.match(m[1], /^https:\/\/abhishekagrahari307-max\.github\.io\/Tools\/studio-hub\//,
+        `${page} canonical points somewhere unexpected: ${m[1]}`);
+    }
   }
 });
 
@@ -133,4 +147,232 @@ test('every stated tool count matches the catalogue', () => {
   assert.ok(Math.abs(tools - routes) <= 6, `${tools} catalogue rows vs ${routes} routes — a tool has no page or vice versa`);
   assert.ok(av.includes(`${tools} Tools`), `the page title does not state ${tools} tools`);
   assert.ok(hub.includes(`${Number(tools) + 43} tools`), `the landing page should total ${Number(tools) + 43} tools`);
+});
+
+// ---- Regression locks for the Studio Hub audit (Studio-Hub-Audit.md) -------
+// Each test names the audit finding it guards so a future edit can't quietly
+// reintroduce the bug.
+
+test('#03 Pixora deep links are registered once, outside toggleAll()', () => {
+  const js = read('pixora/vendor/app.js');
+  const toggle = js.slice(js.indexOf('function toggleAll()'), js.indexOf('function toggleAll()') + 300);
+  assert.ok(!toggle.includes('openFromHash'), 'openFromHash must not live inside toggleAll()');
+  assert.ok(!toggle.includes('hashchange'), 'the hashchange listener must not live inside toggleAll()');
+  assert.equal((js.match(/window\.addEventListener\('hashchange'/g) || []).length, 1,
+    'the hashchange listener must be registered exactly once');
+  assert.match(js, /try\{ openFromHash\(\); window\.addEventListener\('hashchange'/, 'deep links must run on cold load');
+});
+
+test('#07/#08 dialogs trap Tab, honour Escape and restore focus', () => {
+  const js = read('pixora/vendor/app.js');
+  assert.ok(js.includes('function _openDialog'), 'dialogs need the shared open helper');
+  assert.ok(js.includes("modal.setAttribute('aria-modal','true')"), 'dialogs must be announced as modal');
+  assert.ok(js.includes("if(ev.key!=='Escape') return"), 'Escape must close the dialog');
+  assert.ok(js.includes('back.focus()'), 'focus must return to the opener on close');
+  assert.ok(js.includes("ev.key!=='Tab'"), 'Tab must be confined to the dialog');
+});
+
+test('#10/#11 Pixora text meets AA contrast and inputs are labelled', () => {
+  const html = read('pixora/index.html');
+  for (const c of ['#aaaab9', '#aaaab8', '#b5b3c0', '#b5b2c2', '#b5b4c1']) {
+    assert.ok(!html.includes(c), `${c} is below 4.5:1 on white — use a darker tone`);
+  }
+  assert.ok(!/<label>Canvas size<\/label>/.test(html), 'a <label> without a for= names nothing');
+  assert.match(html, /<label for="edPreset">Canvas size<\/label>/, '#edPreset needs an accessible name');
+  assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, 'a page should have exactly one <h1>');
+});
+
+test('#12 FFmpeg resolution names a real target size, not one axis', () => {
+  const html = read('audio-video/index.html');
+  assert.ok(html.includes('function resolveTargetSize'), 'resolveTargetSize must exist');
+  // the compressor/preset path must use the computed even width + height, not `scale=720:-2`
+  const live = html.replace(/\/\*[\s\S]*?\*\//g, '')       // comments may quote the old bug
+                   .replace(/<!--[\s\S]*?-->/g, '');
+  assert.ok(!/scale=\b\d+:-\d/.test(live), 'a hard-coded single axis would squash the aspect ratio');
+  assert.ok(/resolveTargetSize\(/.test(html), 'the UI must resolve a target size rather than pass one axis');
+});
+
+test('#04/#06 speech tools do not promise files they cannot produce', () => {
+  const html = read('audio-video/index.html');
+  assert.ok(!/preview\s*&\s*export\s*WAV/i.test(html), 'text-to-speech cannot export a WAV');
+  assert.ok(!/ds:'[^']*Mic or file/i.test(html), 'the tool card advertised a file path that does not exist');
+  assert.ok(/voiceschanged/.test(html), 'voices load asynchronously; listen for voiceschanged');
+  assert.ok(/en-IN/.test(html), 'recognition should default to a locale, not the browser default');
+});
+
+test('#01 the privacy section discloses the cloud-backed speech engine', () => {
+  const html = read('index.html');
+  assert.match(html, /cloud-backed|speech service/i, 'speech is not fully local and must say so');
+  assert.ok(!/Both studios work offline once loaded/.test(html), 'there is no service worker to back that claim');
+  assert.match(html, /no service worker/i, 'the offline limit must be stated plainly');
+});
+
+test('#24/#25 published tool counts are not stale', () => {
+  const manifest = JSON.parse(read('manifest.webmanifest'));
+  assert.ok(!/\b98\b/.test(manifest.description), 'manifest still advertises the old 98-tool count');
+  const av = read('audio-video/index.html');
+  assert.ok(!/22 Pro Video Tools/.test(av), '"22 Pro Video Tools" contradicts the 33 tools in that category');
+  const hub = read('index.html');
+  for (const bad of ['four FFmpeg', 'Four FFmpeg']) assert.ok(!hub.includes(bad), `hub still claims "${bad}"`);
+});
+
+// #12 — the exact acceptance criterion from the audit's §9 checklist:
+// a 1920x1080 source at the "720p" setting must produce exactly 1280x720.
+test('#12 resolveTargetSize maps a named quality to exact, even, sane dimensions', async () => {
+  const html = read('audio-video/index.html');
+  const start = html.indexOf('function resolveTargetSize');
+  assert.ok(start > 0, 'resolveTargetSize must exist');
+  const src = html.slice(start, html.indexOf('\n}', html.indexOf('return { width', start)) + 2);
+  const resolveTargetSize = new Function(`${src}; return resolveTargetSize;`)();
+
+  const landscape = resolveTargetSize(720, 1920, 1080);
+  assert.deepEqual(landscape, { width: 1280, height: 720 }, '1920x1080 @720p must be exactly 1280x720');
+
+  const portrait = resolveTargetSize(720, 1080, 1920);
+  assert.deepEqual(portrait, { width: 720, height: 1280 }, 'portrait sources get the short edge on width');
+
+  const square = resolveTargetSize(720, 1000, 1000);
+  assert.deepEqual(square, { width: 720, height: 720 });
+
+  // a source smaller than the target must not be upscaled (that only adds blur and bytes)
+  const tiny = resolveTargetSize(720, 640, 360);
+  assert.ok(tiny.width <= 640 && tiny.height <= 360, 'a 640x360 source must not be upscaled to 720p');
+
+  for (const [w, h, name] of [[1920, 1080, '16:9'], [1080, 1920, '9:16'], [1000, 1000, '1:1'], [640, 360, 'small']]) {
+    const r = resolveTargetSize(720, w, h);
+    assert.equal(r.width % 2, 0, `${name}: width must be even for yuv420p`);
+    assert.equal(r.height % 2, 0, `${name}: height must be even for yuv420p`);
+    assert.ok(r.width >= 2 && r.height >= 2, `${name}: dimensions must be positive`);
+  }
+
+  // unknown/missing metadata must not invent a size
+  assert.deepEqual(resolveTargetSize(720, 0, 0), { width: null, height: null });
+  assert.deepEqual(resolveTargetSize(0, 1920, 1080), { width: null, height: null });
+});
+
+test('#15 the studio header keeps every control on screen at 320-430px', () => {
+  const html = read('audio-video/index.html');
+  const css = html.slice(0, html.indexOf('</style>'));
+  // the brand used to be `white-space:nowrap` with no min-width, so the title
+  // could not shrink and pushed the PRO button past the right edge at 390px.
+  assert.match(css, /\.brand\{[^}]*min-width:0/, '.brand must be allowed to shrink');
+  assert.match(css, /\.brand>span:last-child\{[^}]*text-overflow:ellipsis/, 'the title must ellipsis, not push');
+  // find the small-phone block that actually styles the header (there are others)
+  const phone = [...css.matchAll(/@media\(max-width:430px\)\{([\s\S]{0,600}?)\n\}/g)]
+    .map((m) => m[1]).find((body) => body.includes('.pro-badge'));
+  assert.ok(phone, 'the ≤430px header step must restyle .pro-badge');
+  assert.match(phone, /\.pro-badge\{[^}]*font-size:11px/, 'PRO must be restyled, not hidden');
+  assert.ok(!/\.pro-badge\{[^}]*display:none/.test(css), 'PRO must stay reachable');
+});
+
+test('#19-#23 every indexable page carries canonical, share image and valid JSON-LD', () => {
+  for (const page of ['index.html', 'audio-video/index.html', 'pixora/index.html']) {
+    const html = read(page);
+    assert.match(html, /<link rel="canonical" href="https:\/\/abhishekagrahari307-max\.github\.io\/Tools\/studio-hub\//,
+      `${page} needs a canonical URL`);
+    assert.match(html, /property="og:image" content="[^"]+assets\/og-image\.png"/,
+      `${page} should share a real 1200x630 PNG, not an SVG`);
+    assert.match(html, /property="og:image:width" content="1200"/, `${page} og:image needs dimensions`);
+    assert.match(html, /name="twitter:card"/, `${page} needs a Twitter card`);
+  }
+  const og = statSync(join(root, 'assets/og-image.png'));
+  assert.ok(og.size > 10_000 && og.size < 400_000, 'share image should be a real, reasonably sized PNG');
+
+  const hub = read('index.html');
+  const ld = hub.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  assert.ok(ld, 'the hub should describe itself to crawlers');
+  const data = JSON.parse(ld[1]);
+  assert.equal(data['@type'], 'WebApplication');
+  assert.equal(data.offers.price, '0', 'it is free — say so instead of inventing anything');
+  assert.ok(!/aggregateRating|reviewCount/i.test(ld[1]), 'never invent ratings');
+});
+
+test('#23 a sitemap exists and only lists real pages', () => {
+  const xml = read('sitemap.xml');
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  assert.ok(locs.length >= 3, 'the sitemap should list the studios');
+  for (const loc of locs) {
+    assert.ok(!loc.includes('#'), `${loc} is a fragment, not a page — a crawler will not index it`);
+    const rel = loc.split('/studio-hub/')[1];
+    const target = rel ? join(root, rel, 'index.html') : join(root, 'index.html');
+    assert.ok(existsSync(target) || existsSync(join(root, rel || '')), `${loc} points at nothing`);
+  }
+  assert.match(read('robots.txt'), /Sitemap: https:\/\/abhishekagrahari307-max\.github\.io\/Tools\/studio-hub\/sitemap\.xml/);
+});
+
+/* Single source of truth for the three advertised tool counts. Everything else
+   (page titles, meta descriptions, the manifest, the README) is checked against
+   what the registries actually contain, so a number can never drift again. */
+function realCounts() {
+  const hub = read('index.html');
+  const arr = JSON.parse(hub.match(/var TOOLS = (\[\{.*?\}\]);/s)[1]);
+  const avHtml = read('audio-video/index.html');
+  const avStart = avHtml.search(/const TOOLS\s*=\s*\[/);
+  const avBody = avHtml.slice(avStart, avHtml.indexOf('\n];', avStart));
+  const pxJs = read('pixora/vendor/app.js');
+  const pxStart = pxJs.search(/const TOOLS=\[/);
+  const pxBody = pxJs.slice(pxStart, pxJs.indexOf('\n];', pxStart));
+  return {
+    hubAv: arr.filter((t) => t.s === 'av').length,
+    hubPix: arr.filter((t) => t.s === 'pix').length,
+    hubTotal: arr.length,
+    av: (avBody.match(/\{id:'/g) || []).length,
+    pix: (pxBody.match(/\{id:'/g) || []).length,
+  };
+}
+
+test('the advertised counts match the registries they describe', () => {
+  const c = realCounts();
+  assert.equal(c.av, 68, 'the audio & video registry changed — update the advertised counts');
+  assert.equal(c.pix, 43, 'the image & PDF registry changed — update the advertised counts');
+  assert.equal(c.hubAv, c.av, 'the hub index disagrees with the audio & video studio');
+  assert.equal(c.hubPix, c.pix, 'the hub index disagrees with the image & PDF studio');
+  assert.equal(c.hubTotal, c.av + c.pix, 'the hub total must be the sum of the two studios');
+
+  const total = String(c.hubTotal);
+  for (const f of ['manifest.webmanifest', 'README.md', 'index.html']) {
+    const body = read(f);
+    if (body.includes(`${total} tools`) || body.includes(`${total} on-device`)) continue;
+    if (f === 'manifest.webmanifest') assert.fail(`${f} does not advertise the current ${total}-tool count`);
+  }
+  assert.match(read('manifest.webmanifest'), new RegExp(`${total} on-device tools`), 'manifest count is stale');
+  assert.match(read('audio-video/index.html'), new RegExp(`${c.av} Tools`), 'the studio title count is stale');
+});
+
+test('the hub tool index does not drift from the studios it describes', () => {
+  const arr = JSON.parse(read('index.html').match(/var TOOLS = (\[\{.*?\}\]);/s)[1]);
+  // the index copies the studios' descriptions, so a retracted promise must be
+  // removed in BOTH places or the hub keeps advertising it (audit #04/#06)
+  for (const t of arr) {
+    assert.ok(!/preview & export WAV|Mic or file/i.test(t.d), `hub still advertises "${t.n}": ${t.d}`);
+  }
+  const av = read('audio-video/index.html');
+  for (const t of arr.filter((x) => x.s === 'av')) {
+    assert.ok(av.includes(t.n), `hub lists "${t.n}" but the studio has no such tool`);
+  }
+});
+
+test('Pixora boot keeps the tool grid off the critical path', () => {
+  const boot = read('pixora/vendor/boot.js');
+  // The old loader awaited all eight libraries serially before app.js could run,
+  // and one failed request took over the whole grid. Measured on a 150ms-latency
+  // network: 2153ms -> 1094ms to first paint of the grid.
+  assert.match(boot, /var CRITICAL = \["fabric", "pdf-lib"\]/, 'only fabric and pdf-lib block first paint');
+  assert.match(boot, /var DEFERRED = \[/, 'the remaining libraries must be deferred');
+  for (const lib of ['pdfjs', 'jszip', 'fontkit', 'tesseract', 'local-engines', 'regenerator']) {
+    assert.ok(boot.includes(`"${lib}"`), `${lib} should be in DEFERRED`);
+    const criticalLine = boot.match(/var CRITICAL = \[(.*?)\]/)[1];
+    assert.ok(!criticalLine.includes(`"${lib}"`), `${lib} must not block first paint`);
+  }
+  assert.ok(!/reject\(/.test(boot), 'a non-critical library failure must not reject the chain');
+  assert.match(boot, /Promise\.all\(CRITICAL\.map\(load\)\)/, 'critical libraries load in parallel, not serially');
+  assert.match(boot, /DEFERRED\.forEach/, 'deferred libraries start immediately after');
+});
+
+test('Pixora shows a real loading state, and clears it', () => {
+  const html = read('pixora/index.html');
+  assert.match(html, /role="status"[^>]*>Loading the tool grid/, 'the skeleton must say what it is doing');
+  assert.match(html, /aria-busy/, 'announce that the grid is busy');
+  const js = read('pixora/vendor/app.js');
+  assert.match(js, /removeAttribute\('aria-busy'\)/, 'clear aria-busy once the grid renders');
 });

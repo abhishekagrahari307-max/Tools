@@ -1,2 +1,7 @@
+# This file only governs /Tools/studio-hub/. GitHub Pages serves no per-site
+# robots.txt, so the authoritative one would have to live at the domain root
+# (/Tools/robots.txt) — see the repo root for that file.
 User-agent: *
 Allow: /
+
+Sitemap: https://abhishekagrahari307-max.github.io/Tools/studio-hub/sitemap.xml

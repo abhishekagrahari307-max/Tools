@@ -96,7 +96,10 @@ button:focus-visible,.chip:focus-visible,.tool:focus-visible,a:focus-visible{out
 .icon-btn:hover{background:rgba(148,163,255,.1);color:var(--text)}
 .icon-btn:active{transform:scale(.92)}
 .icon-btn svg{width:21px;height:21px}
-.brand{display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.4vw,21px);font-weight:800;letter-spacing:.2px;cursor:pointer;user-select:none;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.4vw,21px);font-weight:800;letter-spacing:.2px;cursor:pointer;user-select:none;white-space:nowrap;min-width:0;overflow:hidden}
+/* at 390px the title could not shrink (nowrap, no min-width) and pushed the PRO
+   button past the viewport. Let the label ellipsis instead of hiding controls. */
+.brand>span:last-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .brand .logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;
   background:linear-gradient(135deg,var(--indigo),var(--blue) 55%,var(--cyan));
   box-shadow:0 6px 18px rgba(59,130,246,.45),inset 0 1px 0 rgba(255,255,255,.35)}
@@ -566,6 +569,14 @@ select.inp{max-width:100%}
   .tool{min-height:148px;padding:20px 10px 16px}
   .modal{padding:20px}
 }
+@media(max-width:430px){
+  .header{gap:6px;padding-left:8px;padding-right:8px}
+  .brand{font-size:14px;gap:6px}
+  .brand>span:last-child{max-width:34vw}
+  .hub-link{font-size:0;gap:0;padding:8px;width:36px;justify-content:center}
+  .pro-badge{padding:6px 8px;font-size:11px}
+  .theme-btn,.icon-btn{width:34px;height:34px}
+}
 @media(max-width:400px){
   .brand{font-size:15px}
   .brand .logo{width:30px;height:30px}
@@ -1020,6 +1031,15 @@ html{scroll-behavior:smooth}
 .tl-clip.sel{box-shadow:0 0 0 2px rgba(250,204,21,.45) inset,0 6px 18px rgba(250,204,21,.18)}
 #tlRuler span{transition:color .2s}
 </style>
+<link rel="canonical" href="https://abhishekagrahari307-max.github.io/Tools/studio-hub/audio-video/">
+<meta property="og:url" content="https://abhishekagrahari307-max.github.io/Tools/studio-hub/audio-video/">
+<meta property="og:site_name" content="Studio Hub">
+<meta property="og:image" content="https://abhishekagrahari307-max.github.io/Tools/studio-hub/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Audio & Video Editor — 68 on-device media tools">
+<meta name="twitter:image" content="https://abhishekagrahari307-max.github.io/Tools/studio-hub/assets/og-image.png">
 </head>
 <body>
 <script type="text/plain" id="lamejs-src">
@@ -1513,8 +1533,8 @@ const TOOLS=[
   // === DETAILED NEW TOOLS 1-5 + VIDEO DETAILED ===
   {id:'podcast',nm:'Podcast Studio',  cat:'edit', ic:'mic',      c:['#59391f','#3d2514'], icc:'#fbbf24', ds:'One-tap podcast chain: silence cut + normalize + intro/outro + export MP3', crown:1, go:'podcast'},
   {id:'loopmaker',nm:'Loop Maker',    cat:'edit', ic:'rev',      c:['#0d4234','#0a2e24'], icc:'#34d399', ds:'Make perfect loops — set BPM, bars, crossfade loop points, preview seamless', go:'loopmaker'},
-  {id:'tts',    nm:'Text to Speech', cat:'proc', ic:'mic',      c:['#3d1d5e','#2a1345'], icc:'#e879f9', ds:'Type text → natural AI-like voice (Web Speech API) → preview & export WAV', ai:1, go:'tts'},
-  {id:'stt',    nm:'Speech to Text', cat:'proc', ic:'wave',     c:['#122f5e','#0d2145'], icc:'#60a5fa', ds:'Mic or file → live transcript (Web Speech API) → copy / download TXT', ai:1, go:'stt'},
+  {id:'tts',    nm:'Text to Speech', cat:'proc', ic:'mic',      c:['#3d1d5e','#2a1345'], icc:'#e879f9', ds:'Type text → your device speaks it aloud (Web Speech API). No audio file is produced', ai:1, go:'tts'},
+  {id:'stt',    nm:'Speech to Text', cat:'proc', ic:'wave',     c:['#122f5e','#0d2145'], icc:'#60a5fa', ds:'Speak into your mic → live transcript (Web Speech API) → copy or download TXT', ai:1, go:'stt'},
   {id:'vizpro', nm:'Visualizer Pro',  cat:'proc', ic:'wave',     c:['#0d3f66','#0a2947'], icc:'#22d3ee', ds:'5 pro visualizer templates: bars, circle, waveform, particles, neon — export video', crown:1, go:'vizpro'},
   {id:'beat',   nm:'Beat Maker',      cat:'proc', ic:'music',    c:['#4a2c14','#35200e'], icc:'#fbbf24', ds:'Step sequencer drum machine: kick/snare/hihat, BPM, swing, export loop', go:'beat'},
   {id:'vslideshow',nm:'Slideshow Maker',cat:'video', ic:'layers', c:['#122f5e','#0d2145'], icc:'#60a5fa', ds:'Images → video slideshow: Ken Burns zoom, music, transitions, 1080p export', crown:1, go:'vslideshow'},
@@ -6565,7 +6585,13 @@ function renderVcompress(){
       cv.width=W; cv.height=H;
       const blob=await recordVideoWithCanvas(v,cv,{outW:W,outH:H, bitrate:br});
       downloadBlob(blob,safeName(S.file.name)+'-'+S.quality+'.webm');
-      toast('Compressed video exported');
+      /* be honest when the "compressor" made the file bigger — a short clip or a
+         small source can grow under a fixed bitrate */
+      const grew = blob.size >= S.file.size;
+      const pct = Math.round(Math.abs(blob.size - S.file.size) / Math.max(1, S.file.size) * 100);
+      toast(grew
+        ? `Exported ${fmtSize(blob.size)} — ${pct}% larger than the source. Try 480p or a lower bitrate.`
+        : `Compressed video exported · ${pct}% smaller (${fmtSize(blob.size)})`);
     }catch(e){ console.warn(e); toast('Compress failed'); }
     btn.disabled=false;
   };
@@ -6755,7 +6781,7 @@ function renderHome(){
       </div>`;
     }
     if(c==='video'){
-      sections+=`<div style="margin:12px 0 8px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(255,46,122,.10),rgba(124,77,255,.10));border:1px solid rgba(255,46,122,.18);display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ff2e7a,#7c4dff);display:grid;place-items:center;color:#fff">${IC.video}</span><div><div style="font-weight:900">🎬 Video Editing — Dedicated Section</div><div style="font-size:12px;color:var(--muted)">22 Pro Video Tools • Timeline Pro • Effect Lab • Emoji/Sticker • All 100% offline</div></div><span class="chip on" style="margin-left:auto;background:linear-gradient(135deg,#ff2e7a,#7c4dff);color:#fff;border:none">${list.length} Tools</span></div>`;
+      sections+=`<div style="margin:12px 0 8px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(255,46,122,.10),rgba(124,77,255,.10));border:1px solid rgba(255,46,122,.18);display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ff2e7a,#7c4dff);display:grid;place-items:center;color:#fff">${IC.video}</span><div><div style="font-weight:900">🎬 Video Editing — Dedicated Section</div><div style="font-size:12px;color:var(--muted)">${list.filter(t=>t.cat==='video').length} Video Tools • Timeline Pro • Effect Lab • Emoji/Sticker • 100% on your device</div></div><span class="chip on" style="margin-left:auto;background:linear-gradient(135deg,#ff2e7a,#7c4dff);color:#fff;border:none">${list.length} Tools</span></div>`;
     }
     sections+=`<h2 class="sec-title">${IC[meta.icon]} ${meta.title} <span class="dim" style="font-size:13px;font-weight:700;margin-left:8px">${list.length} tools</span></h2><div class="tools">${cards(c)}</div>`;
   }
@@ -7222,82 +7248,163 @@ function renderTts(){
      ReferenceError and render a blank panel instead of a clear message */
   const ttsOK = typeof window!=='undefined' && !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance==='function';
   const voices = ()=> ttsOK ? window.speechSynthesis.getVoices() : [];
-  page.innerHTML=toolPage('Text to Speech','Type text → natural voice (Web Speech API) → preview & export WAV (recorded via MediaRecorder).',
+  /* The panel used to promise "export WAV (recorded via MediaRecorder)". There is
+     no export button and no recorder: speechSynthesis output does not reach the
+     Web Audio graph, so it cannot be captured without loopback. Say what the tool
+     actually does instead of promising a file it never produces. */
+  page.innerHTML=toolPage('Text to Speech','Type text and hear it read aloud with the voices built into your browser. No file is generated — use Voice Recorder or an external TTS if you need an audio file.',
    `<div class="panel">
-      <label class="lbl">Text</label><textarea class="inp" id="txt" style="width:100%;min-height:110px;resize:vertical" placeholder="Type something...">${esc(S.text)}</textarea>
+      <label class="lbl" for="txt">Text</label><textarea class="inp" id="txt" style="width:100%;min-height:110px;resize:vertical" placeholder="Type something...">${esc(S.text)}</textarea>
       <div class="grid2 mt">
-        <div><label class="lbl">Voice</label><select class="inp" id="voice" style="width:100%"></select></div>
-        <div><label class="lbl">Rate <span id="ratev" style="color:var(--cyan)">1.0</span></label><input type="range" class="slider" id="rate" min="0.5" max="2" step="0.1" value="1"></div>
+        <div><label class="lbl" for="voice">Voice</label><select class="inp" id="voice" style="width:100%"></select></div>
+        <div><label class="lbl" for="rate">Rate <span id="ratev" style="color:var(--cyan)">1.0×</span></label><input type="range" class="slider" id="rate" min="0.5" max="2" step="0.1" value="1" aria-describedby="ratev"></div>
       </div>
-      <div class="mt"><label class="lbl">Pitch <span id="pitchv" style="color:var(--cyan)">1.0</span></label><input type="range" class="slider" id="pitch" min="0.5" max="2" step="0.1" value="1"></div>
-      <div class="row mt"><button class="btn primary" id="speak">${IC.play} Speak</button><button class="btn ghost" id="stop">${IC.pause} Stop</button><div class="spacer"></div><span class="chip" id="status">Ready</span></div>
-      <p class="dim mt" style="font-size:12px">Note: Export records live speech via MediaRecorder + Audio capture. Keep volume up. Offline voices vary by browser/OS.</p>
+      <div class="mt"><label class="lbl" for="pitch">Pitch <span id="pitchv" style="color:var(--cyan)">1.0</span></label><input type="range" class="slider" id="pitch" min="0.5" max="2" step="0.1" value="1" aria-describedby="pitchv"></div>
+      <div class="row mt"><button class="btn primary" id="speak">${IC.play} Speak</button><button class="btn ghost" id="stop">${IC.pause} Stop</button><div class="spacer"></div><span class="chip" id="status" role="status" aria-live="polite">Ready</span></div>
+      <p class="dim mt" style="font-size:12px">This is a preview tool: it speaks, it does not record. Voices come from your browser or operating system, and their availability varies — offline voices work without a connection, others may be provided by a speech service over the network.</p>
     </div>`);
+
+  /* Every reference below is guarded: speechSynthesis outlives the page, so a
+     'voiceschanged' event that lands after you navigate away must not touch the
+     old DOM (it used to throw "Cannot set properties of null"). */
+  const el = id => { const n=document.getElementById(id); return (n && document.body.contains(n)) ? n : null; };
+  let alive = true;
+
   function loadVoices(){
-    const sel=$('#voice'); const vs=voices();
-    sel.innerHTML=vs.map((v,i)=>`<option value="${i}">${esc(v.name)} (${v.lang})${v.default?' — default':''}</option>`).join('') || '<option>Loading...</option>';
+    if(!alive) return;
+    const sel=el('voice'); if(!sel) return;
+    const vs=voices();
+    sel.innerHTML=vs.map((v,i)=>`<option value="${i}">${esc(v.name)} (${esc(v.lang)})${v.default?' — default':''}</option>`).join('') || '<option value="">Loading…</option>';
     if(vs.length) S.voice=vs[0];
   }
   loadVoices();
   if(!ttsOK){
-    $('#status').textContent='Not supported in this browser';
-    $('#voice').innerHTML='<option>Use Chrome or Edge for system voices</option>';
-    $('#speak').disabled=true; $('#stop').disabled=true;
+    const s0=el('status'); if(s0) s0.textContent='Not supported in this browser';
+    const v0=el('voice'); if(v0) v0.innerHTML='<option>Use Chrome or Edge for system voices</option>';
+    const b1=el('speak'), b2=el('stop'); if(b1) b1.disabled=true; if(b2) b2.disabled=true;
     toast('This browser has no speech-synthesis engine — try Chrome or Edge');
-  } else window.speechSynthesis.onvoiceschanged=loadVoices;
-  $('#voice').onchange=e=>{ const vs=voices(); S.voice=vs[+e.target.value]||null; };
-  $('#rate').oninput=e=>{ S.rate=+e.target.value; $('#ratev').textContent=S.rate.toFixed(1); };
-  $('#pitch').oninput=e=>{ S.pitch=+e.target.value; $('#pitchv').textContent=S.pitch.toFixed(1); };
-  $('#speak').onclick=()=>{
+  } else {
+    /* a named handler, so it can be removed again — assigning onvoiceschanged
+       left the callback pointing at the previous page's nodes */
+    window.speechSynthesis.addEventListener &&
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+  }
+  const voiceSel=el('voice');
+  if(voiceSel) voiceSel.onchange=e=>{ const vs=voices(); S.voice=vs[+e.target.value]||null; };
+  const rateIn=el('rate');
+  if(rateIn) rateIn.oninput=e=>{ S.rate=+e.target.value; const t=el('ratev'); if(t) t.textContent=S.rate.toFixed(1)+'×'; };
+  const pitchIn=el('pitch');
+  if(pitchIn) pitchIn.oninput=e=>{ S.pitch=+e.target.value; const t=el('pitchv'); if(t) t.textContent=S.pitch.toFixed(1); };
+
+  const speakBtn=el('speak');
+  if(speakBtn) speakBtn.onclick=()=>{
     if(!ttsOK) return;
-    const txt=$('#txt').value.trim()||S.text;
+    const ta=el('txt'); const txt=(ta && ta.value.trim())||S.text;
     if(!txt) return;
-    window.speechSynthesis.cancel();
+    try{ window.speechSynthesis.cancel(); }catch(e){}
     const u=new window.SpeechSynthesisUtterance(txt);
     if(S.voice) u.voice=S.voice;
     u.rate=S.rate; u.pitch=S.pitch;
-    u.onstart=()=>$('#status').textContent='Speaking...';
-    u.onend=()=>$('#status').textContent='Done';
+    u.onstart=()=>{ const s1=el('status'); if(s1) s1.textContent='Speaking…'; };
+    u.onend=()=>{ const s1=el('status'); if(s1) s1.textContent='Done'; };
     window.speechSynthesis.speak(u);
-    toast('Speaking...');
+    toast('Speaking…');
   };
-  $('#stop').onclick=()=>{ if(!ttsOK) return; window.speechSynthesis.cancel(); $('#status').textContent='Stopped'; };
+  const stopBtn=el('stop');
+  if(stopBtn) stopBtn.onclick=()=>{ if(!ttsOK) return; try{window.speechSynthesis.cancel();}catch(e){} const s1=el('status'); if(s1) s1.textContent='Stopped'; };
+
+  /* leaving the route: detach the listener, stop the voice, drop the reference */
+  window.__pageStop=()=>{
+    alive=false;
+    try{ window.speechSynthesis.removeEventListener &&
+      window.speechSynthesis.removeEventListener('voiceschanged', loadVoices); }catch(e){}
+    try{ if(ttsOK && window.speechSynthesis.speaking) window.speechSynthesis.cancel(); }catch(e){}
+  };
 }
 
 /* ================= SPEECH TO TEXT ================= */
 function renderStt(){
-  page.innerHTML=toolPage('Speech to Text','Mic or file → live transcript (Web Speech API) → copy / download TXT. 100% in-browser where supported.',
+  /* Three corrections from the audit, all content/behaviour mismatches:
+     - it said "Mic or file", but there has never been a file-upload path;
+     - it hard-coded en-US, which is wrong for a site positioned for India;
+     - leaving the page left the recognition session running. */
+  page.innerHTML=toolPage('Speech to Text','Live microphone transcription with the browser’s speech engine → copy or download TXT. A file is not transcribed: play it near the mic only if you must.',
    `<div class="panel">
-      <div class="row"><button class="btn primary" id="start">${IC.mic} Start Listening</button><button class="btn ghost" id="stop">${IC.pause} Stop</button><div class="spacer"></div><span class="chip" id="status">Idle</span></div>
-      <label class="lbl" style="margin-top:14px">Transcript</label><textarea class="inp" id="out" style="width:100%;min-height:160px;resize:vertical" placeholder="Transcript will appear here..."></textarea>
+      <div class="row"><button class="btn primary" id="start">${IC.mic} Start Listening</button><button class="btn ghost" id="stop">${IC.pause} Stop</button><div class="spacer"></div><span class="chip" id="status" role="status" aria-live="polite">Idle</span></div>
+      <div class="mt"><label class="lbl" for="sttLang">Spoken language</label>
+        <select class="inp" id="sttLang" style="width:100%">
+          <option value="en-IN" selected>English (India)</option>
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+          <option value="hi-IN">हिंदी (भारत)</option>
+          <option value="bn-IN">বাংলা (ভারত)</option>
+          <option value="ta-IN">தமிழ் (இந்தியா)</option>
+          <option value="te-IN">తెలుగు (భారతదేశం)</option>
+          <option value="mr-IN">मराठी (भारत)</option>
+          <option value="gu-IN">ગુજરાતી (ભારત)</option>
+          <option value="pa-IN">ਪੰਜਾਬੀ (ਭਾਰਤ)</option>
+        </select>
+        <p class="dim mt" style="font-size:11.5px">Not every browser has every language. If yours does not, the engine reports an error and you can switch.</p>
+      </div>
+      <label class="lbl" for="out" style="margin-top:14px">Transcript</label><textarea class="inp" id="out" style="width:100%;min-height:160px;resize:vertical" placeholder="Transcript will appear here..."></textarea>
       <div class="row mt"><button class="btn ghost" id="copy">${IC.copy} Copy</button><button class="btn ghost" id="clear">${IC.trash} Clear</button><button class="btn primary" id="dl">${IC.download} Download TXT</button></div>
-      <p class="dim mt" style="font-size:12px">Uses <b>webkitSpeechRecognition</b> (Chrome/Edge). If not supported, shows message. For files, play audio near mic or use Screen Recorder audio.</p>
+      <p class="dim mt" style="font-size:12px">Uses <b>webkitSpeechRecognition</b> (Chrome/Edge). <b>Privacy:</b> most browsers send the microphone audio to their own speech service to transcribe it — this page cannot inspect or prevent that. Only use this with audio you are comfortable sending to your browser vendor.</p>
     </div>`);
-  let rec=null, finalTxt="";
+
+  const el = id => { const n=document.getElementById(id); return (n && document.body.contains(n)) ? n : null; };
+  let rec=null, finalTxt="", alive=true;
   function isSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
-  $('#start').onclick=()=>{
+
+  /* tear the session down completely — used by Stop and by leaving the route */
+  function teardown(){
+    if(!rec) return;
+    const r=rec; rec=null;
+    try{ r.onresult=null; r.onerror=null; r.onend=null; r.onstart=null; }catch(e){}
+    try{ r.abort(); }catch(e){ try{ r.stop(); }catch(e2){} }
+  }
+
+  const startBtn=el('start');
+  if(startBtn) startBtn.onclick=()=>{
     if(!isSupported()) return toast('Speech Recognition not supported in this browser — try Chrome desktop');
+    if(rec) return toast('Already listening — press Stop first');
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.lang='en-US';
-    rec.onstart=()=>$('#status').textContent='Listening... speak now';
+    const langSel=el('sttLang');
+    rec=new SR(); rec.continuous=true; rec.interimResults=true;
+    rec.lang=(langSel && langSel.value)||'en-IN';
+    rec.onstart=()=>{ const s1=el('status'); if(s1) s1.textContent='Listening… speak now'; if(startBtn) startBtn.disabled=true; };
     rec.onresult=e=>{
+      if(!alive) return;
       let interim="";
       for(let i=e.resultIndex;i<e.results.length;i++){
         const tr=e.results[i][0].transcript;
         if(e.results[i].isFinal) finalTxt+=tr+" ";
         else interim+=tr;
       }
-      $('#out').value=finalTxt+interim;
+      const o=el('out'); if(o) o.value=finalTxt+interim;
     };
-    rec.onerror=e=>{ $('#status').textContent='Error: '+(e.error||'unknown'); };
-    rec.onend=()=>$('#status').textContent='Stopped';
-    finalTxt=$('#out').value;
-    rec.start();
+    rec.onerror=e=>{
+      /* 'not-allowed' / 'service-not-allowed' / 'language-not-supported' all land here */
+      const s1=el('status'); if(s1) s1.textContent='Error: '+(e.error||'unknown')+(e.error==='language-not-supported'?' — try another language':'');
+    };
+    rec.onend=()=>{
+      const s1=el('status'); if(s1) s1.textContent='Stopped';
+      const b=el('start'); if(b) b.disabled=false;
+      rec=null;
+    };
+    const o=el('out'); finalTxt=(o && o.value)||"";
+    try{ rec.start(); }catch(e){ toast('Could not start the microphone'); rec=null; }
   };
-  $('#stop').onclick=()=>{ if(rec){ try{rec.stop();}catch(e){} } };
-  $('#copy').onclick=()=>{ const v=$('#out').value; if(!v) return; copyText(v).then(ok=>toast(ok?'Copied':'Copy failed')); };
-  $('#clear').onclick=()=>{ finalTxt=""; $('#out').value=""; };
-  $('#dl').onclick=()=>{ const v=$('#out').value.trim(); if(!v) return toast('Nothing to download'); const blob=new Blob([v],{type:'text/plain'}); downloadBlob(blob,'transcript.txt'); toast('TXT saved'); };
+  const stopBtn=el('stop');
+  if(stopBtn) stopBtn.onclick=()=>{ teardown(); const s1=el('status'); if(s1) s1.textContent='Stopped'; const b=el('start'); if(b) b.disabled=false; };
+  const copyBtn=el('copy');
+  if(copyBtn) copyBtn.onclick=()=>{ const o=el('out'); const v=o&&o.value; if(!v) return; copyText(v).then(ok=>toast(ok?'Copied':'Copy failed')); };
+  const clearBtn=el('clear');
+  if(clearBtn) clearBtn.onclick=()=>{ finalTxt=""; const o=el('out'); if(o) o.value=""; };
+  const dlBtn=el('dl');
+  if(dlBtn) dlBtn.onclick=()=>{ const o=el('out'); const v=o&&o.value.trim(); if(!v) return toast('Nothing to download'); const blob=new Blob([v],{type:'text/plain'}); downloadBlob(blob,'transcript.txt'); toast('TXT saved'); };
+
+  /* leaving the route must abort the microphone, not leave it hot */
+  window.__pageStop=()=>{ alive=false; teardown(); };
 }
 
 /* ================= VISUALIZER PRO ================= */
@@ -7588,7 +7695,8 @@ function renderVsubs(){
    `<div class="panel">${dropHtml('Tap to choose video','mp4/webm','dzv')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
-      <div class="row mt"><button class="btn ghost small" id="addCue">${IC.plus} Add Cue</button><label class="btn ghost small" for="srtIn">${IC.file} Import SRT</label><input type="file" id="srtIn" accept=".srt,.vtt" style="display:none"></div>
+      <div class="row mt"><button class="btn ghost small" id="addCue">${IC.plus} Add Cue</button><label class="btn ghost small" for="srtIn">${IC.file} Import SRT</label><input type="file" id="srtIn" accept=".srt,.vtt" style="display:none"><input type="file" id="srtTr" accept=".srt,.vtt" style="display:none"><button class="btn ghost small" id="srtTrBtn">🌐 Translate a .srt</button></div>
+      <p class="dim mt" style="font-size:11.5px" id="srtTrNote"></p>
       <div class="mt" id="cues"></div>
       <div class="row mt"><label class="lbl">Style:</label><span class="chip on" data-pos="bottom">Bottom</span><span class="chip" data-pos="top">Top</span><span class="chip" data-pos="center">Center</span></div>
       <div class="row mt"><button class="btn primary" id="exp">${IC.download} Export with Subtitles</button></div>
@@ -7611,6 +7719,32 @@ function renderVsubs(){
   }
   attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
   $('#addCue').onclick=()=>{ S.cues.push({start: S.cues.length*2, end: S.cues.length*2+2, text:'New subtitle'}); drawCues(); };
+  /* ---- translate a subtitle file online, then load the result locally ----
+     Timings are never touched: only the cue text is sent for translation, so a
+     translated file still lines up with the original audio. */
+  const srtTrBtn=$('#srtTrBtn'), srtTrIn=$('#srtTr');
+  if(srtTrBtn&&srtTrIn){
+    srtTrBtn.onclick=()=>srtTrIn.click();
+    srtTrIn.onchange=async()=>{
+      const file=srtTrIn.files[0]; if(!file) return;
+      if(!window.OBMedia||!window.OBNet){ $('#srtTrNote').textContent='Online tools are not loaded — import the .srt and edit it by hand.'; return; }
+      const to=prompt('Translate into which language code?','hi');
+      if(!to) return;
+      const src=await file.text();
+      const from=/[\u0900-\u097F]/.test(src)?'hi':'en';
+      srtTrBtn.disabled=true;
+      $('#srtTrNote').textContent='Translating… sends cue text to api.mymemory.translated.net';
+      try{
+        const srt=await window.OBMedia.translateSrt(src,from,to,p=>{ $('#srtTrNote').textContent='Translating… '+Math.round(p*100)+'%'; });
+        S.cues=window.OBMedia.parseSrt(srt).map(c=>({start:toSec(c.start),end:toSec(c.end),text:c.text}));
+        drawCues();
+        $('#srtTrNote').textContent='Translated '+S.cues.length+' cues into '+to+' — timings kept from the original file.';
+        toast('Subtitles translated');
+      }catch(e){ $('#srtTrNote').textContent=e.message||'Translation failed'; }
+      finally{ srtTrBtn.disabled=false; srtTrIn.value=''; }
+    };
+  }
+  const toSec=hms=>{ const m=String(hms).match(/(\d+):(\d+):(\d+)[,.](\d+)/); return m?(+m[1]*3600+ +m[2]*60+ +m[3]+ +m[4]/1000):0; };
   $('#srtIn').onchange=async (e)=>{
     const file=e.target.files[0]; if(!file) return;
     const txt=await file.text();
@@ -8627,6 +8761,12 @@ function renderTimelinePro(){
             <div class="drop" id="tlDropMedia" style="padding:16px;text-align:center;border:1.5px dashed rgba(99,102,241,.35);border-radius:12px;background:rgba(99,102,241,.06);cursor:pointer">
               <div style="font-size:22px">📁</div><div style="font-weight:700;font-size:12px;margin-top:6px">Import Media</div><div style="font-size:10px;color:var(--muted)">Video • Photo • Audio — tap or drag</div>
             </div>
+            <button id="tlStockBtn" type="button" style="width:100%;margin-top:8px;padding:9px;border-radius:11px;border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);color:#a5f3fc;font:600 11.5px system-ui;cursor:pointer">🌐 Stock photos (online)</button>
+            <div id="tlStockPanel" hidden style="margin-top:8px;padding:9px;border:1px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(0,0,0,.25)">
+              <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:6px">Sends your query to <b style="color:#67e8f9">commons.wikimedia.org</b>. Results download straight into your media bin.</div>
+              <div style="display:flex;gap:5px"><input id="tlStockQ" placeholder="mountain sunrise" style="flex:1;min-width:0;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.14);color:inherit;border-radius:8px;padding:6px 8px;font:12px system-ui"><button id="tlStockGo" class="chip" style="font-size:11px">Go</button></div>
+              <div id="tlStockOut" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px"></div>
+            </div>
             <div id="tlMediaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"></div>
             <div style="margin-top:10px;display:grid;gap:6px" id="tlMediaList"></div>
           </div>
@@ -8835,18 +8975,27 @@ function renderTimelinePro(){
   ];
   // Background Removal — Phase 4 (Canvas + BodyPix fallback)
   let _bgModel=null;
+  /* The README promises "no CDN". This used to import TensorFlow and BodyPix
+     from cdn.jsdelivr.net at run time, which quietly broke that promise — and
+     silently made a third-party request the moment someone clicked BG Remove.
+     It now loads the vendored copy from ../vendor/, and if that folder is not
+     present it says so and uses the local chroma-key path instead. Nothing is
+     fetched from a third party either way. */
   async function loadBodyPix(){
     if(_bgModel) return _bgModel;
-    toast('Loading BG model (~15MB)...');
+    if(window.__bgModelUnavailable) return null;
+    toast('Loading BG Removal engine…');
     try{
-      const tf = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/+esm');
-      const bodyPix = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.1/+esm');
+      const tf = await import('../vendor/tfjs/tf.min.js');
+      const bodyPix = await import('../vendor/body-pix/body-pix.min.js');
       _bgModel = await bodyPix.load({architecture:'MobileNetV1', outputStride:16, multiplier:0.75, quantBytes:2});
       toast('BG Removal ready');
       return _bgModel;
     }catch(e){
-      console.warn('BodyPix failed, fallback to chroma', e);
-      toast('Offline mode — chroma key (green) + blur BG');
+      console.warn('BodyPix unavailable, using local chroma key', e);
+      /* remember the failure so a second click does not retry a 15 MB download */
+      window.__bgModelUnavailable = true;
+      toast('Using the built-in chroma key + blur instead of the AI model');
       return null;
     }
   }
@@ -8972,6 +9121,44 @@ function drawAll(){
     drawTracks(); drawMedia(); updatePreview(); updatePlayhead(); drawRuler();
     if (durEl) durEl.textContent = fmt(duration);
   }
+
+  /* ---- online stock photos (optional; the studio works without it) ---- */
+  (function stockPhotos(){
+    const btn=document.getElementById('tlStockBtn'), panel=document.getElementById('tlStockPanel');
+    if(!btn||!panel) return;
+    const q=document.getElementById('tlStockQ'), go=document.getElementById('tlStockGo'), out=document.getElementById('tlStockOut');
+    btn.onclick=()=>{ panel.hidden=!panel.hidden; if(!panel.hidden) q.focus(); };
+    let busy=false;
+    go.onclick=async()=>{
+      const term=q.value.trim();
+      if(!term||busy) return;
+      if(!window.OBNet){ toast('Online tools are not loaded — use Import Media instead'); return; }
+      busy=true; go.disabled=true; out.innerHTML='<div style="font-size:10px;color:var(--muted);grid-column:1/-1">Searching…</div>';
+      try{
+        const hits=await window.OBMedia.searchImages(term,10);
+        out.innerHTML='';
+        if(!hits.length){ out.innerHTML='<div style="font-size:10px;color:var(--muted);grid-column:1/-1">Nothing found.</div>'; return; }
+        hits.forEach(h=>{
+          const img=document.createElement('img');
+          img.src=h.thumb; img.alt=h.title; img.loading='lazy';
+          img.title=h.title+' — '+h.license+'. Click to add.';
+          img.style.cssText='width:100%;height:58px;object-fit:cover;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,.1)';
+          img.onclick=async()=>{
+            img.style.opacity=.4;
+            try{
+              const file=await window.OBMedia.imageAsFile(h);
+              await addMediaFiles([file]);      /* same path as a local import */
+              toast('Added '+file.name);
+            }catch(e){ toast(e.message||'Download failed',true); }
+            finally{ img.style.opacity=1; }
+          };
+          out.appendChild(img);
+        });
+      }catch(e){ out.innerHTML='<div style="font-size:10px;color:#f87171;grid-column:1/-1">'+esc(e.message||'Search failed')+'</div>'; }
+      finally{ busy=false; go.disabled=false; }
+    };
+    q.addEventListener('keydown',e=>{ if(e.key==='Enter') go.click(); });
+  })();
 
   async function addMediaFiles(files){
     for(const f of files){
@@ -10229,6 +10416,23 @@ async function ffClean(names){
 }
 
 /* ---------------- command builders (pure, unit-testable) ---------------- */
+/* Turn "720" + the source aspect into an exact, even width/height for scale=.
+   The short edge gets the preset height (landscape) or the preset width
+   (portrait), so 1080p is 1920x1080 for 16:9 and 1080x1920 for a phone clip —
+   the number in the menu no longer means "width". Never upscales. */
+function resolveTargetSize(shortEdge, srcW, srcH){
+  const box = Number(shortEdge) || 0;
+  if (!box || !srcW || !srcH) return { width: null, height: null };
+  const even = n => Math.max(2, Math.round(n / 2) * 2);
+  const portrait = srcH > srcW;
+  let w, h;
+  if (portrait) { w = box; h = box * srcH / srcW; }
+  else { h = box; w = box * srcW / srcH; }
+  /* never blow a small source up past its own pixels */
+  const scale = Math.min(1, srcW / w, srcH / h);
+  w = even(w * scale); h = even(h * scale);
+  return { width: w, height: h };
+}
 function buildVideoExport(o = {}){
   const args = ['-hide_banner', '-nostdin', '-y', '-i', o.input || 'in.mp4'];
   if (o.start != null || o.end != null) {
@@ -10247,6 +10451,10 @@ function buildVideoExport(o = {}){
   }
   if (o.sharp) filters.push(`unsharp=5:5:${o.sharp}:5:5:0`);
   if (o.width) {
+    /* o.width/o.height is the exact output box. The 720p presets used to pass
+       width:720 with height:undefined -> scale=720:-2, so a 16:9 source came out
+       720x404 instead of 1280x720. Callers now resolve the axis (see
+       resolveTargetSize) and pass both sides; -2 keeps the result even. */
     const h = o.height || -2;
     filters.push(`scale=${o.width}:${h}${o.fit === 'pad' ? ':force_original_aspect_ratio=decrease,pad=' + o.width + ':' + (o.height || o.width) + ':(ow-iw)/2:(oh-ih)/2:black' : ''}`);
     filters.push('setsar=1');
@@ -10750,8 +10958,9 @@ function renderVffcompress(){
         output: out, crf, preset: $('#preset').value,
         encoder: fmt === 'webm' ? 'libvpx-vp9' : 'libx264',
         audioCodec: fmt === 'webm' ? 'libopus' : 'aac',
-        width: size === 'orig' ? null : Number(size),
-        height: size === 'orig' ? null : undefined
+        /* the menu value is the SHORT edge, not the width */
+        ...(size === 'orig' ? { width: null, height: null }
+          : resolveTargetSize(Number(size), (S.info && S.info.w) || pv.videoWidth, (S.info && S.info.h) || pv.videoHeight))
       });
       if (fmt === 'webm') args.splice(args.indexOf('-crf') + 2, 0, '-b:v', '0');
       await ffRun(args, p => setFFProgress(bar, p, 'Encoding… ' + Math.round(p * 100) + '%'));
@@ -10760,7 +10969,14 @@ function renderVffcompress(){
       S.ext = fmt;
       setFFProgress(bar, 1, 'Done');
       $('#rn').textContent = ffOutName(S.file, '-compressed', fmt);
-      $('#rs').textContent = `${fmtSize(S.out.size)} (was ${fmtSize(S.file.size)}) · ${Math.max(0, Math.round((1 - S.out.size / S.file.size) * 100))}% smaller`;
+      /* a re-encode can end up BIGGER (a low-bitrate source, or a tiny clip where
+         container overhead dominates). Reporting "0% smaller" hid that. */
+      const delta = S.out.size - S.file.size;
+      const pct = Math.round(Math.abs(delta) / Math.max(1, S.file.size) * 100);
+      $('#rs').textContent = delta <= 0
+        ? `${fmtSize(S.out.size)} (was ${fmtSize(S.file.size)}) · ${pct}% smaller`
+        : `${fmtSize(S.out.size)} (was ${fmtSize(S.file.size)}) · ${pct}% LARGER — raise CRF or pick a smaller resolution`;
+
       $('#result').hidden = false;
       await ffClean(['in' + (S.file.name.match(/\.[a-z0-9]+$/i) ? S.file.name.match(/\.[a-z0-9]+$/i)[0] : '.mp4')]);
     }catch(e){ setFFProgress(bar, 0, e.message || 'Failed'); toast(e.message || 'Compression failed'); }
@@ -11200,5 +11416,12 @@ route();
 <!-- Optional video pipeline (WebCodecs/frame-accurate seek) is not shipped: every
      call site below falls back to MediaRecorder + canvas capture. -->
 
+<!-- Optional online extras for two specific panels (stock photos in the timeline's
+     media bin, .srt translation in the Subtitle Adder). These files are NOT
+     required: every feature above works with them absent, blocked or offline.
+     They are the only place in this studio that can reach a third-party host, and
+     each panel prints which host it contacts before you press anything. -->
+<script src="../assets/online-core.js?v=1" defer></script>
+<script src="../assets/online-media.js?v=1" defer></script>
 </body>
 </html>

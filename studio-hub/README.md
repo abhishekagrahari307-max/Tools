@@ -11,6 +11,51 @@ One private, offline-first creative suite that runs entirely in the browser tab.
 
 Neither studio uploads a file, opens an account, or loads a script from a CDN.
 
+### The two optional online panels
+
+Two features can reach the internet, and both are behind a button that names the
+host first:
+
+| Where | Feature | Service |
+| ----- | ------- | ------- |
+| Timeline → Media bin | **Stock photos** | `commons.wikimedia.org` |
+| Subtitle Adder | **Translate a .srt** | `api.mymemory.translated.net` |
+
+Everything else — all 111 tools — stays on the device. If those two files fail to
+load, both studios keep working and the buttons simply explain themselves.
+
+## [/online/](online/) — live data, clearly labelled
+
+A separate section for what genuinely needs the network. It states the trade-off
+in the markup, above every control, and each card prints the one host it contacts.
+
+Built against the [public-apis](https://github.com/public-apis/public-apis) catalog,
+filtered to **no-key, CORS-enabled, HTTPS** services only — about 640 of 2,524
+qualify, so the 1,900 keyed APIs are deliberately excluded. No key ever lives in
+this repo.
+
+| Tool | Host | Note |
+| --- | --- | --- |
+| Translate | `api.mymemory.translated.net` | free tier ≈1,000 words/day per visitor |
+| Dictionary | `api.dictionaryapi.dev` | definitions, phonetics |
+| Wikipedia lookup | `*.wikipedia.org` | en + hi |
+| Translate a subtitle file | `api.mymemory.translated.net` | timings are never altered |
+| Free stock images | `commons.wikimedia.org` | licence shown per image |
+| Emoji picker | *bundled* | works offline |
+| Currency rates | `open.er-api.com` | updated daily |
+| Weather + 7-day | `api.open-meteo.com` + `geocoding-api.open-meteo.com` | no key |
+| IP lookup | `ipapi.co` | yours only, not stored |
+| QR code | `api.qrserver.com` | |
+
+[.../online/catalog.html](online/catalog.html) is a **browse-only** copy of all
+2,524 APIs, filterable by no-key / CORS / HTTPS. That page contacts nobody — it
+reads a local JSON file. Services that need a paid key (ElevenLabs, remove.bg,
+AssemblyAI) are listed as such, with a link to the local tool that does the job
+offline instead.
+
+The privacy cost is real and stated: those ten tools see your query and your IP;
+the rest of the site never does.
+
 ## Layout and load behaviour
 
 ```
@@ -21,6 +66,9 @@ pixora/index.html            shell             ~150 KB — paints at once
 pixora/vendor/boot.js        loader            2 KB  — pulls the libraries in order
 pixora/vendor/*.js           libraries         2.2 MB (Fabric, PDF-Lib, PDF.js, JSZip, fontkit, Tesseract, app)
 pixora/engines/              on demand         14 MB (qpdf wasm, Tesseract models, Hindi font) — only fetched when a tool needs them
+online/                      10 KB + 300 KB    live-data tools + the offline API catalog (catalog.json)
+assets/online-core.js        4 KB              i18n (EN/HI) + the network wrapper used by online/
+assets/online-media.js       3 KB              optional studio integrations (stock photos, .srt translation)
 ```
 
 Pixora used to be one 16 MB document; it is now a 134 KB page that shows its tool grid
@@ -47,7 +95,71 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
   time.
 - **WebAssembly** — Pixora's PDF engines (PDF-Lib + qpdf), OCR (Tesseract eng/hin) and DOCX export.
 - **Browser speech APIs** — TTS uses `speechSynthesis`, STT uses `SpeechRecognition`
-  (Chrome/Edge only; the tool explains that on Firefox).
+  (Chrome/Edge only; the tool explains that on Firefox). These are the one part of
+  the studio that is **not** on-device: in Chrome and Edge the engine is
+  cloud-backed, so spoken text and mic audio go to the browser vendor's speech
+  service, not to this site. Both panels say so before you start, and the hub's
+  privacy section repeats it.
+- **What "offline" means here** — there is **no service worker**, so the site does
+  not reopen with the network off. A loaded page keeps working if the connection
+  drops, and heavy engines stay in the HTTP cache, but a reload while offline
+  fails. The hub says this plainly instead of implying installable-app behaviour.
+
+## Audit remediation (Studio-Hub-Audit.md)
+
+The P1 findings from the external audit are fixed and each one is now guarded by a
+test, so it cannot quietly come back:
+
+| # | Finding | Fix |
+|---|---|---|
+| 01 | "no third-party request" over-claimed | hub privacy section names the cloud-backed speech engine as the one exception |
+| 03 | Pixora deep links only worked after "See all" | `openFromHash()` + the single `hashchange` listener moved to init |
+| 04 | TTS promised a WAV export that never existed | card, page copy and the hub's tool index corrected |
+| 05 | `voiceschanged` threw on a null element | guarded lookups + listener registered and removed in `__pageStop` |
+| 06 | speech recognition kept running after leaving the page | `teardown()` nulls the handlers and aborts; the router calls `__pageStop` |
+| 07/08 | Tab escaped the modal, focus was not restored | shared trap: Tab cycles, `role=dialog`/`aria-modal`, Escape closes, focus returns to the opener |
+| 09 | TTS inputs had no accessible names | `for`/`id` pairs and `aria-describedby` on the sliders |
+| 10 | Pixora text at 2.29:1 | all sub-11px grey text darkened to >=4.5:1 (verified by computing the ratio) |
+| 11 | `#edPreset` had no accessible name | `<label for>` added |
+| 12 | "720p" produced 720x404 | `resolveTargetSize()` resolves both axes; 1920x1080 to exactly 1280x720 |
+| 14 | "works offline once loaded" | replaced with an explicit "no service worker" explanation |
+| 15 | PRO button clipped at 390 px | brand may shrink and ellipsis; dedicated <=430px header step |
+| 24/25 | stale counts (98 tools, "22 Pro Video Tools") | manifest, banner and the hub index re-synced; a test asserts 68 + 43 = 111 |
+
+Also added: canonicals, a real 1200x630 `assets/og-image.png`, Open Graph and
+Twitter metadata, JSON-LD, `sitemap.xml`, and a root `robots.txt`.
+
+Still open, by design: audit **#13** (FFmpeg runs on the main thread) is a worker
+rewrite, not a patch -- it is the next piece of work, not a silent fix. The
+boundary is clean (all 31 call sites go through `ffRun`/`ffPut`/`ffGet`/`ffClean`,
+and nothing touches `FF.core` directly), the core is module-based with no
+`importScripts`, and its two DOM touches are guarded behind `ENVIRONMENT_IS_WORKER`
+-- so moving it into a worker is tractable. It is not done here because this
+sandbox cannot execute WebAssembly, and an unverified rewrite of the encode path
+is worse than a known slow one.
+
+## Performance (measured, not estimated)
+
+Pixora used to fetch **eight libraries serially** -- 2.16 MB -- before the tool
+grid was allowed to paint, and because the loader was all-or-nothing a single 404
+blanked the whole studio. `vendor/boot.js` now splits them:
+
+| | before | after |
+|---|---|---|
+| first paint of the tool grid, 50 ms latency | 1029 ms | **547 ms** |
+| same, 150 ms latency (slow mobile) | 2153 ms | **1094 ms** |
+| libraries blocking first paint | 8, in series | **2, in parallel** |
+| one deferred library 404s | grid blank | grid renders, that tool reports it |
+
+Measured with jsdom and a server that adds a fixed per-request delay, so the
+numbers reflect request ordering, not real device rendering. They are a floor:
+on a cold 4G connection the serial chain costs eight round trips before anything
+appears. The six deferred libraries still download in parallel afterwards, so
+total bytes on a full session are unchanged -- the win is time-to-grid.
+
+The advertised counts (111 / 68 / 43) are now derived in the test suite from the
+two tool registries themselves, so page titles, the manifest and the README can
+no longer drift from reality.
 
 ## Interface (2026 pass)
 
