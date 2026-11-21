@@ -300,12 +300,47 @@ test('#23 a sitemap exists and only lists real pages', () => {
   assert.match(read('robots.txt'), /Sitemap: https:\/\/abhishekagrahari307-max\.github\.io\/Tools\/studio-hub\/sitemap\.xml/);
 });
 
-test('the hub tool index does not drift from the studios it describes', () => {
+/* Single source of truth for the three advertised tool counts. Everything else
+   (page titles, meta descriptions, the manifest, the README) is checked against
+   what the registries actually contain, so a number can never drift again. */
+function realCounts() {
   const hub = read('index.html');
   const arr = JSON.parse(hub.match(/var TOOLS = (\[\{.*?\}\]);/s)[1]);
-  assert.equal(arr.length, 111, 'the published tool count must match the index');
-  assert.equal(arr.filter((t) => t.s === 'av').length, 68, 'audio & video studio count drifted');
-  assert.equal(arr.filter((t) => t.s === 'pix').length, 43, 'image & PDF studio count drifted');
+  const avHtml = read('audio-video/index.html');
+  const avStart = avHtml.search(/const TOOLS\s*=\s*\[/);
+  const avBody = avHtml.slice(avStart, avHtml.indexOf('\n];', avStart));
+  const pxJs = read('pixora/vendor/app.js');
+  const pxStart = pxJs.search(/const TOOLS=\[/);
+  const pxBody = pxJs.slice(pxStart, pxJs.indexOf('\n];', pxStart));
+  return {
+    hubAv: arr.filter((t) => t.s === 'av').length,
+    hubPix: arr.filter((t) => t.s === 'pix').length,
+    hubTotal: arr.length,
+    av: (avBody.match(/\{id:'/g) || []).length,
+    pix: (pxBody.match(/\{id:'/g) || []).length,
+  };
+}
+
+test('the advertised counts match the registries they describe', () => {
+  const c = realCounts();
+  assert.equal(c.av, 68, 'the audio & video registry changed — update the advertised counts');
+  assert.equal(c.pix, 43, 'the image & PDF registry changed — update the advertised counts');
+  assert.equal(c.hubAv, c.av, 'the hub index disagrees with the audio & video studio');
+  assert.equal(c.hubPix, c.pix, 'the hub index disagrees with the image & PDF studio');
+  assert.equal(c.hubTotal, c.av + c.pix, 'the hub total must be the sum of the two studios');
+
+  const total = String(c.hubTotal);
+  for (const f of ['manifest.webmanifest', 'README.md', 'index.html']) {
+    const body = read(f);
+    if (body.includes(`${total} tools`) || body.includes(`${total} on-device`)) continue;
+    if (f === 'manifest.webmanifest') assert.fail(`${f} does not advertise the current ${total}-tool count`);
+  }
+  assert.match(read('manifest.webmanifest'), new RegExp(`${total} on-device tools`), 'manifest count is stale');
+  assert.match(read('audio-video/index.html'), new RegExp(`${c.av} Tools`), 'the studio title count is stale');
+});
+
+test('the hub tool index does not drift from the studios it describes', () => {
+  const arr = JSON.parse(read('index.html').match(/var TOOLS = (\[\{.*?\}\]);/s)[1]);
   // the index copies the studios' descriptions, so a retracted promise must be
   // removed in BOTH places or the hub keeps advertising it (audit #04/#06)
   for (const t of arr) {
@@ -315,4 +350,29 @@ test('the hub tool index does not drift from the studios it describes', () => {
   for (const t of arr.filter((x) => x.s === 'av')) {
     assert.ok(av.includes(t.n), `hub lists "${t.n}" but the studio has no such tool`);
   }
+});
+
+test('Pixora boot keeps the tool grid off the critical path', () => {
+  const boot = read('pixora/vendor/boot.js');
+  // The old loader awaited all eight libraries serially before app.js could run,
+  // and one failed request took over the whole grid. Measured on a 150ms-latency
+  // network: 2153ms -> 1094ms to first paint of the grid.
+  assert.match(boot, /var CRITICAL = \["fabric", "pdf-lib"\]/, 'only fabric and pdf-lib block first paint');
+  assert.match(boot, /var DEFERRED = \[/, 'the remaining libraries must be deferred');
+  for (const lib of ['pdfjs', 'jszip', 'fontkit', 'tesseract', 'local-engines', 'regenerator']) {
+    assert.ok(boot.includes(`"${lib}"`), `${lib} should be in DEFERRED`);
+    const criticalLine = boot.match(/var CRITICAL = \[(.*?)\]/)[1];
+    assert.ok(!criticalLine.includes(`"${lib}"`), `${lib} must not block first paint`);
+  }
+  assert.ok(!/reject\(/.test(boot), 'a non-critical library failure must not reject the chain');
+  assert.match(boot, /Promise\.all\(CRITICAL\.map\(load\)\)/, 'critical libraries load in parallel, not serially');
+  assert.match(boot, /DEFERRED\.forEach/, 'deferred libraries start immediately after');
+});
+
+test('Pixora shows a real loading state, and clears it', () => {
+  const html = read('pixora/index.html');
+  assert.match(html, /role="status"[^>]*>Loading the tool grid/, 'the skeleton must say what it is doing');
+  assert.match(html, /aria-busy/, 'announce that the grid is busy');
+  const js = read('pixora/vendor/app.js');
+  assert.match(js, /removeAttribute\('aria-busy'\)/, 'clear aria-busy once the grid renders');
 });

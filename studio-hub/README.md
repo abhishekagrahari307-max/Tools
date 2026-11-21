@@ -130,7 +130,36 @@ Also added: canonicals, a real 1200x630 `assets/og-image.png`, Open Graph and
 Twitter metadata, JSON-LD, `sitemap.xml`, and a root `robots.txt`.
 
 Still open, by design: audit **#13** (FFmpeg runs on the main thread) is a worker
-rewrite, not a patch -- it is the next piece of work, not a silent fix.
+rewrite, not a patch -- it is the next piece of work, not a silent fix. The
+boundary is clean (all 31 call sites go through `ffRun`/`ffPut`/`ffGet`/`ffClean`,
+and nothing touches `FF.core` directly), the core is module-based with no
+`importScripts`, and its two DOM touches are guarded behind `ENVIRONMENT_IS_WORKER`
+-- so moving it into a worker is tractable. It is not done here because this
+sandbox cannot execute WebAssembly, and an unverified rewrite of the encode path
+is worse than a known slow one.
+
+## Performance (measured, not estimated)
+
+Pixora used to fetch **eight libraries serially** -- 2.16 MB -- before the tool
+grid was allowed to paint, and because the loader was all-or-nothing a single 404
+blanked the whole studio. `vendor/boot.js` now splits them:
+
+| | before | after |
+|---|---|---|
+| first paint of the tool grid, 50 ms latency | 1029 ms | **547 ms** |
+| same, 150 ms latency (slow mobile) | 2153 ms | **1094 ms** |
+| libraries blocking first paint | 8, in series | **2, in parallel** |
+| one deferred library 404s | grid blank | grid renders, that tool reports it |
+
+Measured with jsdom and a server that adds a fixed per-request delay, so the
+numbers reflect request ordering, not real device rendering. They are a floor:
+on a cold 4G connection the serial chain costs eight round trips before anything
+appears. The six deferred libraries still download in parallel afterwards, so
+total bytes on a full session are unchanged -- the win is time-to-grid.
+
+The advertised counts (111 / 68 / 43) are now derived in the test suite from the
+two tool registries themselves, so page titles, the manifest and the README can
+no longer drift from reality.
 
 ## Interface (2026 pass)
 
