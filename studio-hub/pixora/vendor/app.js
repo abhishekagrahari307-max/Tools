@@ -8,9 +8,61 @@ const baseName=(name)=>String(name||'pixora').replace(/\.[^.]+$/,'').replace(/[^
 const delay=(n)=>new Promise(r=>setTimeout(r,n));
 function toast(message,isError=false){const t=document.createElement('div');t.className='toast'+(isError?' error':'');t.textContent=message;$('#toastStack').appendChild(t);setTimeout(()=>t.remove(),5200)}
 function download(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),45000);if(window.self!==window.top)toast('Download started. If blocked in preview, open the HTML file in your browser.');else toast('Your download is ready.');}
-function openSmall(title,html){$('#smallModalTitle').textContent=title;$('#smallModalBody').innerHTML=html;$('#smallModal').hidden=false;$('#closeSmallModal').focus()}
-function closeSmall(){$('#smallModal').hidden=true}
-$('#closeSmallModal').addEventListener('click',closeSmall);$('#smallModal').addEventListener('click',e=>{if(e.target.id==='smallModal')closeSmall()});
+/* Focus management for both dialogs.
+   Audit findings: Tab walked out into the page behind the modal, and on close
+   focus stayed on a now-hidden button. Remember the opener, move focus inside,
+   keep Tab inside while open, honour Escape, and restore on close. */
+var _focusReturn=null;
+function _visible(el){
+  if(el.disabled || el.hidden) return false;
+  if(el.closest && el.closest('[hidden]')) return false;
+  var win=el.ownerDocument.defaultView, cs=win&&win.getComputedStyle?win.getComputedStyle(el):null;
+  return !cs || (cs.display!=='none' && cs.visibility!=='hidden');
+}
+function _focusables(root){
+  /* Do NOT filter with offsetParent: a dialog is position:fixed, and in some
+     engines the offsetParent of its descendants is null, which would empty this
+     list and silently disable the trap. */
+  return [].slice.call(root.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'))
+    .filter(_visible);
+}
+function _trapKey(modal,ev){
+  if(ev.key!=='Tab') return;
+  var f=_focusables(modal); if(!f.length) return;
+  var first=f[0], last=f[f.length-1], a=document.activeElement;
+  if(ev.shiftKey && (a===first || !modal.contains(a))){ ev.preventDefault(); last.focus(); }
+  else if(!ev.shiftKey && (a===last || !modal.contains(a))){ ev.preventDefault(); first.focus(); }
+}
+function _openDialog(modal){
+  _focusReturn = document.activeElement;
+  modal.hidden=false;
+  document.body.style.overflow='hidden';
+  if(!modal.getAttribute('role')) modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  /* name the dialog from its visible heading */
+  var h=modal.querySelector('h2,h1,.modal-title-wrap h2');
+  if(h){ if(!h.id) h.id=(modal.id||'dlg')+'-title'; modal.setAttribute('aria-labelledby',h.id); }
+  if(!modal._trap){ modal._trap=function(ev){ _trapKey(modal,ev); }; modal.addEventListener('keydown',modal._trap); }
+}
+function _closeDialog(modal){
+  modal.hidden=true;
+  document.body.style.overflow='';
+  var back=_focusReturn; _focusReturn=null;
+  try{
+    /* the opener may itself be gone (a card filtered away) — then go somewhere real */
+    if(back && document.body.contains(back) && _visible(back)) back.focus();
+    else { var fb=document.querySelector('.top-cta,.nav-item,.tool-card') ; if(fb) fb.focus(); }
+  }catch(e){}
+}
+function openSmall(title,html){$('#smallModalTitle').textContent=title;$('#smallModalBody').innerHTML=html;_openDialog($('#smallModal'));$('#closeSmallModal').focus()}
+function closeSmall(){_closeDialog($('#smallModal'))}
+$('#closeSmallModal').addEventListener('click',closeSmall);
+/* Escape closes the top dialog (audit #07) */
+document.addEventListener('keydown',function(ev){
+  if(ev.key!=='Escape') return;
+  if(!$('#smallModal').hidden){ ev.preventDefault(); closeSmall(); }
+  else if(!$('#toolModal').hidden){ ev.preventDefault(); closeTool(); }
+});$('#smallModal').addEventListener('click',e=>{if(e.target.id==='smallModal')closeSmall()});
 $('#aboutBtn').addEventListener('click',()=>{openSmall('A little about Pixora',`<p>Pixora is an independent creative toolkit inspired by the reference sites, and is not affiliated with Pi7 or PixelLab.</p><p><b>Privacy:</b> built-in tools process files on your device in this page. External links open the original services; those services have their own privacy practices and may use uploads. No analytics or account are included here.</p><p><b>Good to know:</b> native tools are not complete replacements for every original service. English/Hindi OCR, PDF password tools and basic text-only PDF/Word conversion are built in. AI background removal, full-fidelity Office conversions and other advanced features remain external. OCR can make mistakes; searchable OCR PDFs rebuild pages as images. PDF raster compression makes text non-selectable, and visual signatures are not cryptographic digital signatures.</p><p><b>Bundled open-source libraries:</b> Fabric.js, PDF-Lib, PDF.js, JSZip, fontkit, regenerator-runtime, fix-webm-duration, Tesseract.js with English/Hindi models, and qpdf WebAssembly; Noto Sans Devanagari and DM Sans fonts.</p><p>For downloads, open the HTML file in a regular browser if your preview blocks downloads.</p><button id="showLicenses" class="btn btn-outline">View third-party licenses</button>`);$('#showLicenses').onclick=async()=>{openSmall('Third-party licenses','<p>Loading…</p>');try{const txt=await (await fetch('THIRD-PARTY-LICENSES.txt')).text();openSmall('Third-party licenses',`<pre class="license-text">${esc(txt)}</pre>`)}catch(e){openSmall('Third-party licenses','<p>Could not load THIRD-PARTY-LICENSES.txt. Open the file in the project folder.</p>')}}});
 const TOOLS=[
 {id:'editor',name:'Design editor',desc:'Create something beautiful with layers, text and shapes.',icon:'design',cat:'design',tone:'violet',tag:'Creative canvas',keywords:'pixellab text layers template poster'},
@@ -72,8 +124,7 @@ $$('[data-nav]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();na
 $('#menuBtn').addEventListener('click',()=>{$('#sidebar').classList.add('open');$('#sideScrim').classList.add('show')});$('#sideScrim').addEventListener('click',closeSidebar);
 $('#exploreBtn').addEventListener('click',()=>$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'}));
 $$('.tab').forEach(b=>b.addEventListener('click',()=>{changeFilter(b.dataset.filter);setNavActive(['image','pdf','video'].includes(b.dataset.filter)?b.dataset.filter:'home')}));
-function toggleAll(){stateApp.showAll=stateApp.filter==='all'?!stateApp.showAll:true;stateApp.filter='all';renderCards();
-openFromHash();window.addEventListener('hashchange',function(){if(!openFromHash())return});if(!stateApp.showAll)$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'})}
+function toggleAll(){stateApp.showAll=stateApp.filter==='all'?!stateApp.showAll:true;stateApp.filter='all';renderCards();if(!stateApp.showAll)$('#toolsSection').scrollIntoView({behavior:'smooth',block:'start'})}
 $('#toggleAll').addEventListener('click',toggleAll);$('#toggleAllTop').addEventListener('click',toggleAll);
 $('#toolsGrid').addEventListener('click',e=>{const btn=e.target.closest('[data-tool]');if(btn)openTool(btn.dataset.tool)});
 
@@ -160,8 +211,8 @@ function optionsFor(id){
 }
 function formControls(){const fields=toolState?.formFields;if(!toolState?.files?.length)return notice('Choose a PDF to discover its fillable fields.');if(!fields?.length)return notice('No supported fillable fields found in this PDF.',true);return fields.map((f,i)=>{let input='';if(f.type==='text')input=`<input type="text" id="formField${i}" value="${esc(f.value||'')}" maxlength="${f.maxLength||1000}">`;else if(f.type==='check')input=`<label class="check-row"><input type="checkbox" id="formField${i}" ${f.value?'checked':''}> Checked</label>`;else input=select(`formField${i}`, [['','Choose...'],...f.options.map(o=>[o,o])],f.value);return field(esc(f.name),input)}).join('')+`<label class="check-row" style="margin-bottom:16px"><input id="flattenForm" type="checkbox" checked> Flatten all form fields after filling</label>`}
 function renderOptions(){if(!toolState)return;$('#optionsArea').innerHTML=optionsFor(toolState.id);const id=toolState.id;const run=$('#runTool');if(run)run.addEventListener('click',runCurrentTool);if(id==='rotate-image'){for(const [name,fn] of Object.entries({rotateLeft:()=>toolState.angle=(toolState.angle+270)%360,rotateRight:()=>toolState.angle=(toolState.angle+90)%360,flipHorizontal:()=>toolState.flipX=!toolState.flipX,flipVertical:()=>toolState.flipY=!toolState.flipY}))$('#'+name).addEventListener('click',()=>{fn();schedulePreview();});}if(id==='color-picker')$('#copyColor').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#colorHex').textContent);toast('Color copied to clipboard.')}catch{toast('Copy the hex value shown above.')}});if(id==='stamp-pdf')$('#stampInput').addEventListener('change',e=>{toolState.stampFile=e.target.files[0]||null});if(RESIZE_TOOLS.has(id))$('#choosePresets').addEventListener('click',openResizePresets);if($('#cancelAdvanced'))$('#cancelAdvanced').addEventListener('click',()=>toolState?.jobCancel?.());if(id==='slideshow'&&!val('videoFormat')){$('#runTool').disabled=true;updateStatus('Slideshow video is not supported by this browser.')}if(id==='compress-video'){const cancel=$('#cancelVideo');cancel.addEventListener('click',()=>toolState?.videoCancel?.());if(!val('videoFormat')){$('#runTool').disabled=true;updateStatus('Video compression is not supported by this browser.')}}}
-function openTool(id){if(id==='editor'){showEditor();return}const def=TOOLS.find(x=>x.id===id);if(!def)return;toolState={id,def,files:[],images:[],urls:[],pageCount:0,formFields:[],angle:0,flipX:false,flipY:false,hasInk:false,signatureData:'',seq:0,resizeUnit:'px',resizePercent:null,resizeAnchor:'width',videoInfo:null,videoCancel:null,videoRunning:false,stampFile:null,jobCancel:null,ocrText:null,docxText:null};$('#modalTitle').textContent=def.name;$('#modalDescription').textContent=def.desc;$('#modalKicker').textContent=def.cat==='pdf'?'PDF TOOLKIT':def.cat==='image'?'IMAGE TOOLKIT':def.cat==='video'?'VIDEO TOOLKIT':'PIXORA TOOLKIT';$('#modalIcon').className=`modal-icon tone-${def.tone}`;$('#modalIcon').innerHTML=icon(def.icon);$('#toolModal').hidden=false;document.body.style.overflow='hidden';renderOptions();renderWork();$('#closeModal').focus()}
-function closeTool(){if(!toolState)return;if(toolState.jobCancel)toolState.jobCancel();if(VIDEO_INPUT.has(toolState.id))releaseVideoResources(toolState);else if(toolState.videoCancel)toolState.videoCancel();for(const u of toolState.urls)URL.revokeObjectURL(u);toolState.seq++;toolState=null;clearTimeout(previewTimer);$('#toolModal').hidden=true;document.body.style.overflow='';}
+function openTool(id){if(id==='editor'){showEditor();return}const def=TOOLS.find(x=>x.id===id);if(!def)return;toolState={id,def,files:[],images:[],urls:[],pageCount:0,formFields:[],angle:0,flipX:false,flipY:false,hasInk:false,signatureData:'',seq:0,resizeUnit:'px',resizePercent:null,resizeAnchor:'width',videoInfo:null,videoCancel:null,videoRunning:false,stampFile:null,jobCancel:null,ocrText:null,docxText:null};$('#modalTitle').textContent=def.name;$('#modalDescription').textContent=def.desc;$('#modalKicker').textContent=def.cat==='pdf'?'PDF TOOLKIT':def.cat==='image'?'IMAGE TOOLKIT':def.cat==='video'?'VIDEO TOOLKIT':'PIXORA TOOLKIT';$('#modalIcon').className=`modal-icon tone-${def.tone}`;$('#modalIcon').innerHTML=icon(def.icon);_openDialog($('#toolModal'));renderOptions();renderWork();$('#closeModal').focus()}
+function closeTool(){if(!toolState)return;if(toolState.jobCancel)toolState.jobCancel();if(VIDEO_INPUT.has(toolState.id))releaseVideoResources(toolState);else if(toolState.videoCancel)toolState.videoCancel();for(const u of toolState.urls)URL.revokeObjectURL(u);toolState.seq++;toolState=null;clearTimeout(previewTimer);_closeDialog($('#toolModal'));}
 $('#closeModal').addEventListener('click',closeTool);$('#toolModal').addEventListener('click',e=>{if(e.target.id==='toolModal')closeTool()});
 const signatureHtml=()=>`<div class="signature-wrap" style="margin-top:14px"><div class="signature-head"><strong>Draw your signature</strong><button id="clearSignature">Clear</button></div><canvas class="signature-canvas" id="signatureCanvas" width="900" height="300" aria-label="Draw signature here"></canvas><p class="signature-note">Draw here using your mouse, finger or stylus.</p></div>`;
 function renderWork(){
@@ -545,3 +596,9 @@ $('#editorSave').addEventListener('click',()=>{const snap=JSON.parse(editorSnaps
 $('#editorOpen').addEventListener('click',()=>$('#edProjectInput').click());$('#edProjectInput').addEventListener('change',async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;try{if(file.size>35000000)throw new Error('Project file is too large.');const project=JSON.parse(await file.text());if(project.type!=='pixora-project'||!project.canvas||!Array.isArray(project.canvas.objects))throw new Error('Please select a Pixora project JSON file.');checkDimensions(project.width,project.height);const scan=(o)=>{if(!o||typeof o!=='object')return;if(o.src&&typeof o.src==='string'&&!/^data:image\//i.test(o.src))throw new Error('Project images must be embedded; external image URLs are not allowed.');Object.values(o).forEach(scan)};scan(project.canvas);await restoreEditorSnapshot(project,true);$('#edBg').value=/^#[0-9a-f]{6}$/i.test(ed.canvas.backgroundColor)?ed.canvas.backgroundColor:'#ffffff';toast('Project opened.')}catch(err){toast(err.message||'Could not open project.',true)}});
 $('#editorExport').addEventListener('click',()=>{openSmall('Export your design',`<p>Choose a format. Your design is exported at its full canvas size.</p><div class="control-group"><label for="exportFormat">File format</label>${select('exportFormat',[['png','PNG · best for transparency'],['jpg','JPG · smaller file'],['pdf','PDF · one page']])}</div><div class="input-pair" style="margin-top:18px"><button class="btn btn-outline" id="cancelExport">Cancel</button><button class="btn btn-primary" id="confirmExport">${icon('download')} Export design</button></div>`);$('#cancelExport').onclick=closeSmall;$('#confirmExport').onclick=async()=>{const c=ed.canvas,format=val('exportFormat','png'),btn=$('#confirmExport');btn.disabled=true;try{c.discardActiveObject();c.requestRenderAll();const data=c.toDataURL({format:format==='jpg'?'jpeg':'png',quality:.92,multiplier:1,enableRetinaScaling:false});const bytes=dataURLBytes(data);let blob,name;if(format==='pdf'){const doc=await PDFLib.PDFDocument.create(),image=await doc.embedPng(bytes),scale=Math.min(1,14000/Math.max(c.width,c.height)),page=doc.addPage([c.width*scale,c.height*scale]);page.drawImage(image,{x:0,y:0,width:c.width*scale,height:c.height*scale});blob=pdfBlob(await doc.save());name='pixora-design.pdf'}else{blob=new Blob([bytes],{type:format==='jpg'?'image/jpeg':'image/png'});name=`pixora-design.${format}`}closeSmall();download(blob,name);updateEditorUI()}catch(err){btn.disabled=false;toast(err.message||'Could not export the design.',true)}}});
 renderCards();
+/* Deep links (#tool-<id>) must work on a COLD load, not only after someone has
+   clicked "See all". These two lines used to live inside toggleAll(), so the
+   first navigation to /pixora/#tool-merge-pdf silently did nothing and every
+   click of "See all" added another hashchange listener. Registered once, here,
+   after the app has finished initialising. */
+try{ openFromHash(); window.addEventListener('hashchange', function(){ openFromHash(); }); }catch(e){ console.warn('deep link init failed', e); }

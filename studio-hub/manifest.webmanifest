@@ -1,13 +1,18 @@
 {
   "name": "Studio Hub — private audio, video, image & PDF tools",
   "short_name": "Studio Hub",
-  "description": "98 on-device tools for audio, video, images and PDFs. Nothing is uploaded.",
+  "description": "111 on-device tools for audio, video, images and PDFs — plus an optional, clearly-labelled online section. Your files are not uploaded.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#070a1f",
   "theme_color": "#080e28",
   "icons": [
-    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ]
 }

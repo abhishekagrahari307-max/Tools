@@ -95,7 +95,42 @@ Nothing is a stub, but the engines differ, so this is worth knowing before testi
   time.
 - **WebAssembly** — Pixora's PDF engines (PDF-Lib + qpdf), OCR (Tesseract eng/hin) and DOCX export.
 - **Browser speech APIs** — TTS uses `speechSynthesis`, STT uses `SpeechRecognition`
-  (Chrome/Edge only; the tool explains that on Firefox).
+  (Chrome/Edge only; the tool explains that on Firefox). These are the one part of
+  the studio that is **not** on-device: in Chrome and Edge the engine is
+  cloud-backed, so spoken text and mic audio go to the browser vendor's speech
+  service, not to this site. Both panels say so before you start, and the hub's
+  privacy section repeats it.
+- **What "offline" means here** — there is **no service worker**, so the site does
+  not reopen with the network off. A loaded page keeps working if the connection
+  drops, and heavy engines stay in the HTTP cache, but a reload while offline
+  fails. The hub says this plainly instead of implying installable-app behaviour.
+
+## Audit remediation (Studio-Hub-Audit.md)
+
+The P1 findings from the external audit are fixed and each one is now guarded by a
+test, so it cannot quietly come back:
+
+| # | Finding | Fix |
+|---|---|---|
+| 01 | "no third-party request" over-claimed | hub privacy section names the cloud-backed speech engine as the one exception |
+| 03 | Pixora deep links only worked after "See all" | `openFromHash()` + the single `hashchange` listener moved to init |
+| 04 | TTS promised a WAV export that never existed | card, page copy and the hub's tool index corrected |
+| 05 | `voiceschanged` threw on a null element | guarded lookups + listener registered and removed in `__pageStop` |
+| 06 | speech recognition kept running after leaving the page | `teardown()` nulls the handlers and aborts; the router calls `__pageStop` |
+| 07/08 | Tab escaped the modal, focus was not restored | shared trap: Tab cycles, `role=dialog`/`aria-modal`, Escape closes, focus returns to the opener |
+| 09 | TTS inputs had no accessible names | `for`/`id` pairs and `aria-describedby` on the sliders |
+| 10 | Pixora text at 2.29:1 | all sub-11px grey text darkened to >=4.5:1 (verified by computing the ratio) |
+| 11 | `#edPreset` had no accessible name | `<label for>` added |
+| 12 | "720p" produced 720x404 | `resolveTargetSize()` resolves both axes; 1920x1080 to exactly 1280x720 |
+| 14 | "works offline once loaded" | replaced with an explicit "no service worker" explanation |
+| 15 | PRO button clipped at 390 px | brand may shrink and ellipsis; dedicated <=430px header step |
+| 24/25 | stale counts (98 tools, "22 Pro Video Tools") | manifest, banner and the hub index re-synced; a test asserts 68 + 43 = 111 |
+
+Also added: canonicals, a real 1200x630 `assets/og-image.png`, Open Graph and
+Twitter metadata, JSON-LD, `sitemap.xml`, and a root `robots.txt`.
+
+Still open, by design: audit **#13** (FFmpeg runs on the main thread) is a worker
+rewrite, not a patch -- it is the next piece of work, not a silent fix.
 
 ## Interface (2026 pass)
 

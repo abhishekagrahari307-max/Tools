@@ -1,0 +1,8 @@
+# Repo-root robots.txt — this is what a crawler reads for
+# https://abhishekagrahari307-max.github.io/Tools/ , because a robots.txt is only
+# honoured at the host's root path for this project. The studio folder has its own
+# copy for readers; this is the authoritative one.
+User-agent: *
+Allow: /
+
+Sitemap: https://abhishekagrahari307-max.github.io/Tools/studio-hub/sitemap.xml
