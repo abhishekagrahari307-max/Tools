@@ -7588,7 +7588,8 @@ function renderVsubs(){
    `<div class="panel">${dropHtml('Tap to choose video','mp4/webm','dzv')}</div>
     <div class="panel mt" id="work" hidden>
       <div class="av-wrap mt"><video id="pv" controls playsinline style="width:100%;height:100%;background:#000"></video></div>
-      <div class="row mt"><button class="btn ghost small" id="addCue">${IC.plus} Add Cue</button><label class="btn ghost small" for="srtIn">${IC.file} Import SRT</label><input type="file" id="srtIn" accept=".srt,.vtt" style="display:none"></div>
+      <div class="row mt"><button class="btn ghost small" id="addCue">${IC.plus} Add Cue</button><label class="btn ghost small" for="srtIn">${IC.file} Import SRT</label><input type="file" id="srtIn" accept=".srt,.vtt" style="display:none"><input type="file" id="srtTr" accept=".srt,.vtt" style="display:none"><button class="btn ghost small" id="srtTrBtn">🌐 Translate a .srt</button></div>
+      <p class="dim mt" style="font-size:11.5px" id="srtTrNote"></p>
       <div class="mt" id="cues"></div>
       <div class="row mt"><label class="lbl">Style:</label><span class="chip on" data-pos="bottom">Bottom</span><span class="chip" data-pos="top">Top</span><span class="chip" data-pos="center">Center</span></div>
       <div class="row mt"><button class="btn primary" id="exp">${IC.download} Export with Subtitles</button></div>
@@ -7611,6 +7612,32 @@ function renderVsubs(){
   }
   attachDrop($('#dzv'),fs=>load(fs[0]),'video/*');
   $('#addCue').onclick=()=>{ S.cues.push({start: S.cues.length*2, end: S.cues.length*2+2, text:'New subtitle'}); drawCues(); };
+  /* ---- translate a subtitle file online, then load the result locally ----
+     Timings are never touched: only the cue text is sent for translation, so a
+     translated file still lines up with the original audio. */
+  const srtTrBtn=$('#srtTrBtn'), srtTrIn=$('#srtTr');
+  if(srtTrBtn&&srtTrIn){
+    srtTrBtn.onclick=()=>srtTrIn.click();
+    srtTrIn.onchange=async()=>{
+      const file=srtTrIn.files[0]; if(!file) return;
+      if(!window.OBMedia||!window.OBNet){ $('#srtTrNote').textContent='Online tools are not loaded — import the .srt and edit it by hand.'; return; }
+      const to=prompt('Translate into which language code?','hi');
+      if(!to) return;
+      const src=await file.text();
+      const from=/[\u0900-\u097F]/.test(src)?'hi':'en';
+      srtTrBtn.disabled=true;
+      $('#srtTrNote').textContent='Translating… sends cue text to api.mymemory.translated.net';
+      try{
+        const srt=await window.OBMedia.translateSrt(src,from,to,p=>{ $('#srtTrNote').textContent='Translating… '+Math.round(p*100)+'%'; });
+        S.cues=window.OBMedia.parseSrt(srt).map(c=>({start:toSec(c.start),end:toSec(c.end),text:c.text}));
+        drawCues();
+        $('#srtTrNote').textContent='Translated '+S.cues.length+' cues into '+to+' — timings kept from the original file.';
+        toast('Subtitles translated');
+      }catch(e){ $('#srtTrNote').textContent=e.message||'Translation failed'; }
+      finally{ srtTrBtn.disabled=false; srtTrIn.value=''; }
+    };
+  }
+  const toSec=hms=>{ const m=String(hms).match(/(\d+):(\d+):(\d+)[,.](\d+)/); return m?(+m[1]*3600+ +m[2]*60+ +m[3]+ +m[4]/1000):0; };
   $('#srtIn').onchange=async (e)=>{
     const file=e.target.files[0]; if(!file) return;
     const txt=await file.text();
@@ -8627,6 +8654,12 @@ function renderTimelinePro(){
             <div class="drop" id="tlDropMedia" style="padding:16px;text-align:center;border:1.5px dashed rgba(99,102,241,.35);border-radius:12px;background:rgba(99,102,241,.06);cursor:pointer">
               <div style="font-size:22px">📁</div><div style="font-weight:700;font-size:12px;margin-top:6px">Import Media</div><div style="font-size:10px;color:var(--muted)">Video • Photo • Audio — tap or drag</div>
             </div>
+            <button id="tlStockBtn" type="button" style="width:100%;margin-top:8px;padding:9px;border-radius:11px;border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.08);color:#a5f3fc;font:600 11.5px system-ui;cursor:pointer">🌐 Stock photos (online)</button>
+            <div id="tlStockPanel" hidden style="margin-top:8px;padding:9px;border:1px solid rgba(255,255,255,.1);border-radius:11px;background:rgba(0,0,0,.25)">
+              <div style="font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:6px">Sends your query to <b style="color:#67e8f9">commons.wikimedia.org</b>. Results download straight into your media bin.</div>
+              <div style="display:flex;gap:5px"><input id="tlStockQ" placeholder="mountain sunrise" style="flex:1;min-width:0;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.14);color:inherit;border-radius:8px;padding:6px 8px;font:12px system-ui"><button id="tlStockGo" class="chip" style="font-size:11px">Go</button></div>
+              <div id="tlStockOut" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px"></div>
+            </div>
             <div id="tlMediaGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"></div>
             <div style="margin-top:10px;display:grid;gap:6px" id="tlMediaList"></div>
           </div>
@@ -8835,18 +8868,27 @@ function renderTimelinePro(){
   ];
   // Background Removal — Phase 4 (Canvas + BodyPix fallback)
   let _bgModel=null;
+  /* The README promises "no CDN". This used to import TensorFlow and BodyPix
+     from cdn.jsdelivr.net at run time, which quietly broke that promise — and
+     silently made a third-party request the moment someone clicked BG Remove.
+     It now loads the vendored copy from ../vendor/, and if that folder is not
+     present it says so and uses the local chroma-key path instead. Nothing is
+     fetched from a third party either way. */
   async function loadBodyPix(){
     if(_bgModel) return _bgModel;
-    toast('Loading BG model (~15MB)...');
+    if(window.__bgModelUnavailable) return null;
+    toast('Loading BG Removal engine…');
     try{
-      const tf = await import('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/+esm');
-      const bodyPix = await import('https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.1/+esm');
+      const tf = await import('../vendor/tfjs/tf.min.js');
+      const bodyPix = await import('../vendor/body-pix/body-pix.min.js');
       _bgModel = await bodyPix.load({architecture:'MobileNetV1', outputStride:16, multiplier:0.75, quantBytes:2});
       toast('BG Removal ready');
       return _bgModel;
     }catch(e){
-      console.warn('BodyPix failed, fallback to chroma', e);
-      toast('Offline mode — chroma key (green) + blur BG');
+      console.warn('BodyPix unavailable, using local chroma key', e);
+      /* remember the failure so a second click does not retry a 15 MB download */
+      window.__bgModelUnavailable = true;
+      toast('Using the built-in chroma key + blur instead of the AI model');
       return null;
     }
   }
@@ -8972,6 +9014,44 @@ function drawAll(){
     drawTracks(); drawMedia(); updatePreview(); updatePlayhead(); drawRuler();
     if (durEl) durEl.textContent = fmt(duration);
   }
+
+  /* ---- online stock photos (optional; the studio works without it) ---- */
+  (function stockPhotos(){
+    const btn=document.getElementById('tlStockBtn'), panel=document.getElementById('tlStockPanel');
+    if(!btn||!panel) return;
+    const q=document.getElementById('tlStockQ'), go=document.getElementById('tlStockGo'), out=document.getElementById('tlStockOut');
+    btn.onclick=()=>{ panel.hidden=!panel.hidden; if(!panel.hidden) q.focus(); };
+    let busy=false;
+    go.onclick=async()=>{
+      const term=q.value.trim();
+      if(!term||busy) return;
+      if(!window.OBNet){ toast('Online tools are not loaded — use Import Media instead'); return; }
+      busy=true; go.disabled=true; out.innerHTML='<div style="font-size:10px;color:var(--muted);grid-column:1/-1">Searching…</div>';
+      try{
+        const hits=await window.OBMedia.searchImages(term,10);
+        out.innerHTML='';
+        if(!hits.length){ out.innerHTML='<div style="font-size:10px;color:var(--muted);grid-column:1/-1">Nothing found.</div>'; return; }
+        hits.forEach(h=>{
+          const img=document.createElement('img');
+          img.src=h.thumb; img.alt=h.title; img.loading='lazy';
+          img.title=h.title+' — '+h.license+'. Click to add.';
+          img.style.cssText='width:100%;height:58px;object-fit:cover;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,.1)';
+          img.onclick=async()=>{
+            img.style.opacity=.4;
+            try{
+              const file=await window.OBMedia.imageAsFile(h);
+              await addMediaFiles([file]);      /* same path as a local import */
+              toast('Added '+file.name);
+            }catch(e){ toast(e.message||'Download failed',true); }
+            finally{ img.style.opacity=1; }
+          };
+          out.appendChild(img);
+        });
+      }catch(e){ out.innerHTML='<div style="font-size:10px;color:#f87171;grid-column:1/-1">'+esc(e.message||'Search failed')+'</div>'; }
+      finally{ busy=false; go.disabled=false; }
+    };
+    q.addEventListener('keydown',e=>{ if(e.key==='Enter') go.click(); });
+  })();
 
   async function addMediaFiles(files){
     for(const f of files){
@@ -11200,5 +11280,12 @@ route();
 <!-- Optional video pipeline (WebCodecs/frame-accurate seek) is not shipped: every
      call site below falls back to MediaRecorder + canvas capture. -->
 
+<!-- Optional online extras for two specific panels (stock photos in the timeline's
+     media bin, .srt translation in the Subtitle Adder). These files are NOT
+     required: every feature above works with them absent, blocked or offline.
+     They are the only place in this studio that can reach a third-party host, and
+     each panel prints which host it contacts before you press anything. -->
+<script src="../assets/online-core.js?v=1" defer></script>
+<script src="../assets/online-media.js?v=1" defer></script>
 </body>
 </html>

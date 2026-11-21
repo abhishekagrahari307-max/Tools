@@ -11,6 +11,51 @@ One private, offline-first creative suite that runs entirely in the browser tab.
 
 Neither studio uploads a file, opens an account, or loads a script from a CDN.
 
+### The two optional online panels
+
+Two features can reach the internet, and both are behind a button that names the
+host first:
+
+| Where | Feature | Service |
+| ----- | ------- | ------- |
+| Timeline → Media bin | **Stock photos** | `commons.wikimedia.org` |
+| Subtitle Adder | **Translate a .srt** | `api.mymemory.translated.net` |
+
+Everything else — all 111 tools — stays on the device. If those two files fail to
+load, both studios keep working and the buttons simply explain themselves.
+
+## [/online/](online/) — live data, clearly labelled
+
+A separate section for what genuinely needs the network. It states the trade-off
+in the markup, above every control, and each card prints the one host it contacts.
+
+Built against the [public-apis](https://github.com/public-apis/public-apis) catalog,
+filtered to **no-key, CORS-enabled, HTTPS** services only — about 640 of 2,524
+qualify, so the 1,900 keyed APIs are deliberately excluded. No key ever lives in
+this repo.
+
+| Tool | Host | Note |
+| --- | --- | --- |
+| Translate | `api.mymemory.translated.net` | free tier ≈1,000 words/day per visitor |
+| Dictionary | `api.dictionaryapi.dev` | definitions, phonetics |
+| Wikipedia lookup | `*.wikipedia.org` | en + hi |
+| Translate a subtitle file | `api.mymemory.translated.net` | timings are never altered |
+| Free stock images | `commons.wikimedia.org` | licence shown per image |
+| Emoji picker | *bundled* | works offline |
+| Currency rates | `open.er-api.com` | updated daily |
+| Weather + 7-day | `api.open-meteo.com` + `geocoding-api.open-meteo.com` | no key |
+| IP lookup | `ipapi.co` | yours only, not stored |
+| QR code | `api.qrserver.com` | |
+
+[.../online/catalog.html](online/catalog.html) is a **browse-only** copy of all
+2,524 APIs, filterable by no-key / CORS / HTTPS. That page contacts nobody — it
+reads a local JSON file. Services that need a paid key (ElevenLabs, remove.bg,
+AssemblyAI) are listed as such, with a link to the local tool that does the job
+offline instead.
+
+The privacy cost is real and stated: those ten tools see your query and your IP;
+the rest of the site never does.
+
 ## Layout and load behaviour
 
 ```
@@ -21,6 +66,9 @@ pixora/index.html            shell             ~150 KB — paints at once
 pixora/vendor/boot.js        loader            2 KB  — pulls the libraries in order
 pixora/vendor/*.js           libraries         2.2 MB (Fabric, PDF-Lib, PDF.js, JSZip, fontkit, Tesseract, app)
 pixora/engines/              on demand         14 MB (qpdf wasm, Tesseract models, Hindi font) — only fetched when a tool needs them
+online/                      10 KB + 300 KB    live-data tools + the offline API catalog (catalog.json)
+assets/online-core.js        4 KB              i18n (EN/HI) + the network wrapper used by online/
+assets/online-media.js       3 KB              optional studio integrations (stock photos, .srt translation)
 ```
 
 Pixora used to be one 16 MB document; it is now a 134 KB page that shows its tool grid
